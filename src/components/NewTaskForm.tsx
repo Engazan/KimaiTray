@@ -15,6 +15,10 @@ interface NewTaskFormProps {
   onSubmit: (payload: StartTaskPayload) => void;
   onCancel: () => void;
   isSubmitting: boolean;
+  showNote?: boolean;
+  showTags?: boolean;
+  showCustomerSelect?: boolean;
+  showCustomStartTime?: boolean;
 }
 
 const selectCls =
@@ -26,6 +30,10 @@ export default function NewTaskForm({
   onSubmit,
   onCancel,
   isSubmitting,
+  showNote = true,
+  showTags = true,
+  showCustomerSelect = true,
+  showCustomStartTime = true,
 }: NewTaskFormProps) {
   const { t } = useTranslation();
   const [customerId, setCustomerId] = useState<number | null>(null);
@@ -125,20 +133,22 @@ export default function NewTaskForm({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pt-2.5 space-y-2.5">
-        <div>
-          <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-            {t("newTask.customer")}
-          </label>
-          <SearchableSelect
-            options={customers.map((c) => ({ value: c.id, label: c.name }))}
-            value={customerId}
-            onChange={handleCustomerChange}
-            placeholder={t("newTask.allCustomers")}
-            disabled={isSubmitting}
-            allowEmpty
-            emptyLabel={t("newTask.allCustomers")}
-          />
-        </div>
+        {showCustomerSelect && (
+          <div>
+            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {t("newTask.customer")}
+            </label>
+            <SearchableSelect
+              options={customers.map((c) => ({ value: c.id, label: c.name }))}
+              value={customerId}
+              onChange={handleCustomerChange}
+              placeholder={t("newTask.allCustomers")}
+              disabled={isSubmitting}
+              allowEmpty
+              emptyLabel={t("newTask.allCustomers")}
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
@@ -166,52 +176,58 @@ export default function NewTaskForm({
           />
         </div>
 
-        <div>
-          <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-            {t("newTask.description")}
-          </label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            disabled={isSubmitting}
-            placeholder={t("newTask.optionalNote")}
-            className={selectCls}
-          />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-            {t("tags.label")}
-          </label>
-          <TagsInput tags={tags} onChange={setTags} disabled={isSubmitting} />
-        </div>
-
-        <div>
-          <div className="flex items-center gap-1.5 mb-1">
-            <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
-              {t("newTask.startTime")}
+        {showNote && (
+          <div>
+            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {t("newTask.description")}
             </label>
-            <button
-              type="button"
-              onClick={() => setUseCustomTime(!useCustomTime)}
-              className="text-[9px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
-            >
-              {useCustomTime ? t("newTask.useNow") : t("newTask.custom")}
-            </button>
-          </div>
-          {useCustomTime ? (
-            <DateTimePicker
-              value={beginTime}
-              onChange={setBeginTime}
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               disabled={isSubmitting}
+              placeholder={t("newTask.optionalNote")}
+              className={selectCls}
             />
-          ) : (
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              {t("common.now")}
-            </span>
-          )}
-        </div>
+          </div>
+        )}
+
+        {showTags && (
+          <div>
+            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+              {t("tags.label")}
+            </label>
+            <TagsInput tags={tags} onChange={setTags} disabled={isSubmitting} />
+          </div>
+        )}
+
+        {showCustomStartTime && (
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                {t("newTask.startTime")}
+              </label>
+              <button
+                type="button"
+                onClick={() => setUseCustomTime(!useCustomTime)}
+                className="text-[9px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
+              >
+                {useCustomTime ? t("newTask.useNow") : t("newTask.custom")}
+              </button>
+            </div>
+            {useCustomTime ? (
+              <DateTimePicker
+                value={beginTime}
+                onChange={setBeginTime}
+                disabled={isSubmitting}
+              />
+            ) : (
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {t("common.now")}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 px-3 py-2.5 border-t border-gray-100 dark:border-white/[0.06]">

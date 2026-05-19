@@ -181,6 +181,18 @@
     "layoutTimeline": "Хронологія",
     "layoutTimelineDescription": "Огляд дня першим, завдання згорнуті"
   },
+  "featuresSettings": {
+    "title": "Функції",
+    "description": "Увімкніть або вимкніть додаткові поля у формі нового завдання та на картці активного таймера.",
+    "note": "Примітка",
+    "noteDescription": "Поле опису при створенні або редагуванні таймера",
+    "tags": "Теги",
+    "tagsDescription": "Введення тегів при створенні або редагуванні таймера",
+    "customerSelect": "Фільтр клієнтів",
+    "customerSelectDescription": "Вибір клієнта для фільтрації проєктів у формі нового завдання",
+    "customStartTime": "Власний час запуску",
+    "customStartTimeDescription": "Можливість встановити власний час запуску при створенні нового завдання"
+  },
   "aboutSection": {
     "title": "Про застосунок",
     "appName": "KimaiTray",

@@ -181,6 +181,18 @@
     "layoutTimeline": "Zeitachse",
     "layoutTimelineDescription": "Tagesübersicht zuerst, Aufgaben eingeklappt"
   },
+  "featuresSettings": {
+    "title": "Funktionen",
+    "description": "Optionale Felder im Formular für neue Aufgaben und auf der aktiven Timer-Karte ein- oder ausschalten.",
+    "note": "Notiz",
+    "noteDescription": "Beschreibungsfeld beim Erstellen oder Bearbeiten eines Timers",
+    "tags": "Tags",
+    "tagsDescription": "Tag-Eingabe beim Erstellen oder Bearbeiten eines Timers",
+    "customerSelect": "Kundenfilter",
+    "customerSelectDescription": "Kunden-Dropdown zum Filtern von Projekten im Formular für neue Aufgaben",
+    "customStartTime": "Benutzerdefinierte Startzeit",
+    "customStartTimeDescription": "Option zum Festlegen einer benutzerdefinierten Startzeit beim Erstellen einer neuen Aufgabe"
+  },
   "aboutSection": {
     "title": "Über",
     "appName": "KimaiTray",

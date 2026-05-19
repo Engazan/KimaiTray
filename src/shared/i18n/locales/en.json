@@ -181,6 +181,18 @@
     "checkFailed": "Update check failed",
     "updateLabel": "Update to v{{version}}"
   },
+  "featuresSettings": {
+    "title": "Features",
+    "description": "Toggle optional fields in the new task form and active timer card.",
+    "note": "Note",
+    "noteDescription": "Description field when creating or editing a timer",
+    "tags": "Tags",
+    "tagsDescription": "Tag input when creating or editing a timer",
+    "customerSelect": "Customer filter",
+    "customerSelectDescription": "Customer dropdown to filter projects in the new task form",
+    "customStartTime": "Custom start time",
+    "customStartTimeDescription": "Option to set a custom start time when creating a new task"
+  },
   "aboutSection": {
     "title": "About",
     "appName": "KimaiTray",

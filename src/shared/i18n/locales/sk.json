@@ -181,6 +181,18 @@
     "layoutTimeline": "Časová os",
     "layoutTimelineDescription": "Dnešný prehľad prvý, úlohy zbalené"
   },
+  "featuresSettings": {
+    "title": "Funkcie",
+    "description": "Zapnite alebo vypnite voliteľné polia vo formulári novej úlohy a na karte aktívneho časovača.",
+    "note": "Poznámka",
+    "noteDescription": "Pole popisu pri vytváraní alebo úprave časovača",
+    "tags": "Tagy",
+    "tagsDescription": "Vstup tagov pri vytváraní alebo úprave časovača",
+    "customerSelect": "Filter zákazníkov",
+    "customerSelectDescription": "Výber zákazníka na filtrovanie projektov vo formulári novej úlohy",
+    "customStartTime": "Vlastný čas spustenia",
+    "customStartTimeDescription": "Možnosť nastaviť vlastný čas spustenia pri vytváraní novej úlohy"
+  },
   "aboutSection": {
     "title": "O aplikácii",
     "appName": "KimaiTray",

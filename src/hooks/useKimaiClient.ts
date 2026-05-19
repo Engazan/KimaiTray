@@ -27,6 +27,13 @@ interface ShortcutSettings {
 
 type PopupLayout = "classic" | "focus" | "taskbar" | "timeline";
 
+interface FeatureFlags {
+  featureNote: boolean;
+  featureTags: boolean;
+  featureCustomerSelect: boolean;
+  featureCustomStartTime: boolean;
+}
+
 interface UseKimaiClientResult {
   client: KimaiClient | null;
   isConfigured: boolean;
@@ -36,6 +43,7 @@ interface UseKimaiClientResult {
   idleSettings: IdleSettings;
   traySettings: TraySettings;
   shortcutSettings: ShortcutSettings;
+  featureFlags: FeatureFlags;
   autoUpdate: boolean;
   popupLayout: PopupLayout;
   connections: SavedConnection[];
@@ -77,6 +85,12 @@ export function useKimaiClient(): UseKimaiClientResult {
     useState<TraySettings>(defaultTraySettings);
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [popupLayout, setPopupLayout] = useState<PopupLayout>("classic");
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
+    featureNote: true,
+    featureTags: false,
+    featureCustomerSelect: true,
+    featureCustomStartTime: true,
+  });
   const [shortcutSettings, setShortcutSettings] =
     useState<ShortcutSettings>(defaultShortcutSettings);
 
@@ -113,6 +127,12 @@ export function useKimaiClient(): UseKimaiClientResult {
     });
     setAutoUpdate(s.autoUpdate);
     setPopupLayout(s.popupLayout ?? "classic");
+    setFeatureFlags({
+      featureNote: s.featureNote ?? true,
+      featureTags: s.featureTags ?? false,
+      featureCustomerSelect: s.featureCustomerSelect ?? true,
+      featureCustomStartTime: s.featureCustomStartTime ?? true,
+    });
     if (s.kimaiUrl) {
       try {
         const t = await getApiToken(s.kimaiUrl);
@@ -188,6 +208,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     idleSettings,
     traySettings,
     shortcutSettings,
+    featureFlags,
     autoUpdate,
     popupLayout,
     connections,

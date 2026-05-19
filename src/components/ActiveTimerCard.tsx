@@ -20,6 +20,8 @@ interface ActiveTimerCardProps {
   saveError?: string | null;
   compact?: boolean;
   focusMode?: boolean;
+  showNote?: boolean;
+  showTags?: boolean;
 }
 
 function formatElapsed(seconds: number, showSeconds = true): string {
@@ -56,6 +58,8 @@ export default function ActiveTimerCard({
   saveError,
   compact,
   focusMode,
+  showNote = true,
+  showTags = true,
 }: ActiveTimerCardProps) {
   const { t } = useTranslation();
   const [elapsed, setElapsed] = useState(() =>
@@ -249,62 +253,66 @@ export default function ActiveTimerCard({
         </div>
 
         {/* Row 2: Description (editable) */}
-        <div className="pl-4 mb-1.5">
-          {editingDesc ? (
-            <input
-              ref={descRef}
-              type="text"
-              value={descValue}
-              onChange={(e) => setDescValue(e.target.value)}
-              onBlur={saveDesc}
-              onKeyDown={handleDescKey}
-              placeholder={t("timer.addNote")}
-              className="w-full text-[11px] bg-white dark:bg-gray-800 border border-emerald-300 dark:border-emerald-700 rounded px-1.5 py-0.5 text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-            />
-          ) : (
-            <p
-              onClick={startEditDesc}
-              className={`text-[11px] truncate ${
-                onEdit
-                  ? "cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors"
-                  : ""
-              } ${
-                timer.description
-                  ? "text-gray-500 dark:text-gray-400"
-                  : "text-gray-400 dark:text-gray-500 italic"
-              }`}
-            >
-              {timer.description || t("timer.addNote")}
-            </p>
-          )}
-        </div>
+        {showNote && (
+          <div className="pl-4 mb-1.5">
+            {editingDesc ? (
+              <input
+                ref={descRef}
+                type="text"
+                value={descValue}
+                onChange={(e) => setDescValue(e.target.value)}
+                onBlur={saveDesc}
+                onKeyDown={handleDescKey}
+                placeholder={t("timer.addNote")}
+                className="w-full text-[11px] bg-white dark:bg-gray-800 border border-emerald-300 dark:border-emerald-700 rounded px-1.5 py-0.5 text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              />
+            ) : (
+              <p
+                onClick={startEditDesc}
+                className={`text-[11px] truncate ${
+                  onEdit
+                    ? "cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors"
+                    : ""
+                } ${
+                  timer.description
+                    ? "text-gray-500 dark:text-gray-400"
+                    : "text-gray-400 dark:text-gray-500 italic"
+                }`}
+              >
+                {timer.description || t("timer.addNote")}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Row 3: Tags */}
-        <div className="pl-4 mb-1.5">
-          {editingTags ? (
-            <div onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                commitTags();
-              }
-            }}>
-              <TagsInput tags={tagsValue} onChange={saveTags} onCommit={commitTags} />
-            </div>
-          ) : timer.tags.length > 0 ? (
-            <div
-              onClick={startEditTags}
-              className={onEdit ? "cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 py-0.5 transition-colors" : ""}
-            >
-              <TagsList tags={timer.tags} maxVisible={3} />
-            </div>
-          ) : onEdit ? (
-            <p
-              onClick={startEditTags}
-              className="text-[10px] text-gray-400 dark:text-gray-500 italic cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors"
-            >
-              {t("tags.addTags")}
-            </p>
-          ) : null}
-        </div>
+        {showTags && (
+          <div className="pl-4 mb-1.5">
+            {editingTags ? (
+              <div onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  commitTags();
+                }
+              }}>
+                <TagsInput tags={tagsValue} onChange={saveTags} onCommit={commitTags} />
+              </div>
+            ) : timer.tags.length > 0 ? (
+              <div
+                onClick={startEditTags}
+                className={onEdit ? "cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 py-0.5 transition-colors" : ""}
+              >
+                <TagsList tags={timer.tags} maxVisible={3} />
+              </div>
+            ) : onEdit ? (
+              <p
+                onClick={startEditTags}
+                className="text-[10px] text-gray-400 dark:text-gray-500 italic cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors"
+              >
+                {t("tags.addTags")}
+              </p>
+            ) : null}
+          </div>
+        )}
 
         {/* Row 4: Elapsed + start time + stop */}
         <div className="flex items-center justify-between pl-4">

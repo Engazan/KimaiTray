@@ -7,6 +7,7 @@ import { useAppearance } from "../hooks/useAppearance";
 import { useLanguageSync } from "../hooks/useLanguageSync";
 import ConnectionSection from "../settings/ConnectionSection";
 import GeneralSection from "../settings/GeneralSection";
+import FeaturesSection from "../settings/FeaturesSection";
 import TimerSection from "../settings/TimerSection";
 import IdleDetectionSection from "../settings/IdleDetectionSection";
 import AppearanceSection from "../settings/AppearanceSection";
@@ -23,6 +24,11 @@ const NAV_ICONS: Record<SettingsSection, ReactNode> = {
   general: (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+    </svg>
+  ),
+  features: (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 13.5V3.75m0 9.75a1.5 1.5 0 010 3m0-3a1.5 1.5 0 000 3m0 3.75V16.5m12-3V3.75m0 9.75a1.5 1.5 0 010 3m0-3a1.5 1.5 0 000 3m0 3.75V16.5m-6-9V3.75m0 3.75a1.5 1.5 0 010 3m0-3a1.5 1.5 0 000 3m0 9.75V10.5" />
     </svg>
   ),
   timer: (
@@ -60,6 +66,7 @@ const NAV_ICONS: Record<SettingsSection, ReactNode> = {
 const NAV_LABEL_KEYS: Record<SettingsSection, string> = {
   connection: "connection.title",
   general: "general.title",
+  features: "featuresSettings.title",
   timer: "timerSettings.title",
   idle: "idle.title",
   shortcuts: "shortcuts.title",
@@ -71,6 +78,7 @@ const NAV_LABEL_KEYS: Record<SettingsSection, string> = {
 const NAV_ORDER: SettingsSection[] = [
   "connection",
   "general",
+  "features",
   "timer",
   "idle",
   "shortcuts",
@@ -164,6 +172,9 @@ export default function Settings() {
           )}
           {section === "general" && (
             <GeneralSection settings={settings} update={update} />
+          )}
+          {section === "features" && (
+            <FeaturesSection settings={settings} update={update} />
           )}
           {section === "timer" && (
             <TimerSection settings={settings} update={update} />

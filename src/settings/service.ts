@@ -32,6 +32,11 @@ export const defaultSettings: AppSettings = {
   accentStyle: "blue",
   popupLayout: "classic",
 
+  featureNote: true,
+  featureTags: false,
+  featureCustomerSelect: true,
+  featureCustomStartTime: true,
+
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
   shortcutOpenSettings: "",

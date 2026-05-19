@@ -59,6 +59,11 @@ export interface AppSettings {
   accentStyle: "blue" | "green" | "purple" | "orange" | "red";
   popupLayout: "classic" | "focus" | "taskbar" | "timeline";
 
+  featureNote: boolean;
+  featureTags: boolean;
+  featureCustomerSelect: boolean;
+  featureCustomStartTime: boolean;
+
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;
   shortcutOpenSettings: string;
@@ -86,6 +91,7 @@ export interface TodayEntry {
 export type SettingsSection =
   | "connection"
   | "general"
+  | "features"
   | "timer"
   | "idle"
   | "shortcuts"

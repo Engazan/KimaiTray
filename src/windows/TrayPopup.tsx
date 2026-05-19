@@ -62,6 +62,7 @@ export default function TrayPopup() {
     idleSettings,
     traySettings,
     shortcutSettings,
+    featureFlags,
     autoUpdate,
     popupLayout,
     connections,
@@ -401,6 +402,10 @@ export default function TrayPopup() {
           onSubmit={handleNewTaskSubmit}
           onCancel={() => setShowNewTask(false)}
           isSubmitting={isStarting}
+          showNote={featureFlags.featureNote}
+          showTags={featureFlags.featureTags}
+          showCustomerSelect={featureFlags.featureCustomerSelect}
+          showCustomStartTime={featureFlags.featureCustomStartTime}
         />
       ) : (
         <>
@@ -423,6 +428,8 @@ export default function TrayPopup() {
                 saveError={saveError}
                 compact={compactTimer}
                 focusMode={popupLayout === "focus"}
+                showNote={featureFlags.featureNote}
+                showTags={featureFlags.featureTags}
               />
             ) : isPaused && pausedTimer ? (
               <PausedTimerCard
