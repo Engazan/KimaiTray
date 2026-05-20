@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0] - 2026-05-20
+
+### New Features
+
+- **Issue Integration** — optional GitLab/GitHub issue linking when starting timers, with searchable issue picker, per-connection configuration, and action buttons (open in browser, add URL/title to description, copy URL)
+- **GitLab Time Sync** — automatically log spent time to the linked GitLab issue when the Kimai timer stops
+- **Assigned to me filter** — toggle to show only issues assigned to the authenticated user
+- **Issue link in active timer** — when the timer description contains an integration URL, a quick-open button appears next to the description
+
+### Translations
+
+- Added full integration translations for EN, SK, CS, DE, UK
+
 ## [0.3.2] - 2026-05-20
 
 ### New Features
