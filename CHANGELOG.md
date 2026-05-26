@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0] - 2026-05-26
+
+### New Features
+
+- **Favorites** — mark any recent task as a favorite with the star icon for one-click timer start; favorites are persisted locally and shown in a dedicated section above recent tasks across all popup layouts (classic, focus, taskbar, timeline)
+
+### Translations
+
+- Added favorites translations for EN, SK, CS, DE, UK
+
 ## [0.5.2] - 2026-05-21
 
 ### Bug Fixes
