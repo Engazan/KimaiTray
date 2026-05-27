@@ -28,6 +28,7 @@ import { useIdleDetection } from "../hooks/useIdleDetection";
 import { setTrayTooltip, setTrayTitle, setTrayIcon, startTrayTicker, stopTrayTicker, updateTrayMenu, registerShortcuts, setAlwaysOnTop } from "../api/trayApi";
 import { formatAcceleratorForDisplay } from "../settings/Controls";
 import { useAppearance } from "../hooks/useAppearance";
+import { invalidateTimesheets } from "../hooks/invalidateTimesheets";
 import { useLanguageSync } from "../hooks/useLanguageSync";
 import { useUpdater } from "../hooks/useUpdater";
 import { updateTimesheet, stopTimesheet } from "../api/timesheetApi";
@@ -168,9 +169,7 @@ export default function TrayPopup() {
   useEffect(() => {
     const win = getCurrentWindow();
     const unlisten = win.listen("kimai://refresh", () => {
-      qc.invalidateQueries({ queryKey: ["active-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["recent-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["today-timesheets"] });
+      invalidateTimesheets(qc);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, [qc]);

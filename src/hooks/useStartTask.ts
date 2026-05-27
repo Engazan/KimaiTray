@@ -8,6 +8,7 @@ import {
   stopTimesheet,
 } from "../api/timesheetApi";
 import { serializeKimaiTags } from "../api/tagUtils";
+import { invalidateTimesheets } from "./invalidateTimesheets";
 
 export interface StartTaskPayload {
   projectId: number;
@@ -61,16 +62,12 @@ export function useStartTask(
     },
     onSuccess: () => {
       setStartingKey(null);
-      qc.invalidateQueries({ queryKey: ["active-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["recent-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["today-timesheets"] });
+      invalidateTimesheets(qc);
       onTaskStarted?.();
     },
     onError: (err: Error, payload) => {
       setStartingKey(null);
-      qc.invalidateQueries({ queryKey: ["active-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["recent-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["today-timesheets"] });
+      invalidateTimesheets(qc);
 
       if (err instanceof TaskSwitchError && err.stoppedExisting) {
         setSwitchError(

@@ -8,6 +8,7 @@ import type { ActiveTimer } from "../types";
 import { extractId } from "../api/kimaiTypes";
 import { normalizeKimaiTags } from "../api/tagUtils";
 import { useEntityLookup } from "./useEntityLookup";
+import { invalidateTimesheets } from "./invalidateTimesheets";
 
 export type ConnectionStatus =
   | "connected"
@@ -85,9 +86,7 @@ export function useActiveTimer(
   const stopMut = useMutation({
     mutationFn: (id: number) => stopTimesheet(client!, id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["active-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["recent-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["today-timesheets"] });
+      invalidateTimesheets(qc);
     },
   });
 

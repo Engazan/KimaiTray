@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
 import { deleteTimesheet } from "../api/timesheetApi";
+import { invalidateTimesheets } from "./invalidateTimesheets";
 
 export function useDeleteTimesheet(client: KimaiClient | null) {
   const qc = useQueryClient();
@@ -18,9 +19,7 @@ export function useDeleteTimesheet(client: KimaiClient | null) {
     },
     onSuccess: () => {
       setDeletingId(null);
-      qc.invalidateQueries({ queryKey: ["recent-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["today-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["active-timesheets"] });
+      invalidateTimesheets(qc);
     },
     onError: (err: Error) => {
       setDeletingId(null);

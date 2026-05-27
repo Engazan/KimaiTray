@@ -10,6 +10,7 @@ import {
   type PausedTimerData,
 } from "../api/pauseStore";
 import type { ActiveTimer } from "../types";
+import { invalidateTimesheets } from "./invalidateTimesheets";
 
 interface UsePauseTimerResult {
   pausedTimers: PausedTimerData[];
@@ -50,9 +51,7 @@ export function usePauseTimer(
   }, [baseUrl]);
 
   const invalidate = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["active-timesheets"] });
-    qc.invalidateQueries({ queryKey: ["recent-timesheets"] });
-    qc.invalidateQueries({ queryKey: ["today-timesheets"] });
+    invalidateTimesheets(qc);
   }, [qc]);
 
   // Pause the currently active timer → add to paused array

@@ -402,13 +402,12 @@ pub fn toggle_popup_window(app: &AppHandle) {
                 let _ = popup.show();
                 let _ = popup.set_focus();
             } else {
-                let _ = popup.set_position(PhysicalPosition::new(-10000, -10000));
-                let _ = popup.show();
                 if let Some(tray) = app.tray_by_id("main") {
                     if let Ok(Some(rect)) = tray.rect() {
                         let _ = position_popup(&popup, &rect);
                     }
                 }
+                let _ = popup.show();
                 let _ = popup.set_focus();
             }
         }

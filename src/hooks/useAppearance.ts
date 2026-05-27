@@ -14,6 +14,11 @@ const UI_SIZE_SCALE: Record<AppSettings["uiSize"], number> = {
 
 let mediaCleanup: (() => void) | null = null;
 
+let prevSize = "";
+let prevRadius = -1;
+let prevVibrancy = -1;
+let prevDisplayMode = "";
+
 function applyThemeClass(theme: AppSettings["theme"]) {
   if (theme === "dark") {
     document.documentElement.classList.add("dark");
@@ -55,17 +60,32 @@ function apply(s: AppSettings) {
 
   if (!isDetached) {
     const scale = UI_SIZE_SCALE[s.uiSize];
-    setPopupSize(
-      Math.round(POPUP_BASE_WIDTH * scale),
-      Math.round(POPUP_BASE_HEIGHT * scale),
-      scale,
-    );
+    const w = Math.round(POPUP_BASE_WIDTH * scale);
+    const h = Math.round(POPUP_BASE_HEIGHT * scale);
+    const sizeKey = `${w}:${h}:${scale}`;
+    if (sizeKey !== prevSize) {
+      prevSize = sizeKey;
+      setPopupSize(w, h, scale);
+    }
   }
-  setPopupCornerRadius(s.roundedPopupCorners && !isDetached ? 10.0 : 0.0);
+
+  const radius = s.roundedPopupCorners && !isDetached ? 10.0 : 0.0;
+  if (radius !== prevRadius) {
+    prevRadius = radius;
+    setPopupCornerRadius(radius);
+  }
 
   if (document.documentElement.dataset.window === "tray-popup") {
-    setPopupVibrancy(s.theme === "transparent");
-    setDisplayMode(s.displayMode ?? "tray");
+    const vibrancy = s.theme === "transparent" ? 1 : 0;
+    if (vibrancy !== prevVibrancy) {
+      prevVibrancy = vibrancy;
+      setPopupVibrancy(vibrancy === 1);
+    }
+    const dm = s.displayMode ?? "tray";
+    if (dm !== prevDisplayMode) {
+      prevDisplayMode = dm;
+      setDisplayMode(dm);
+    }
   }
 }
 

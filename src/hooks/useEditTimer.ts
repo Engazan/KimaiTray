@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
 import { updateTimesheet } from "../api/timesheetApi";
 import { serializeKimaiTags } from "../api/tagUtils";
+import { invalidateTimesheets } from "./invalidateTimesheets";
 
 interface EditPayload {
   description?: string;
@@ -22,9 +23,7 @@ export function useEditTimer(client: KimaiClient | null) {
       return updateTimesheet(client!, id, apiPayload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["active-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["recent-timesheets"] });
-      qc.invalidateQueries({ queryKey: ["today-timesheets"] });
+      invalidateTimesheets(qc);
     },
   });
 
