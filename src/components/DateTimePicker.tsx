@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 interface DateTimePickerProps {
@@ -9,6 +10,10 @@ interface DateTimePickerProps {
   className?: string;
   compact?: boolean;
 }
+
+const POPUP_WIDTH = 240;
+const POPUP_MARGIN = 8;
+const POPUP_GAP = 4;
 
 function pad(n: number) {
   return n.toString().padStart(2, "0");
@@ -37,7 +42,10 @@ export default function DateTimePicker({
 }: DateTimePickerProps) {
   const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   const parsed = value ? new Date(value) : null;
   const [viewYear, setViewYear] = useState(parsed?.getFullYear() ?? new Date().getFullYear());
@@ -48,14 +56,14 @@ export default function DateTimePicker({
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        onClose?.();
-      }
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || popupRef.current?.contains(target)) return;
+      setOpen(false);
+      onClose?.();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [open, onClose]);
 
   useEffect(() => {
     if (open && parsed) {
@@ -65,6 +73,41 @@ export default function DateTimePicker({
       setMinute(pad(parsed.getMinutes()));
     }
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const popupWidth = Math.min(POPUP_WIDTH, window.innerWidth - POPUP_MARGIN * 2);
+      const popupHeight = popupRef.current?.offsetHeight ?? 320;
+      const maxLeft = window.innerWidth - popupWidth - POPUP_MARGIN;
+      const left = Math.min(Math.max(POPUP_MARGIN, rect.left), maxLeft);
+      const belowTop = rect.bottom + POPUP_GAP;
+      const aboveTop = rect.top - popupHeight - POPUP_GAP;
+      const top = belowTop + popupHeight <= window.innerHeight - POPUP_MARGIN || aboveTop < POPUP_MARGIN
+        ? Math.min(belowTop, window.innerHeight - popupHeight - POPUP_MARGIN)
+        : aboveTop;
+
+      setPopupPos({
+        top: Math.max(POPUP_MARGIN, top),
+        left,
+      });
+    };
+
+    updatePosition();
+    const frame = window.requestAnimationFrame(updatePosition);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, viewMonth, viewYear]);
 
   const locale = i18n.language || "en";
 
@@ -154,6 +197,7 @@ export default function DateTimePicker({
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
@@ -170,8 +214,12 @@ export default function DateTimePicker({
         </svg>
       </button>
 
-      {open && (
-        <div className="absolute z-50 mt-1 left-0 right-0 rounded-xl border border-gray-200 dark:border-white/15 bg-white dark:bg-gray-800 shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden">
+      {open && createPortal((
+        <div
+          ref={popupRef}
+          className="fixed z-[9999] w-[15rem] max-w-[calc(100vw-1rem)] rounded-xl border border-gray-200 dark:border-white/15 bg-white dark:bg-gray-800 shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden"
+          style={{ top: popupPos.top, left: popupPos.left }}
+        >
           {/* Month nav */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-white/10">
             <button
@@ -198,7 +246,7 @@ export default function DateTimePicker({
           </div>
 
           {/* Day headers */}
-          <div className="grid grid-cols-7 px-2 pt-2">
+          <div className="grid grid-cols-7 gap-y-1 px-2 pt-2">
             {dayNames.map((d, i) => (
               <div key={i} className="text-center text-[9px] font-medium text-gray-400 dark:text-gray-500 pb-1">
                 {d}
@@ -207,7 +255,7 @@ export default function DateTimePicker({
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7 px-2 pb-2">
+          <div className="grid grid-cols-7 gap-y-1 px-2 pb-2">
             {Array.from({ length: offset }, (_, i) => (
               <div key={`e-${i}`} />
             ))}
@@ -274,7 +322,7 @@ export default function DateTimePicker({
             </button>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }
