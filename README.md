@@ -1,5 +1,7 @@
 # KimaiTray
 
+![KimaiTray preview](kimai-preview.png)
+
 A system tray companion for [Kimai](https://www.kimai.org/) time tracking. Start, stop, pause and switch timers without leaving your desktop.
 
 Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
