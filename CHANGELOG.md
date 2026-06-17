@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.2] - 2026-06-17
+
+### Improvements
+
+- **Changed the default language to English** — fresh installs without a saved language preference now start in English instead of Slovak
+
+### Documentation
+
+- **Added a download section to the README** — release badges and a prominent link to the [releases page](https://github.com/Engazan/KimaiTray/releases) at the top
+- **Corrected the README** — fixed the CI/CD trigger description (runs on version tags and manual dispatch, not on push/PR) and filled in missing entries in the project structure
+
 ## [0.8.1] - 2026-06-15
 
 ### Bug Fixes
