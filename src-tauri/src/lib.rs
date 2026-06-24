@@ -124,6 +124,10 @@ pub fn run() {
                 "KimaiTray v{} starting",
                 app.config().version.as_deref().unwrap_or("unknown")
             );
+            // Run as a menu bar accessory on macOS: no Dock icon, only the
+            // system tray (menu bar) presence. Windows/Linux are unaffected.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             // Must run before tray/shortcuts read the store.
             migrate_legacy_data(app.handle());
             tray::create_tray(app.handle())?;
