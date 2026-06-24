@@ -198,6 +198,7 @@ export default function IntegrationsSection({ settings, update }: Props) {
               options={[
                 { value: "gitlab", label: t("integrations.gitlab") },
                 { value: "github", label: t("integrations.github") },
+                { value: "gitea", label: t("integrations.gitea") },
               ]}
               disabled={disabled}
             />
@@ -214,7 +215,9 @@ export default function IntegrationsSection({ settings, update }: Props) {
               placeholder={
                 config.provider === "github"
                   ? "https://github.com"
-                  : t("integrations.baseUrlPlaceholder")
+                  : config.provider === "gitea"
+                    ? "https://gitea.com"
+                    : t("integrations.baseUrlPlaceholder")
               }
               disabled={disabled}
             />
@@ -393,7 +396,7 @@ export default function IntegrationsSection({ settings, update }: Props) {
             )}
           </FieldGroup>
 
-          {config.provider === "gitlab" && (
+          {(config.provider === "gitlab" || config.provider === "gitea") && (
             <FieldGroup
               label={t("integrations.syncTime")}
               description={t("integrations.syncTimeDescription")}

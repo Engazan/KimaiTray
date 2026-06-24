@@ -1,4 +1,4 @@
-export type IssueProviderType = "gitlab" | "github";
+export type IssueProviderType = "gitlab" | "github" | "gitea";
 export type IssueState = "opened" | "all";
 export type LabelFilterMode = "include" | "exclude";
 
