@@ -1,6 +1,6 @@
 [package]
 name = "kimaitray"
-version = "0.11.0"
+version = "0.12.0"
 description = "KimaiTray — Kimai time-tracking tray companion"
 authors = ["engazan"]
 edition = "2021"

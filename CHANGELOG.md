@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.12.0] - 2026-06-26
+
+### New Features
+
+- **GitLab time estimates** — issues now show the time already logged against the estimate (e.g. `1h / 5h`), pulled straight from GitLab's time tracking with no extra requests. The badge appears next to each issue in the picker and turns red when the estimate is exceeded
+- **Live time budget on the active timer** — the running timer card shows a live spent/estimate badge (logged time plus the current session) so you can see how much of the estimate is left at a glance; it survives popup reloads and app restarts by restoring the linked issue and refreshing its stats from GitLab
+
+### Improvements
+
+- **"Show time estimate" setting** — toggle the estimate badges per connection in the Integrations settings; enabled by default for GitLab
+
 ## [0.11.0] - 2026-06-24
 
 ### Improvements
