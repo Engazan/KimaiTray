@@ -11,6 +11,32 @@ interface IssuePickerProps {
   disabled?: boolean;
 }
 
+/** Format a duration in seconds to a compact "1h30m" / "5h" / "45m" string. */
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
+  return `${minutes}m`;
+}
+
+/** Render the spent/estimate badge for an issue, or null when there's no estimate. */
+function TimeEstimateBadge({ issue }: { issue: ExternalIssue }) {
+  if (!issue.timeEstimate) return null;
+  const spent = issue.timeSpent ?? 0;
+  const overBudget = spent > issue.timeEstimate;
+  return (
+    <span
+      className={`shrink-0 text-[10px] tabular-nums whitespace-nowrap ${
+        overBudget
+          ? "text-red-500 dark:text-red-400"
+          : "text-gray-400 dark:text-gray-500"
+      }`}
+    >
+      {formatDuration(spent)} / {formatDuration(issue.timeEstimate)}
+    </span>
+  );
+}
+
 export default function IssuePicker({
   config,
   token,
@@ -113,6 +139,9 @@ export default function IssuePicker({
               ? `#${selectedIssue.id} ${selectedIssue.title}`
               : t("integrations.issuePickerPlaceholder")}
           </span>
+          {hasValue && config.showTimeEstimate && (
+            <TimeEstimateBadge issue={selectedIssue} />
+          )}
           <svg
             className={`h-3 w-3 shrink-0 text-gray-400 dark:text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
             fill="none"
@@ -201,7 +230,8 @@ export default function IssuePicker({
                   <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">
                     #{issue.id}
                   </span>
-                  <span className="truncate">{issue.title}</span>
+                  <span className="truncate flex-1 min-w-0">{issue.title}</span>
+                  {config.showTimeEstimate && <TimeEstimateBadge issue={issue} />}
                 </button>
               ))
             )}

@@ -52,6 +52,7 @@ const emptyConfig: IssueIntegrationSettings = {
   assigneeOnly: false,
   syncTime: false,
   autoInsertUrl: false,
+  showTimeEstimate: true,
   filterLabels: [],
   filterLabelsMode: "include",
 };
@@ -760,6 +761,20 @@ export default function IntegrationsSection({ settings, update }: Props) {
                 <Toggle
                   checked={config.syncTime ?? false}
                   onChange={(v) => updateField("syncTime", v)}
+                  disabled={disabled}
+                />
+              </FieldGroup>
+            )}
+
+            {config.provider === "gitlab" && (
+              <FieldGroup
+                label={t("integrations.showTimeEstimate")}
+                description={t("integrations.showTimeEstimateDescription")}
+                horizontal
+              >
+                <Toggle
+                  checked={config.showTimeEstimate ?? config.provider === "gitlab"}
+                  onChange={(v) => updateField("showTimeEstimate", v)}
                   disabled={disabled}
                 />
               </FieldGroup>

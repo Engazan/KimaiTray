@@ -28,7 +28,19 @@ interface ActiveTimerCardProps {
   showTags?: boolean;
   tagSuggestions?: KimaiTag[];
   issueUrl?: string | null;
+  /** Linked issue's time estimate in seconds (GitLab). Undefined hides the badge. */
+  timeEstimate?: number;
+  /** Time already logged on the issue before this session, in seconds. */
+  timeSpent?: number;
   colorMode?: ColorMode;
+}
+
+/** Compact duration formatting: "5h", "1h30m", "45m". */
+function formatBudget(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return m > 0 ? `${h}h${m}m` : `${h}h`;
+  return `${m}m`;
 }
 
 function formatElapsed(seconds: number, showSeconds = true): string {
@@ -69,6 +81,8 @@ export default function ActiveTimerCard({
   showTags = true,
   tagSuggestions = [],
   issueUrl,
+  timeEstimate,
+  timeSpent,
   colorMode = "kimai",
 }: ActiveTimerCardProps) {
   const { t } = useTranslation();
@@ -261,7 +275,7 @@ export default function ActiveTimerCard({
           <span className="text-[10px] text-gray-400 dark:text-gray-500">
             {timer.activity}
           </span>
-          {(multipleActive || isSaving) && (
+          {(multipleActive || isSaving || timeEstimate != null) && (
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
               {multipleActive && (
                 <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
@@ -273,6 +287,25 @@ export default function ActiveTimerCard({
                   {t("common.saving")}
                 </span>
               )}
+              {timeEstimate != null && (() => {
+                const consumed = (timeSpent ?? 0) + elapsed;
+                const over = consumed > timeEstimate;
+                return (
+                  <span
+                    title={t("integrations.timeBudgetTooltip", {
+                      spent: formatBudget(consumed),
+                      estimate: formatBudget(timeEstimate),
+                    })}
+                    className={`rounded px-1.5 py-0.5 text-[9px] font-medium tabular-nums ${
+                      over
+                        ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                        : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                    }`}
+                  >
+                    {formatBudget(consumed)} / {formatBudget(timeEstimate)}
+                  </span>
+                );
+              })()}
             </div>
           )}
         </div>

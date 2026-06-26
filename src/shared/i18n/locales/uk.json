@@ -398,6 +398,9 @@
     "syncTimeDescription": "Записувати витрачений час у пов'язану GitLab або Gitea задачу при зупинці таймера",
     "autoInsertUrl": "Автоматично вставляти URL задачі",
     "autoInsertUrlDescription": "Автоматично додавати URL задачі до опису таймера при виборі задачі",
+    "showTimeEstimate": "Показувати оцінку часу",
+    "showTimeEstimateDescription": "Показувати витрачений / оцінений час із GitLab біля кожної задачі",
+    "timeBudgetTooltip": "Зафіксовано {{spent}} із {{estimate}} оцінених",
     "perConnectionHint": "Ці налаштування стосуються лише поточного активного підключення"
   },
   "testSection": {

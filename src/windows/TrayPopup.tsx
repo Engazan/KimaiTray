@@ -40,6 +40,10 @@ import { logger } from "../utils/logger";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 
+// localStorage key for the linked issue ↔ active timer association, used to
+// restore the time-estimate badge after a popup reload or app restart.
+const LINKED_ISSUE_KEY = "kimai:linkedIssue";
+
 function TrafficLight({ color, hoverColor, onClick, children }: {
   color: string; hoverColor: string; onClick: () => void; children: React.ReactNode;
 }) {
@@ -285,6 +289,9 @@ export default function TrayPopup() {
   }, [idleState]);
 
   const linkedIssueRef = useRef<ExternalIssue | null>(null);
+  // State mirror of the linked issue so the active timer card can show its
+  // time estimate. Set when an issue is linked, cleared when the timer stops.
+  const [linkedIssue, setLinkedIssue] = useState<ExternalIssue | null>(null);
   const prevTimerIdRef = useRef<number | null>(null);
   const prevTimerBeginRef = useRef<number | null>(null);
 
@@ -294,6 +301,9 @@ export default function TrayPopup() {
 
     prevTimerIdRef.current = timer?.id ?? null;
     prevTimerBeginRef.current = timer?.beginSeconds ?? null;
+
+    // Drop the estimate badge once no timer is running.
+    if (timer == null) setLinkedIssue(null);
 
     if (prevId != null && (timer == null || timer.id !== prevId) && linkedIssueRef.current) {
       const issue = linkedIssueRef.current;
@@ -584,7 +594,79 @@ export default function TrayPopup() {
 
   const handleIssueLinked = useCallback((issue: ExternalIssue | null) => {
     linkedIssueRef.current = issue;
+    setLinkedIssue(issue);
   }, []);
+
+  const estimateEnabled =
+    issueIntegration.enabled &&
+    issueIntegration.provider === "gitlab" &&
+    (issueIntegration.showTimeEstimate ?? true);
+
+  // Persist the linked issue ↔ timer association so the estimate survives a
+  // popup reload/remount or app restart, regardless of the auto-insert-URL
+  // setting (we keep the issue's own web URL to refresh its stats later).
+  // We never clear on a null timer: during a reload the timer is momentarily
+  // null before the query resolves, and clearing would wipe the entry we want
+  // to restore. A stale entry is harmless — the restore checks the timer id,
+  // and Kimai never reuses timesheet ids.
+  useEffect(() => {
+    if (!timer || !linkedIssue) return;
+    try {
+      localStorage.setItem(
+        LINKED_ISSUE_KEY,
+        JSON.stringify({ timerId: timer.id, issue: linkedIssue }),
+      );
+    } catch {
+      /* storage unavailable — non-fatal */
+    }
+  }, [timer?.id, linkedIssue]);
+
+  // When the in-memory link is gone (after a reload/restart), restore it for
+  // the running timer from localStorage and/or the issue URL in the
+  // description, then refresh the time stats straight from GitLab.
+  const [fetchedIssue, setFetchedIssue] = useState<ExternalIssue | null>(null);
+
+  useEffect(() => {
+    if (linkedIssue || !estimateEnabled || !timer || !issueToken) {
+      setFetchedIssue(null);
+      return;
+    }
+
+    let storedIssue: ExternalIssue | null = null;
+    try {
+      const raw = localStorage.getItem(LINKED_ISSUE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { timerId?: number; issue?: ExternalIssue };
+        if (parsed?.timerId === timer.id && parsed.issue) storedIssue = parsed.issue;
+      }
+    } catch {
+      /* ignore malformed storage */
+    }
+
+    const url = storedIssue?.webUrl ?? timerIssueUrl;
+    const provider = createIssueProvider(issueIntegration, issueToken);
+    if (!url || !provider.fetchIssueByUrl) {
+      setFetchedIssue(storedIssue);
+      return;
+    }
+
+    let cancelled = false;
+    provider
+      .fetchIssueByUrl(url)
+      .then((issue) => {
+        if (!cancelled) setFetchedIssue(issue ?? storedIssue);
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedIssue(storedIssue);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedIssue, estimateEnabled, timer?.id, timerIssueUrl, issueToken]);
+
+  const estimateIssue = linkedIssue ?? fetchedIssue;
+  const showIssueEstimate = estimateEnabled && estimateIssue?.timeEstimate != null;
 
   const compactTimer = popupLayout === "taskbar" || popupLayout === "timeline";
 
@@ -678,6 +760,8 @@ export default function TrayPopup() {
                   showTags={featureFlags.featureTags}
                   tagSuggestions={tagSuggestions}
                   issueUrl={timerIssueUrl}
+                  timeEstimate={showIssueEstimate ? estimateIssue!.timeEstimate : undefined}
+                  timeSpent={showIssueEstimate ? estimateIssue!.timeSpent : undefined}
                   colorMode={colorMode}
                 />
               ) : !hasPausedTimers ? (

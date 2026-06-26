@@ -9,6 +9,10 @@ interface GitLabIssue {
   web_url: string;
   labels: string[];
   author: { username: string };
+  time_stats?: {
+    time_estimate: number;
+    total_time_spent: number;
+  };
 }
 
 interface GitLabLabel {
@@ -24,6 +28,8 @@ function normalize(issue: GitLabIssue): ExternalIssue {
     webUrl: issue.web_url,
     labels: issue.labels,
     author: issue.author?.username ?? "",
+    timeEstimate: issue.time_stats?.time_estimate || undefined,
+    timeSpent: issue.time_stats?.total_time_spent || undefined,
   };
 }
 
@@ -105,6 +111,26 @@ export function createGitLabProvider(
 
     getIssueUrl(issue: ExternalIssue) {
       return `${base}/${config.projectPathOrRepo}/-/issues/${issue.id}`;
+    },
+
+    async fetchIssueByUrl(url: string): Promise<ExternalIssue | null> {
+      // GitLab issue URLs look like: {base}/{group/project}/-/issues/{iid}
+      const match = url.match(/^(.*)\/-\/issues\/(\d+)/);
+      if (!match) return null;
+      const projectPath = match[1].slice(base.length).replace(/^\/+/, "");
+      const iid = match[2];
+      if (!projectPath) return null;
+      try {
+        const issue = await request<GitLabIssue>(
+          `/projects/${encodeURIComponent(projectPath)}/issues/${iid}`,
+        );
+        return normalize(issue);
+      } catch (err) {
+        logger.error(
+          `GitLab fetchIssueByUrl failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return null;
+      }
     },
 
     async addSpentTime(issueId: number, durationSeconds: number) {

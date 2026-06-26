@@ -12,6 +12,7 @@ export interface IssueIntegrationSettings {
   assigneeOnly: boolean;
   syncTime: boolean;
   autoInsertUrl: boolean;
+  showTimeEstimate: boolean;
   filterLabels: string[];
   filterLabelsMode: LabelFilterMode;
 }
@@ -23,6 +24,10 @@ export interface ExternalIssue {
   webUrl: string;
   labels: string[];
   author: string;
+  /** Estimated time in seconds (GitLab time_stats). Undefined if unsupported/unset. */
+  timeEstimate?: number;
+  /** Total time already spent in seconds (GitLab time_stats). */
+  timeSpent?: number;
 }
 
 export interface ExternalLabel {
@@ -44,6 +49,9 @@ export interface IssueProvider {
   }>;
   searchIssues(query: string): Promise<ExternalIssue[]>;
   getIssueUrl(issue: ExternalIssue): string;
+  /** Fetch a single issue (incl. time stats) from its web URL. Used to restore
+   *  the linked issue for a timer started in a previous session. */
+  fetchIssueByUrl?(url: string): Promise<ExternalIssue | null>;
   addSpentTime?(issueId: number, durationSeconds: number): Promise<void>;
   fetchLabels?(): Promise<ExternalLabel[]>;
   fetchRepos?(): Promise<ExternalRepo[]>;

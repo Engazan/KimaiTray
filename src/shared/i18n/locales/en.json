@@ -398,6 +398,9 @@
     "syncTimeDescription": "Log spent time to the linked GitLab or Gitea issue when the timer stops",
     "autoInsertUrl": "Auto-insert issue URL",
     "autoInsertUrlDescription": "Automatically add the issue URL to the timer description when an issue is selected",
+    "showTimeEstimate": "Show time estimate",
+    "showTimeEstimateDescription": "Show spent / estimated time from GitLab next to each issue",
+    "timeBudgetTooltip": "Logged {{spent}} of {{estimate}} estimated",
     "perConnectionHint": "These settings apply only to the currently active connection"
   },
   "testSection": {

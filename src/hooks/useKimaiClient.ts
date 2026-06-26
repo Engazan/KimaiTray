@@ -114,6 +114,7 @@ export function useKimaiClient(): UseKimaiClientResult {
       assigneeOnly: false,
       syncTime: false,
       autoInsertUrl: false,
+      showTimeEstimate: true,
       filterLabels: [],
       filterLabelsMode: "include",
     });

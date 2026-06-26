@@ -398,6 +398,9 @@
     "syncTimeDescription": "Zaznamenat strávený čas do propojené GitLab nebo Gitea úlohy po zastavení časovače",
     "autoInsertUrl": "Automaticky vložit URL úlohy",
     "autoInsertUrlDescription": "Automaticky přidat URL úlohy do popisu časovače při výběru úlohy",
+    "showTimeEstimate": "Zobrazit odhad času",
+    "showTimeEstimateDescription": "Zobrazit odpracovaný / odhadovaný čas z GitLabu u každé úlohy",
+    "timeBudgetTooltip": "Zalogováno {{spent}} z odhadovaných {{estimate}}",
     "perConnectionHint": "Tato nastavení platí pouze pro aktuálně zvolené připojení"
   },
   "testSection": {

@@ -398,6 +398,9 @@
     "syncTimeDescription": "Aufgewendete Zeit im verknüpften GitLab- oder Gitea-Issue protokollieren, wenn der Timer gestoppt wird",
     "autoInsertUrl": "Issue-URL automatisch einfügen",
     "autoInsertUrlDescription": "Issue-URL automatisch zur Timer-Beschreibung hinzufügen, wenn ein Issue ausgewählt wird",
+    "showTimeEstimate": "Zeitschätzung anzeigen",
+    "showTimeEstimateDescription": "Aufgewendete / geschätzte Zeit aus GitLab neben jedem Issue anzeigen",
+    "timeBudgetTooltip": "{{spent}} von {{estimate}} geschätzt erfasst",
     "perConnectionHint": "Diese Einstellungen gelten nur für die aktuell gewählte Verbindung"
   },
   "testSection": {
