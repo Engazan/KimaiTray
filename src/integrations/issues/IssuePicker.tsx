@@ -217,7 +217,7 @@ export default function IssuePicker({
                   className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors flex items-center gap-2 ${
                     highlightIndex === i
                       ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                   } ${selectedIssue?.id === issue.id ? "font-medium" : ""}`}
                 >
                   <span

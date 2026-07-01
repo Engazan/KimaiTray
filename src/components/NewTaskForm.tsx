@@ -385,7 +385,7 @@ export default function NewTaskForm({
           className="flex-1 rounded-lg px-3 py-1.5 text-[11px] font-medium
             text-gray-500 dark:text-gray-400
             border border-gray-200 dark:border-white/10
-            hover:bg-gray-50 dark:hover:bg-white/[0.04]
+            hover:bg-gray-100 dark:hover:bg-white/[0.08]
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
         >

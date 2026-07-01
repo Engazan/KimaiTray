@@ -168,7 +168,7 @@ export default function TagsInput({
                 className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
                   highlight === i
                     ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                 }`}
               >
                 <span

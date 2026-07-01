@@ -168,7 +168,7 @@ export default function SearchableSelect<T extends OptionValue>({
                 className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors ${
                   highlightIndex === 0
                     ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                 } ${value === null ? "font-medium" : ""}`}
               >
                 {emptyLabel ?? "—"}
@@ -184,7 +184,7 @@ export default function SearchableSelect<T extends OptionValue>({
                   className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors ${
                     highlightIndex === idx
                       ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                   } ${opt.value === value ? "font-medium" : ""}`}
                 >
                   {opt.label}

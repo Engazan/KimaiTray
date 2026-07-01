@@ -83,7 +83,7 @@ export default function FavoriteTaskItem({
             onClick={() => onRemove(task)}
             disabled={disabled}
             title={t("favorites.removeFromFavorites")}
-            className="p-1 rounded text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+            className="p-1 rounded text-amber-400 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
           >
             <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
