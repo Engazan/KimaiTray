@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1] - 2026-07-01
+
+### Bug Fixes
+
+- **Hover contrast fixes** — the favorites star no longer turns a hard-to-see grey on hover (it stays amber and only reddens on the remove button), and the too-faint hover highlight on the new-timer form's buttons and dropdowns (project / activity / customer / tags / issues) is now clearly visible
+- **Time estimate when starting from recents** — starting a timer from a recent task now shows the linked issue's time estimate
+
 ## [0.12.0] - 2026-06-26
 
 ### New Features
