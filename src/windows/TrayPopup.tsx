@@ -44,6 +44,35 @@ const isMac = navigator.platform.toUpperCase().includes("MAC");
 // restore the time-estimate badge after a popup reload or app restart.
 const LINKED_ISSUE_KEY = "kimai:linkedIssue";
 
+// localStorage key for a best-effort map of task identity (projectId-activityId)
+// → last linked issue. Recents/favorites carry no issue reference, so this lets
+// the time-estimate badge reappear when such a task is started.
+const LINKED_ISSUE_BY_KEY = "kimai:linkedIssueByKey";
+
+const taskKeyOf = (projectId: number, activityId: number) =>
+  `${projectId}-${activityId}`;
+
+function readLinkedIssueMap(): Record<string, ExternalIssue> {
+  try {
+    const raw = localStorage.getItem(LINKED_ISSUE_BY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function storeLinkedIssueForTask(key: string, issue: ExternalIssue) {
+  try {
+    const map = readLinkedIssueMap();
+    map[key] = issue;
+    localStorage.setItem(LINKED_ISSUE_BY_KEY, JSON.stringify(map));
+  } catch {
+    /* storage unavailable — non-fatal */
+  }
+}
+
 function TrafficLight({ color, hoverColor, onClick, children }: {
   color: string; hoverColor: string; onClick: () => void; children: React.ReactNode;
 }) {
@@ -619,6 +648,13 @@ export default function TrayPopup() {
     } catch {
       /* storage unavailable — non-fatal */
     }
+    // Also remember the issue by task identity so the estimate can be restored
+    // when the same project+activity is later started from recents/favorites,
+    // which don't embed the issue URL in their description.
+    storeLinkedIssueForTask(
+      taskKeyOf(timer.projectId, timer.activityId),
+      linkedIssue,
+    );
   }, [timer?.id, linkedIssue]);
 
   // When the in-memory link is gone (after a reload/restart), restore it for
@@ -641,6 +677,16 @@ export default function TrayPopup() {
       }
     } catch {
       /* ignore malformed storage */
+    }
+
+    // Fall back to the per-task association (project+activity). This is what
+    // makes the badge appear for timers started from recents/favorites: they
+    // have no stored timerId match and usually no issue URL in the description.
+    if (!storedIssue) {
+      const byKey = readLinkedIssueMap()[
+        taskKeyOf(timer.projectId, timer.activityId)
+      ];
+      if (byKey) storedIssue = byKey;
     }
 
     const url = storedIssue?.webUrl ?? timerIssueUrl;
