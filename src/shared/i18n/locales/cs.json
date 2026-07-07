@@ -380,6 +380,7 @@
     "issuePickerPlaceholder": "Hledat úkoly…",
     "issuePickerNoResults": "Žádné odpovídající úkoly",
     "issuePickerLoading": "Načítám úkoly…",
+    "issueSuggestedForProject": "Odpovídá vybranému projektu",
     "openInBrowser": "Otevřít v prohlížeči",
     "addUrl": "Přidat URL",
     "addTitleUrl": "Přidat název + URL",

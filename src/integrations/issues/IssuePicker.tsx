@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ExternalIssue, IssueIntegrationSettings } from "./types";
 import { useIssues } from "./useIssues";
@@ -9,6 +9,18 @@ interface IssuePickerProps {
   selectedIssue: ExternalIssue | null;
   onSelectIssue: (issue: ExternalIssue | null) => void;
   disabled?: boolean;
+  /** Name of the selected Kimai project — issues whose title contains it are
+   *  highlighted as likely matches. */
+  projectName?: string | null;
+}
+
+// Case- and diacritic-insensitive so "eshop.siklienka.sk" matches a title like
+// "ANALYZA - eshop.siklienka.sk - Individuálne akcie".
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 /** Format a duration in seconds to a compact "1h30m" / "5h" / "45m" string. */
@@ -43,6 +55,7 @@ export default function IssuePicker({
   selectedIssue,
   onSelectIssue,
   disabled,
+  projectName,
 }: IssuePickerProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -54,9 +67,22 @@ export default function IssuePicker({
 
   const { issues, isLoading } = useIssues(config, token, search);
 
+  // Issues whose title contains the selected project name — likely the one the
+  // user wants, so we highlight them and pre-select the first match.
+  const suggestedIds = useMemo(() => {
+    const needle = projectName ? normalizeText(projectName.trim()) : "";
+    if (needle.length < 2) return new Set<number>();
+    return new Set(
+      issues
+        .filter((issue) => normalizeText(issue.title).includes(needle))
+        .map((issue) => issue.id),
+    );
+  }, [issues, projectName]);
+
   useEffect(() => {
-    setHighlightIndex(0);
-  }, [issues]);
+    const firstMatch = issues.findIndex((issue) => suggestedIds.has(issue.id));
+    setHighlightIndex(firstMatch >= 0 ? firstMatch : 0);
+  }, [issues, suggestedIds]);
 
   useEffect(() => {
     if (!open) return;
@@ -209,15 +235,22 @@ export default function IssuePicker({
                 {t("integrations.issuePickerNoResults")}
               </div>
             ) : (
-              issues.map((issue, i) => (
+              issues.map((issue, i) => {
+                const suggested = suggestedIds.has(issue.id);
+                return (
                 <button
                   key={issue.id}
                   type="button"
                   onClick={() => select(issue)}
-                  className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors flex items-center gap-2 ${
+                  title={suggested ? t("integrations.issueSuggestedForProject") : undefined}
+                  className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors flex items-center gap-2 border-l-2 ${
+                    suggested ? "border-[var(--accent)]" : "border-transparent"
+                  } ${
                     highlightIndex === i
                       ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                      : suggested
+                        ? "bg-[var(--accent)]/[0.06] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                   } ${selectedIssue?.id === issue.id ? "font-medium" : ""}`}
                 >
                   <span
@@ -233,7 +266,8 @@ export default function IssuePicker({
                   <span className="truncate flex-1 min-w-0">{issue.title}</span>
                   {config.showTimeEstimate && <TimeEstimateBadge issue={issue} />}
                 </button>
-              ))
+                );
+              })
             )}
           </div>
         </div>

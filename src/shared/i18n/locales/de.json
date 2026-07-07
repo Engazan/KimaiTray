@@ -380,6 +380,7 @@
     "issuePickerPlaceholder": "Issues suchen…",
     "issuePickerNoResults": "Keine passenden Issues",
     "issuePickerLoading": "Issues werden geladen…",
+    "issueSuggestedForProject": "Passt zum ausgewählten Projekt",
     "openInBrowser": "Im Browser öffnen",
     "addUrl": "URL hinzufügen",
     "addTitleUrl": "Titel + URL hinzufügen",

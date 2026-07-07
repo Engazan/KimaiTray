@@ -380,6 +380,7 @@
     "issuePickerPlaceholder": "Шукати задачі…",
     "issuePickerNoResults": "Немає відповідних задач",
     "issuePickerLoading": "Завантаження задач…",
+    "issueSuggestedForProject": "Відповідає обраному проєкту",
     "openInBrowser": "Відкрити в браузері",
     "addUrl": "Додати URL",
     "addTitleUrl": "Додати назву + URL",

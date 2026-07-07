@@ -306,6 +306,7 @@ export default function NewTaskForm({
                 selectedIssue={selectedIssue}
                 onSelectIssue={handleSelectIssue}
                 disabled={isSubmitting}
+                projectName={selectedProject?.name ?? null}
               />
               {selectedIssue && (
                 <IssueLinkActions

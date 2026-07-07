@@ -380,6 +380,7 @@
     "issuePickerPlaceholder": "Search issues…",
     "issuePickerNoResults": "No matching issues",
     "issuePickerLoading": "Loading issues…",
+    "issueSuggestedForProject": "Matches the selected project",
     "openInBrowser": "Open in browser",
     "addUrl": "Add URL",
     "addTitleUrl": "Add title + URL",
