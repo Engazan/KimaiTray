@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0] - 2026-07-07
+
+### New Features
+
+- **Independent connections to the same server** — you can now add the same Kimai server more than once as separate connections, each with its own API token, cached data (projects, activities, timesheets) and paused timers. Per-connection state is keyed by the connection instead of the server URL, so two connections with different tokens no longer overwrite each other; existing tokens are migrated automatically
+- **Issue integration moved into the connection page** — a connection's issue-tracker settings now live on that connection's page as an **Integrations** tab (next to the connection form) instead of a separate sidebar section, since integrations are configured per connection. The tab unlocks once the connection is saved
+
 ## [0.13.0] - 2026-07-07
 
 ### New Features
