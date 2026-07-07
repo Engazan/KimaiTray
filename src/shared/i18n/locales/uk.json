@@ -131,7 +131,12 @@
     "popupMonitorPositionCenter": "Центр",
     "trueTray": "Режим True Tray",
     "trueTrayDescription": "Приховує застосунок з Dock і перемикача Cmd+Tab (лише в рядку меню).",
-    "trueTrayRestartNote": "Набуває чинності після перезапуску застосунку."
+    "trueTrayRestartNote": "Набуває чинності після перезапуску застосунку.",
+    "iconSize": "Розмір значка",
+    "iconSizeDescription": "Розмір кольорової крапки стану в лотку / рядку меню.",
+    "iconSizeSmall": "Малий",
+    "iconSizeMedium": "Середній",
+    "iconSizeLarge": "Великий"
   },
   "timerSettings": {
     "title": "Таймер",

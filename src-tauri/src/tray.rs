@@ -128,46 +128,110 @@ pub fn set_tray_title(app: AppHandle, title: String) -> Result<(), String> {
     tray.set_title(Some(&title)).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn set_tray_icon(app: AppHandle, state: String) -> Result<(), String> {
+// 0 = idle, 1 = running, 2 = paused, 3 = error — remembers the current dot color
+// so a size change can re-render without the frontend re-sending the state.
+static TRAY_ICON_STATE: AtomicU8 = AtomicU8::new(0);
+// 0 = small, 1 = medium, 2 = large
+static TRAY_ICON_SIZE: AtomicU8 = AtomicU8::new(1);
+
+// The tray icon is drawn at a high pixel resolution and downscaled by the OS
+// (macOS pins the menu-bar image to 18pt height), so a Retina display has enough
+// pixels to render the dot crisply instead of upscaling a tiny bitmap.
+const ICON_CANVAS: usize = 44;
+
+fn state_code(state: &str) -> u8 {
+    match state {
+        "running" => 1,
+        "paused" => 2,
+        "error" => 3,
+        _ => 0,
+    }
+}
+
+fn size_code(size: &str) -> u8 {
+    match size {
+        "small" => 0,
+        "large" => 2,
+        _ => 1, // medium
+    }
+}
+
+fn render_current_icon(app: &AppHandle) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
-    let rgba = generate_state_icon(&state);
-    let icon = Image::new_owned(rgba, 22, 22);
+    let rgba = generate_state_icon(
+        TRAY_ICON_STATE.load(Ordering::SeqCst),
+        TRAY_ICON_SIZE.load(Ordering::SeqCst),
+    );
+    let icon = Image::new_owned(rgba, ICON_CANVAS as u32, ICON_CANVAS as u32);
     tray.set_icon(Some(icon)).map_err(|e| e.to_string())
 }
 
-fn generate_state_icon(state: &str) -> Vec<u8> {
-    let (r, g, b) = match state {
-        "running" => (16, 185, 129),   // emerald-500
-        "paused" => (245, 158, 11),    // amber-500
-        "error" => (239, 68, 68),      // red-500
-        _ => (156, 163, 175),          // gray-400 (idle/disconnected)
-    };
-    let size: usize = 22;
-    let mut pixels = vec![0u8; size * size * 4];
-    let center = size as f64 / 2.0;
-    let radius = 5.0;
-    let outline_r = 7.0;
+#[tauri::command]
+pub fn set_tray_icon(app: AppHandle, state: String) -> Result<(), String> {
+    TRAY_ICON_STATE.store(state_code(&state), Ordering::SeqCst);
+    render_current_icon(&app)
+}
 
-    for y in 0..size {
-        for x in 0..size {
+#[tauri::command]
+pub fn set_tray_icon_size(app: AppHandle, size: String) -> Result<(), String> {
+    TRAY_ICON_SIZE.store(size_code(&size), Ordering::SeqCst);
+    render_current_icon(&app)
+}
+
+fn generate_state_icon(state: u8, size: u8) -> Vec<u8> {
+    let (r, g, b) = match state {
+        1 => (16, 185, 129),   // emerald-500 (running)
+        2 => (245, 158, 11),   // amber-500 (paused)
+        3 => (239, 68, 68),    // red-500 (error)
+        _ => (156, 163, 175),  // gray-400 (idle/disconnected)
+    };
+
+    // Disc radius per size level, in canvas pixels. A defining rim is drawn just
+    // inside the edge so the dot stays legible on both light and dark menu bars.
+    let radius = match size {
+        0 => 8.5,   // small
+        2 => 13.5,  // large
+        _ => 10.5,  // medium
+    };
+    let rim_width = 1.4;
+    // Rim: a darker shade of the same color for a crisp, high-contrast edge.
+    let (rim_r, rim_g, rim_b) = (
+        (r as f64 * 0.62) as u8,
+        (g as f64 * 0.62) as u8,
+        (b as f64 * 0.62) as u8,
+    );
+
+    let canvas = ICON_CANVAS;
+    let mut pixels = vec![0u8; canvas * canvas * 4];
+    let center = canvas as f64 / 2.0;
+    let fill_radius = radius - rim_width;
+
+    for y in 0..canvas {
+        for x in 0..canvas {
             let dx = x as f64 - center + 0.5;
             let dy = y as f64 - center + 0.5;
             let dist = (dx * dx + dy * dy).sqrt();
-            let idx = (y * size + x) * 4;
+            let idx = (y * canvas + x) * 4;
 
-            if dist <= radius {
-                pixels[idx] = r;
-                pixels[idx + 1] = g;
-                pixels[idx + 2] = b;
-                pixels[idx + 3] = 255;
-            } else if dist <= outline_r {
-                let alpha = ((outline_r - dist) / (outline_r - radius) * 180.0) as u8;
-                pixels[idx] = r;
-                pixels[idx + 1] = g;
-                pixels[idx + 2] = b;
-                pixels[idx + 3] = alpha;
+            // Coverage-based anti-aliasing: ~1px soft transition at each edge.
+            let outer = (radius + 0.5 - dist).clamp(0.0, 1.0); // whole disc
+            if outer <= 0.0 {
+                continue;
             }
+            let fill = (fill_radius + 0.5 - dist).clamp(0.0, 1.0); // inner fill
+            let rim = outer - fill; // annulus between fill and edge
+
+            // Blend rim over fill, weighted by their coverage within this pixel.
+            let (cr, cg, cb) = (
+                (r as f64 * fill + rim_r as f64 * rim) / outer,
+                (g as f64 * fill + rim_g as f64 * rim) / outer,
+                (b as f64 * fill + rim_b as f64 * rim) / outer,
+            );
+
+            pixels[idx] = cr as u8;
+            pixels[idx + 1] = cg as u8;
+            pixels[idx + 2] = cb as u8;
+            pixels[idx + 3] = (outer * 255.0) as u8;
         }
     }
     pixels
@@ -577,6 +641,10 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                 "center"      => 4,
                 _             => 0,
             }, Ordering::SeqCst);
+            let icon_size = s.get("trayIconSize")
+                .and_then(|v| v.as_str())
+                .unwrap_or("medium");
+            TRAY_ICON_SIZE.store(size_code(icon_size), Ordering::SeqCst);
             right == "popup"
         } else {
             false
@@ -601,8 +669,12 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
         .item(&quit_i)
         .build()?;
 
-    // Start with idle icon
-    let idle_icon = Image::new_owned(generate_state_icon("idle"), 22, 22);
+    // Start with idle icon at the persisted size
+    let idle_icon = Image::new_owned(
+        generate_state_icon(0, TRAY_ICON_SIZE.load(Ordering::SeqCst)),
+        ICON_CANVAS as u32,
+        ICON_CANVAS as u32,
+    );
 
     TrayIconBuilder::with_id("main")
         .icon(idle_icon)

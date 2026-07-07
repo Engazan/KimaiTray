@@ -131,7 +131,12 @@
     "popupMonitorPositionCenter": "Střed",
     "trueTray": "Režim True Tray",
     "trueTrayDescription": "Skryje aplikaci z Docku a z přepínače Cmd+Tab (jen v liště nabídek).",
-    "trueTrayRestartNote": "Projeví se po opětovném spuštění aplikace."
+    "trueTrayRestartNote": "Projeví se po opětovném spuštění aplikace.",
+    "iconSize": "Velikost ikony v liště",
+    "iconSizeDescription": "Velikost barevné stavové tečky v systémové liště / menu baru.",
+    "iconSizeSmall": "Malá",
+    "iconSizeMedium": "Střední",
+    "iconSizeLarge": "Velká"
   },
   "timerSettings": {
     "title": "Časovač",

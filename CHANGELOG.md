@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+- **Sharper, larger menu bar icon** ([#8](https://github.com/Engazan/KimaiTray/issues/8)) — the tray status dot is now rendered at a high pixel resolution with proper anti-aliasing, so it no longer looks blurry on Retina displays, and a darker rim gives it a crisp, higher-contrast edge on both light and dark menu bars. A new **Tray icon size** setting (Small / Medium / Large) in **Tray & Menu Bar** lets you make the dot bigger
+
 ## [0.14.0] - 2026-07-07
 
 ### New Features

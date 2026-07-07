@@ -131,7 +131,12 @@
     "popupMonitorPositionCenter": "Mitte",
     "trueTray": "True-Tray-Modus",
     "trueTrayDescription": "Blendet die App aus dem Dock und dem Cmd+Tab-Umschalter aus (nur Menüleiste).",
-    "trueTrayRestartNote": "Wird nach einem Neustart der App wirksam."
+    "trueTrayRestartNote": "Wird nach einem Neustart der App wirksam.",
+    "iconSize": "Größe des Symbols",
+    "iconSizeDescription": "Größe des farbigen Statuspunkts in der Leiste / Menüleiste.",
+    "iconSizeSmall": "Klein",
+    "iconSizeMedium": "Mittel",
+    "iconSizeLarge": "Groß"
   },
   "timerSettings": {
     "title": "Timer",

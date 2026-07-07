@@ -19,6 +19,7 @@ export const defaultSettings: AppSettings = {
   showTaskNameInTray: false,
   menuBarLabelStyle: "timer",
   showSecondsInTimer: true,
+  trayIconSize: "medium",
 
   enableIdleDetection: false,
   idleThresholdMinutes: 5,

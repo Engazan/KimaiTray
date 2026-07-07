@@ -131,7 +131,12 @@
     "popupMonitorPositionCenter": "Center",
     "trueTray": "True Tray mode",
     "trueTrayDescription": "Hide the app from the Dock and the Cmd+Tab app switcher (menu-bar only).",
-    "trueTrayRestartNote": "Takes effect after restarting the app."
+    "trueTrayRestartNote": "Takes effect after restarting the app.",
+    "iconSize": "Tray icon size",
+    "iconSizeDescription": "Size of the colored status dot in the tray / menu bar.",
+    "iconSizeSmall": "Small",
+    "iconSizeMedium": "Medium",
+    "iconSizeLarge": "Large"
   },
   "timerSettings": {
     "title": "Timer",

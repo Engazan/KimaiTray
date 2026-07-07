@@ -63,6 +63,7 @@ export interface AppSettings {
   showTaskNameInTray: boolean;
   menuBarLabelStyle: "timer" | "project" | "activity" | "hidden";
   showSecondsInTimer: boolean;
+  trayIconSize: "small" | "medium" | "large";
 
   enableIdleDetection: boolean;
   idleThresholdMinutes: number;

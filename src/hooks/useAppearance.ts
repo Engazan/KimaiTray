@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { loadSettings, onSettingsChange } from "../settings/service";
-import { setPopupCornerRadius, setPopupSize, setPopupVibrancy, setDisplayMode } from "../api/trayApi";
+import { setPopupCornerRadius, setPopupSize, setPopupVibrancy, setDisplayMode, setTrayIconSize } from "../api/trayApi";
 import type { AppSettings } from "../types";
 
 const POPUP_BASE_WIDTH = 360;
@@ -18,6 +18,7 @@ let prevSize = "";
 let prevRadius = -1;
 let prevVibrancy = -1;
 let prevDisplayMode = "";
+let prevTrayIconSize = "";
 
 function applyThemeClass(theme: AppSettings["theme"]) {
   if (theme === "dark") {
@@ -85,6 +86,11 @@ function apply(s: AppSettings) {
     if (dm !== prevDisplayMode) {
       prevDisplayMode = dm;
       setDisplayMode(dm);
+    }
+    const iconSize = s.trayIconSize ?? "medium";
+    if (iconSize !== prevTrayIconSize) {
+      prevTrayIconSize = iconSize;
+      setTrayIconSize(iconSize);
     }
   }
 }

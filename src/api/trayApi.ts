@@ -48,6 +48,16 @@ export async function setTrayIcon(state: TrayIconState): Promise<void> {
   }
 }
 
+export type TrayIconSize = "small" | "medium" | "large";
+
+export async function setTrayIconSize(size: TrayIconSize): Promise<void> {
+  try {
+    await invoke("set_tray_icon_size", { size });
+  } catch {
+    // best-effort
+  }
+}
+
 export async function setPopupVibrancy(enabled: boolean): Promise<void> {
   try {
     await invoke("set_popup_vibrancy", { enabled });

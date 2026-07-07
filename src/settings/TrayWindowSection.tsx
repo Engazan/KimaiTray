@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { AppSettings } from "../types";
-import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor } from "../api/trayApi";
+import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, setTrayIconSize } from "../api/trayApi";
 import type { MonitorInfo } from "../api/trayApi";
 import {
   Divider,
@@ -57,6 +57,55 @@ export default function TrayWindowSection({ settings, update }: Props) {
       <SectionDescription>
         {t("traySettings.description")}
       </SectionDescription>
+
+      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+        {t("traySettings.iconSize")}
+      </div>
+      <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
+        {t("traySettings.iconSizeDescription")}
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        {([
+          { value: "small" as const, label: t("traySettings.iconSizeSmall"), dot: 8 },
+          { value: "medium" as const, label: t("traySettings.iconSizeMedium"), dot: 11 },
+          { value: "large" as const, label: t("traySettings.iconSizeLarge"), dot: 15 },
+        ]).map((opt) => {
+          const active = (settings.trayIconSize ?? "medium") === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                update("trayIconSize", opt.value);
+                setTrayIconSize(opt.value);
+              }}
+              className={`flex flex-col items-center gap-2 rounded-lg border px-3 py-3 transition-colors
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
+                ${
+                  active
+                    ? "border-[var(--accent)] bg-[var(--accent-light)]"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+            >
+              <div className="h-5 flex items-center justify-center">
+                <span
+                  className="inline-block rounded-full bg-emerald-500 shrink-0"
+                  style={{
+                    width: opt.dot,
+                    height: opt.dot,
+                    boxShadow: "0 0 4px rgba(16,185,129,0.4)",
+                  }}
+                />
+              </div>
+              <span className="text-[12px] text-gray-600 dark:text-gray-400">
+                {opt.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <Divider />
 
       <FieldGroup label={t("general.displayMode")} description={t("general.displayModeDescription")}>
         <div className="flex gap-2 mt-1">
