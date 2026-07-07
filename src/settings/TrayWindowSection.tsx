@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { AppSettings } from "../types";
-import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, setTrayIconSize } from "../api/trayApi";
+import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
 import type { MonitorInfo } from "../api/trayApi";
 import {
   Divider,
@@ -27,6 +27,42 @@ function TrayDot() {
       style={{ boxShadow: "0 0 4px rgba(16,185,129,0.4)" }}
     />
   );
+}
+
+const GLYPH_FILL = "#10b981"; // emerald-500
+const GLYPH_RIM = "#0b7a5c"; // darker emerald rim, mirrors the tray rendering
+
+// SVG preview mirroring the tray icon presets, so pickers show a live preview.
+function ShapeGlyph({ shape, px }: { shape: AppSettings["trayIconShape"]; px: number }) {
+  const common = { width: px, height: px };
+  switch (shape) {
+    case "ring":
+      return (
+        <svg {...common} viewBox="0 0 24 24" className="shrink-0">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={GLYPH_FILL} strokeWidth="4.5" />
+        </svg>
+      );
+    case "square":
+      return (
+        <svg {...common} viewBox="0 0 24 24" className="shrink-0">
+          <rect x="3" y="3" width="18" height="18" rx="6" fill={GLYPH_FILL} stroke={GLYPH_RIM} strokeWidth="1.5" />
+        </svg>
+      );
+    case "clock":
+      return (
+        <svg {...common} viewBox="0 0 24 24" className="shrink-0" stroke={GLYPH_FILL} strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="9" fill="none" />
+          <line x1="12" y1="12" x2="17.2" y2="8.9" />
+          <line x1="12" y1="12" x2="6.8" y2="8.9" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common} viewBox="0 0 24 24" className="shrink-0">
+          <circle cx="12" cy="12" r="9" fill={GLYPH_FILL} stroke={GLYPH_RIM} strokeWidth="1.5" />
+        </svg>
+      );
+  }
 }
 
 export default function TrayWindowSection({ settings, update }: Props) {
@@ -59,6 +95,49 @@ export default function TrayWindowSection({ settings, update }: Props) {
       </SectionDescription>
 
       <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+        {t("traySettings.iconShape")}
+      </div>
+      <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
+        {t("traySettings.iconShapeDescription")}
+      </div>
+      <div className="grid grid-cols-4 gap-2 mb-2">
+        {([
+          { value: "dot" as const, label: t("traySettings.iconShapeDot") },
+          { value: "ring" as const, label: t("traySettings.iconShapeRing") },
+          { value: "square" as const, label: t("traySettings.iconShapeSquare") },
+          { value: "clock" as const, label: t("traySettings.iconShapeClock") },
+        ]).map((opt) => {
+          const active = (settings.trayIconShape ?? "dot") === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                update("trayIconShape", opt.value);
+                setTrayIconShape(opt.value);
+              }}
+              className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
+                ${
+                  active
+                    ? "border-[var(--accent)] bg-[var(--accent-light)]"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+            >
+              <div className="h-5 flex items-center justify-center">
+                <ShapeGlyph shape={opt.value} px={18} />
+              </div>
+              <span className="text-[11px] text-gray-600 dark:text-gray-400">
+                {opt.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <Divider />
+
+      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">
         {t("traySettings.iconSize")}
       </div>
       <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
@@ -66,9 +145,9 @@ export default function TrayWindowSection({ settings, update }: Props) {
       </div>
       <div className="grid grid-cols-3 gap-2 mb-2">
         {([
-          { value: "small" as const, label: t("traySettings.iconSizeSmall"), dot: 8 },
-          { value: "medium" as const, label: t("traySettings.iconSizeMedium"), dot: 11 },
-          { value: "large" as const, label: t("traySettings.iconSizeLarge"), dot: 15 },
+          { value: "small" as const, label: t("traySettings.iconSizeSmall"), px: 13 },
+          { value: "medium" as const, label: t("traySettings.iconSizeMedium"), px: 17 },
+          { value: "large" as const, label: t("traySettings.iconSizeLarge"), px: 22 },
         ]).map((opt) => {
           const active = (settings.trayIconSize ?? "medium") === opt.value;
           return (
@@ -87,15 +166,8 @@ export default function TrayWindowSection({ settings, update }: Props) {
                     : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
             >
-              <div className="h-5 flex items-center justify-center">
-                <span
-                  className="inline-block rounded-full bg-emerald-500 shrink-0"
-                  style={{
-                    width: opt.dot,
-                    height: opt.dot,
-                    boxShadow: "0 0 4px rgba(16,185,129,0.4)",
-                  }}
-                />
+              <div className="h-6 flex items-center justify-center">
+                <ShapeGlyph shape={settings.trayIconShape ?? "dot"} px={opt.px} />
               </div>
               <span className="text-[12px] text-gray-600 dark:text-gray-400">
                 {opt.label}

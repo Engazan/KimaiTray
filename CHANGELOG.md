@@ -2,9 +2,13 @@
 
 ## [Unreleased]
 
+### New Features
+
+- **Tray icon style presets** — pick the shape of the status icon in **Tray & Menu Bar**: **Dot** (filled circle), **Ring** (hollow circle), **Square** (rounded square) or **Clock** (a clock face, fitting for a time tracker). Every preset keeps the state color (idle / running / paused / error) and the icon-size setting
+
 ### Bug Fixes
 
-- **Sharper, larger menu bar icon** ([#8](https://github.com/Engazan/KimaiTray/issues/8)) — the tray status dot is now rendered at a high pixel resolution with proper anti-aliasing, so it no longer looks blurry on Retina displays, and a darker rim gives it a crisp, higher-contrast edge on both light and dark menu bars. A new **Tray icon size** setting (Small / Medium / Large) in **Tray & Menu Bar** lets you make the dot bigger
+- **Sharper, larger menu bar icon** ([#8](https://github.com/Engazan/KimaiTray/issues/8)) — the tray status icon is now rendered at a high pixel resolution with proper anti-aliasing, so it no longer looks blurry on Retina displays, and a darker rim gives it a crisp, higher-contrast edge on both light and dark menu bars. A new **Tray icon size** setting (Small / Medium / Large) in **Tray & Menu Bar** lets you make the icon bigger
 
 ## [0.14.0] - 2026-07-07
 

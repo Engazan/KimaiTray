@@ -129,10 +129,12 @@ pub fn set_tray_title(app: AppHandle, title: String) -> Result<(), String> {
 }
 
 // 0 = idle, 1 = running, 2 = paused, 3 = error — remembers the current dot color
-// so a size change can re-render without the frontend re-sending the state.
+// so a size/shape change can re-render without the frontend re-sending the state.
 static TRAY_ICON_STATE: AtomicU8 = AtomicU8::new(0);
 // 0 = small, 1 = medium, 2 = large
 static TRAY_ICON_SIZE: AtomicU8 = AtomicU8::new(1);
+// 0 = dot, 1 = ring, 2 = square, 3 = clock
+static TRAY_ICON_SHAPE: AtomicU8 = AtomicU8::new(0);
 
 // The tray icon is drawn at a high pixel resolution and downscaled by the OS
 // (macOS pins the menu-bar image to 18pt height), so a Retina display has enough
@@ -156,11 +158,21 @@ fn size_code(size: &str) -> u8 {
     }
 }
 
+fn shape_code(shape: &str) -> u8 {
+    match shape {
+        "ring" => 1,
+        "square" => 2,
+        "clock" => 3,
+        _ => 0, // dot
+    }
+}
+
 fn render_current_icon(app: &AppHandle) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     let rgba = generate_state_icon(
         TRAY_ICON_STATE.load(Ordering::SeqCst),
         TRAY_ICON_SIZE.load(Ordering::SeqCst),
+        TRAY_ICON_SHAPE.load(Ordering::SeqCst),
     );
     let icon = Image::new_owned(rgba, ICON_CANVAS as u32, ICON_CANVAS as u32);
     tray.set_icon(Some(icon)).map_err(|e| e.to_string())
@@ -178,29 +190,75 @@ pub fn set_tray_icon_size(app: AppHandle, size: String) -> Result<(), String> {
     render_current_icon(&app)
 }
 
-fn generate_state_icon(state: u8, size: u8) -> Vec<u8> {
-    let (r, g, b) = match state {
-        1 => (16, 185, 129),   // emerald-500 (running)
-        2 => (245, 158, 11),   // amber-500 (paused)
-        3 => (239, 68, 68),    // red-500 (error)
-        _ => (156, 163, 175),  // gray-400 (idle/disconnected)
-    };
+#[tauri::command]
+pub fn set_tray_icon_shape(app: AppHandle, shape: String) -> Result<(), String> {
+    TRAY_ICON_SHAPE.store(shape_code(&shape), Ordering::SeqCst);
+    render_current_icon(&app)
+}
 
-    // Disc radius per size level, in canvas pixels. A defining rim is drawn just
-    // inside the edge so the dot stays legible on both light and dark menu bars.
-    let radius = match size {
+type Rgb = (f64, f64, f64);
+
+fn state_color(state: u8) -> Rgb {
+    match state {
+        1 => (16.0, 185.0, 129.0),   // emerald-500 (running)
+        2 => (245.0, 158.0, 11.0),   // amber-500 (paused)
+        3 => (239.0, 68.0, 68.0),    // red-500 (error)
+        _ => (156.0, 163.0, 175.0),  // gray-400 (idle/disconnected)
+    }
+}
+
+fn size_radius(size: u8) -> f64 {
+    match size {
         0 => 8.5,   // small
         2 => 13.5,  // large
         _ => 10.5,  // medium
-    };
-    let rim_width = 1.4;
-    // Rim: a darker shade of the same color for a crisp, high-contrast edge.
-    let (rim_r, rim_g, rim_b) = (
-        (r as f64 * 0.62) as u8,
-        (g as f64 * 0.62) as u8,
-        (b as f64 * 0.62) as u8,
-    );
+    }
+}
 
+/// Shortest distance from point `p` to the line segment `a`–`b`.
+fn dist_to_segment(px: f64, py: f64, ax: f64, ay: f64, bx: f64, by: f64) -> f64 {
+    let (abx, aby) = (bx - ax, by - ay);
+    let (apx, apy) = (px - ax, py - ay);
+    let len2 = abx * abx + aby * aby;
+    let t = if len2 > 0.0 {
+        ((apx * abx + apy * aby) / len2).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let (cx, cy) = (ax + abx * t, ay + aby * t);
+    ((px - cx).powi(2) + (py - cy).powi(2)).sqrt()
+}
+
+/// Write a color at `coverage` (0..1) over whatever is already in the pixel,
+/// keeping the strongest alpha so overlapping strokes merge cleanly.
+fn blend_pixel(pixels: &mut [u8], idx: usize, color: Rgb, coverage: f64) {
+    if coverage <= 0.0 {
+        return;
+    }
+    let a = (coverage * 255.0) as u8;
+    if a >= pixels[idx + 3] {
+        pixels[idx] = color.0 as u8;
+        pixels[idx + 1] = color.1 as u8;
+        pixels[idx + 2] = color.2 as u8;
+        pixels[idx + 3] = a;
+    }
+}
+
+fn generate_state_icon(state: u8, size: u8, shape: u8) -> Vec<u8> {
+    let color = state_color(state);
+    let radius = size_radius(size);
+    match shape {
+        1 => draw_ring(color, radius),
+        2 => draw_square(color, radius),
+        3 => draw_clock(color, radius),
+        _ => draw_dot(color, radius),
+    }
+}
+
+/// Filled disc with a slightly darker rim for a crisp, high-contrast edge.
+fn draw_dot(color: Rgb, radius: f64) -> Vec<u8> {
+    let rim_width = 1.4;
+    let rim = (color.0 * 0.62, color.1 * 0.62, color.2 * 0.62);
     let canvas = ICON_CANVAS;
     let mut pixels = vec![0u8; canvas * canvas * 4];
     let center = canvas as f64 / 2.0;
@@ -213,25 +271,128 @@ fn generate_state_icon(state: u8, size: u8) -> Vec<u8> {
             let dist = (dx * dx + dy * dy).sqrt();
             let idx = (y * canvas + x) * 4;
 
-            // Coverage-based anti-aliasing: ~1px soft transition at each edge.
-            let outer = (radius + 0.5 - dist).clamp(0.0, 1.0); // whole disc
+            let outer = (radius + 0.5 - dist).clamp(0.0, 1.0);
             if outer <= 0.0 {
                 continue;
             }
-            let fill = (fill_radius + 0.5 - dist).clamp(0.0, 1.0); // inner fill
-            let rim = outer - fill; // annulus between fill and edge
-
-            // Blend rim over fill, weighted by their coverage within this pixel.
-            let (cr, cg, cb) = (
-                (r as f64 * fill + rim_r as f64 * rim) / outer,
-                (g as f64 * fill + rim_g as f64 * rim) / outer,
-                (b as f64 * fill + rim_b as f64 * rim) / outer,
+            let fill = (fill_radius + 0.5 - dist).clamp(0.0, 1.0);
+            let ring = outer - fill;
+            let c = (
+                (color.0 * fill + rim.0 * ring) / outer,
+                (color.1 * fill + rim.1 * ring) / outer,
+                (color.2 * fill + rim.2 * ring) / outer,
             );
+            blend_pixel(&mut pixels, idx, c, outer);
+        }
+    }
+    pixels
+}
 
-            pixels[idx] = cr as u8;
-            pixels[idx + 1] = cg as u8;
-            pixels[idx + 2] = cb as u8;
-            pixels[idx + 3] = (outer * 255.0) as u8;
+/// Hollow ring (outline circle).
+fn draw_ring(color: Rgb, radius: f64) -> Vec<u8> {
+    let inner = radius * 0.52;
+    let canvas = ICON_CANVAS;
+    let mut pixels = vec![0u8; canvas * canvas * 4];
+    let center = canvas as f64 / 2.0;
+
+    for y in 0..canvas {
+        for x in 0..canvas {
+            let dx = x as f64 - center + 0.5;
+            let dy = y as f64 - center + 0.5;
+            let dist = (dx * dx + dy * dy).sqrt();
+            let idx = (y * canvas + x) * 4;
+
+            let outer = (radius + 0.5 - dist).clamp(0.0, 1.0);
+            let hole = (dist - inner + 0.5).clamp(0.0, 1.0);
+            let cov = outer.min(hole);
+            blend_pixel(&mut pixels, idx, color, cov);
+        }
+    }
+    pixels
+}
+
+/// Rounded square (squircle) with a darker rim.
+fn draw_square(color: Rgb, radius: f64) -> Vec<u8> {
+    let half = radius * 0.94;
+    let corner = radius * 0.42;
+    let rim_width = 1.4;
+    let rim = (color.0 * 0.62, color.1 * 0.62, color.2 * 0.62);
+    let canvas = ICON_CANVAS;
+    let mut pixels = vec![0u8; canvas * canvas * 4];
+    let center = canvas as f64 / 2.0;
+    let b = half - corner; // inner box half-extent
+
+    for y in 0..canvas {
+        for x in 0..canvas {
+            let dx = (x as f64 - center + 0.5).abs();
+            let dy = (y as f64 - center + 0.5).abs();
+            let idx = (y * canvas + x) * 4;
+
+            // Signed distance to a rounded box (negative inside).
+            let qx = dx - b;
+            let qy = dy - b;
+            let outside = (qx.max(0.0).powi(2) + qy.max(0.0).powi(2)).sqrt();
+            let inside = qx.max(qy).min(0.0);
+            let sdf = outside + inside - corner;
+
+            let outer = (0.5 - sdf).clamp(0.0, 1.0);
+            if outer <= 0.0 {
+                continue;
+            }
+            let fill = (0.5 - (sdf + rim_width)).clamp(0.0, 1.0);
+            let ring = outer - fill;
+            let c = (
+                (color.0 * fill + rim.0 * ring) / outer,
+                (color.1 * fill + rim.1 * ring) / outer,
+                (color.2 * fill + rim.2 * ring) / outer,
+            );
+            blend_pixel(&mut pixels, idx, c, outer);
+        }
+    }
+    pixels
+}
+
+/// Clock face — a thin ring with two hands, fitting for a time tracker.
+fn draw_clock(color: Rgb, radius: f64) -> Vec<u8> {
+    let inner = radius * 0.80; // thin outline ring
+    let canvas = ICON_CANVAS;
+    let mut pixels = vec![0u8; canvas * canvas * 4];
+    let center = canvas as f64 / 2.0;
+
+    // Hands point to ~10:10 (a balanced, recognizable clock pose).
+    // Angle measured clockwise from 12 o'clock: dir = (sin a, -cos a).
+    let minute_a: f64 = 60.0_f64.to_radians(); // toward 2 o'clock
+    let hour_a: f64 = 300.0_f64.to_radians(); // toward 10 o'clock
+    let minute_end = (
+        center + minute_a.sin() * radius * 0.60,
+        center - minute_a.cos() * radius * 0.60,
+    );
+    let hour_end = (
+        center + hour_a.sin() * radius * 0.42,
+        center - hour_a.cos() * radius * 0.42,
+    );
+    let hand_hw = (radius * 0.11).max(1.0); // half-thickness
+    let hub_r = radius * 0.13;
+
+    for y in 0..canvas {
+        for x in 0..canvas {
+            let px = x as f64 + 0.5;
+            let py = y as f64 + 0.5;
+            let dist = ((px - center).powi(2) + (py - center).powi(2)).sqrt();
+            let idx = (y * canvas + x) * 4;
+
+            // Outline ring.
+            let ring = (radius + 0.5 - dist)
+                .clamp(0.0, 1.0)
+                .min((dist - inner + 0.5).clamp(0.0, 1.0));
+            // Hands + center hub.
+            let dm = dist_to_segment(px, py, center, center, minute_end.0, minute_end.1);
+            let dh = dist_to_segment(px, py, center, center, hour_end.0, hour_end.1);
+            let hands = (hand_hw + 0.5 - dm.min(dh)).clamp(0.0, 1.0);
+            let hub = (hub_r + 0.5 - dist).clamp(0.0, 1.0);
+
+            let cov = ring.max(hands).max(hub);
+            blend_pixel(&mut pixels, idx, color, cov);
         }
     }
     pixels
@@ -645,6 +806,10 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("medium");
             TRAY_ICON_SIZE.store(size_code(icon_size), Ordering::SeqCst);
+            let icon_shape = s.get("trayIconShape")
+                .and_then(|v| v.as_str())
+                .unwrap_or("dot");
+            TRAY_ICON_SHAPE.store(shape_code(icon_shape), Ordering::SeqCst);
             right == "popup"
         } else {
             false
@@ -669,9 +834,13 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
         .item(&quit_i)
         .build()?;
 
-    // Start with idle icon at the persisted size
+    // Start with idle icon at the persisted size and shape
     let idle_icon = Image::new_owned(
-        generate_state_icon(0, TRAY_ICON_SIZE.load(Ordering::SeqCst)),
+        generate_state_icon(
+            0,
+            TRAY_ICON_SIZE.load(Ordering::SeqCst),
+            TRAY_ICON_SHAPE.load(Ordering::SeqCst),
+        ),
         ICON_CANVAS as u32,
         ICON_CANVAS as u32,
     );

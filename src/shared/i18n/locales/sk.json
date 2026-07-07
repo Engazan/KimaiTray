@@ -136,7 +136,13 @@
     "iconSizeDescription": "Veľkosť farebnej stavovej bodky v systémovej lište / menu bare.",
     "iconSizeSmall": "Malá",
     "iconSizeMedium": "Stredná",
-    "iconSizeLarge": "Veľká"
+    "iconSizeLarge": "Veľká",
+    "iconShape": "Štýl ikony v lište",
+    "iconShapeDescription": "Tvar stavovej ikony v systémovej lište / menu bare.",
+    "iconShapeDot": "Bodka",
+    "iconShapeRing": "Krúžok",
+    "iconShapeSquare": "Štvorec",
+    "iconShapeClock": "Hodiny"
   },
   "timerSettings": {
     "title": "Časovač",

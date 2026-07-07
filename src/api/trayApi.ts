@@ -58,6 +58,16 @@ export async function setTrayIconSize(size: TrayIconSize): Promise<void> {
   }
 }
 
+export type TrayIconShape = "dot" | "ring" | "square" | "clock";
+
+export async function setTrayIconShape(shape: TrayIconShape): Promise<void> {
+  try {
+    await invoke("set_tray_icon_shape", { shape });
+  } catch {
+    // best-effort
+  }
+}
+
 export async function setPopupVibrancy(enabled: boolean): Promise<void> {
   try {
     await invoke("set_popup_vibrancy", { enabled });

@@ -64,6 +64,7 @@ export interface AppSettings {
   menuBarLabelStyle: "timer" | "project" | "activity" | "hidden";
   showSecondsInTimer: boolean;
   trayIconSize: "small" | "medium" | "large";
+  trayIconShape: "dot" | "ring" | "square" | "clock";
 
   enableIdleDetection: boolean;
   idleThresholdMinutes: number;

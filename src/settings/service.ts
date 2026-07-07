@@ -20,6 +20,7 @@ export const defaultSettings: AppSettings = {
   menuBarLabelStyle: "timer",
   showSecondsInTimer: true,
   trayIconSize: "medium",
+  trayIconShape: "dot",
 
   enableIdleDetection: false,
   idleThresholdMinutes: 5,

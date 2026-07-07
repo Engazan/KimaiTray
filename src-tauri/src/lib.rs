@@ -106,6 +106,7 @@ pub fn run() {
             tray::set_tray_title,
             tray::set_tray_icon,
             tray::set_tray_icon_size,
+            tray::set_tray_icon_shape,
             tray::set_popup_vibrancy,
             tray::set_popup_size,
             tray::set_popup_corner_radius,

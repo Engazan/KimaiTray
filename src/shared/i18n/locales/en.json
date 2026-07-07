@@ -136,7 +136,13 @@
     "iconSizeDescription": "Size of the colored status dot in the tray / menu bar.",
     "iconSizeSmall": "Small",
     "iconSizeMedium": "Medium",
-    "iconSizeLarge": "Large"
+    "iconSizeLarge": "Large",
+    "iconShape": "Tray icon style",
+    "iconShapeDescription": "Shape of the status icon in the tray / menu bar.",
+    "iconShapeDot": "Dot",
+    "iconShapeRing": "Ring",
+    "iconShapeSquare": "Square",
+    "iconShapeClock": "Clock"
   },
   "timerSettings": {
     "title": "Timer",

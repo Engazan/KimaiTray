@@ -136,7 +136,13 @@
     "iconSizeDescription": "Größe des farbigen Statuspunkts in der Leiste / Menüleiste.",
     "iconSizeSmall": "Klein",
     "iconSizeMedium": "Mittel",
-    "iconSizeLarge": "Groß"
+    "iconSizeLarge": "Groß",
+    "iconShape": "Symbolstil",
+    "iconShapeDescription": "Form des Statussymbols in der Leiste / Menüleiste.",
+    "iconShapeDot": "Punkt",
+    "iconShapeRing": "Ring",
+    "iconShapeSquare": "Quadrat",
+    "iconShapeClock": "Uhr"
   },
   "timerSettings": {
     "title": "Timer",

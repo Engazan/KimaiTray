@@ -136,7 +136,13 @@
     "iconSizeDescription": "Розмір кольорової крапки стану в лотку / рядку меню.",
     "iconSizeSmall": "Малий",
     "iconSizeMedium": "Середній",
-    "iconSizeLarge": "Великий"
+    "iconSizeLarge": "Великий",
+    "iconShape": "Стиль значка",
+    "iconShapeDescription": "Форма значка стану в лотку / рядку меню.",
+    "iconShapeDot": "Крапка",
+    "iconShapeRing": "Кільце",
+    "iconShapeSquare": "Квадрат",
+    "iconShapeClock": "Годинник"
   },
   "timerSettings": {
     "title": "Таймер",
