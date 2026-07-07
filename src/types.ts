@@ -48,6 +48,14 @@ export interface SavedConnection {
   url: string;
 }
 
+export interface FeatureSettings {
+  featureNote: boolean;
+  featureTags: boolean;
+  featurePausedTimerDescriptionHover: boolean;
+  featureCustomerSelect: boolean;
+  featureCustomStartTime: boolean;
+}
+
 export interface AppSettings {
   kimaiUrl: string;
   connections: SavedConnection[];
@@ -79,11 +87,8 @@ export interface AppSettings {
   popupLayout: "classic" | "focus" | "taskbar" | "timeline";
   colorMode: ColorMode;
 
-  featureNote: boolean;
-  featureTags: boolean;
-  featurePausedTimerDescriptionHover: boolean;
-  featureCustomerSelect: boolean;
-  featureCustomStartTime: boolean;
+  // Feature toggles are per-connection, keyed by connection id.
+  features: Record<string, FeatureSettings>;
 
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;

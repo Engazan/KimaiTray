@@ -1,8 +1,16 @@
 import { load } from "@tauri-apps/plugin-store";
-import type { AppSettings } from "../types";
+import type { AppSettings, FeatureSettings } from "../types";
 
 const STORE_PATH = "settings.json";
 const SETTINGS_KEY = "settings";
+
+export const defaultFeatureSettings: FeatureSettings = {
+  featureNote: true,
+  featureTags: false,
+  featurePausedTimerDescriptionHover: false,
+  featureCustomerSelect: true,
+  featureCustomStartTime: true,
+};
 
 export const defaultSettings: AppSettings = {
   kimaiUrl: "",
@@ -35,11 +43,7 @@ export const defaultSettings: AppSettings = {
   popupLayout: "classic",
   colorMode: "kimai",
 
-  featureNote: true,
-  featureTags: false,
-  featurePausedTimerDescriptionHover: false,
-  featureCustomerSelect: true,
-  featureCustomStartTime: true,
+  features: {},
 
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
@@ -89,6 +93,35 @@ export async function loadSettings(): Promise<AppSettings> {
       try { name = new URL(settings.kimaiUrl).hostname; } catch { /* keep default */ }
       settings.connections = [{ id, name, url: settings.kimaiUrl }];
       settings.activeConnectionId = id;
+      await store.set(SETTINGS_KEY, settings);
+      await store.save();
+    }
+
+    // Migrate the old global feature toggles into per-connection settings by
+    // copying the previous values onto every existing connection once.
+    // Clone so we never mutate the shared `defaultSettings.features` object.
+    settings.features = { ...(settings.features ?? {}) };
+    const hadFlatFeatures =
+      rawObj.featureNote !== undefined ||
+      rawObj.featureTags !== undefined ||
+      rawObj.featurePausedTimerDescriptionHover !== undefined ||
+      rawObj.featureCustomerSelect !== undefined ||
+      rawObj.featureCustomStartTime !== undefined;
+    if (hadFlatFeatures && Object.keys(settings.features).length === 0) {
+      const migrated: FeatureSettings = {
+        featureNote: (rawObj.featureNote as boolean) ?? defaultFeatureSettings.featureNote,
+        featureTags: (rawObj.featureTags as boolean) ?? defaultFeatureSettings.featureTags,
+        featurePausedTimerDescriptionHover:
+          (rawObj.featurePausedTimerDescriptionHover as boolean) ??
+          defaultFeatureSettings.featurePausedTimerDescriptionHover,
+        featureCustomerSelect:
+          (rawObj.featureCustomerSelect as boolean) ?? defaultFeatureSettings.featureCustomerSelect,
+        featureCustomStartTime:
+          (rawObj.featureCustomStartTime as boolean) ?? defaultFeatureSettings.featureCustomStartTime,
+      };
+      for (const conn of settings.connections ?? []) {
+        settings.features[conn.id] = { ...migrated };
+      }
       await store.set(SETTINGS_KEY, settings);
       await store.save();
     }

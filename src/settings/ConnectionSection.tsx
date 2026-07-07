@@ -4,6 +4,7 @@ import type { AppSettings, SavedConnection } from "../types";
 import { testConnection, isInsecureUrl, type ConnectionResult } from "../api";
 import { getConnectionToken } from "../api/connectionTokenStore";
 import IntegrationsSection from "./IntegrationsSection";
+import FeaturesSection from "./FeaturesSection";
 import {
   Divider,
   FieldGroup,
@@ -22,7 +23,7 @@ interface Props {
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }
 
-type ConnectionTab = "connection" | "integrations";
+type ConnectionTab = "connection" | "features" | "integrations";
 
 export default function ConnectionSection({
   settings,
@@ -185,6 +186,29 @@ export default function ConnectionSection({
           {t("connection.tabConnection")}
         </TabButton>
         <TabButton
+          active={activeTab === "features"}
+          disabled={!editingId}
+          title={!editingId ? t("connection.saveFirstForFeatures") : undefined}
+          onClick={() => setActiveTab("features")}
+        >
+          {t("featuresSettings.title")}
+          {!editingId && (
+            <svg
+              className="h-3 w-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 00-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              />
+            </svg>
+          )}
+        </TabButton>
+        <TabButton
           active={activeTab === "integrations"}
           disabled={!editingId}
           title={
@@ -216,6 +240,12 @@ export default function ConnectionSection({
           settings={settings}
           update={update}
           connectionId={editingId}
+        />
+      ) : activeTab === "features" ? (
+        <FeaturesSection
+          settings={settings}
+          update={update}
+          connectionId={editingId ?? ""}
         />
       ) : (
         <>

@@ -4,6 +4,7 @@
 
 ### New Features
 
+- **Per-connection feature toggles** — the feature toggles (note, tags, paused-timer description hover, customer select, custom start time) are now configured **per connection** on the connection page as a **Features** tab (next to Connection and Integrations), instead of a single global setting in the sidebar. Each connection keeps its own set; existing global values are migrated onto every current connection automatically
 - **Tray icon style presets** — pick the shape of the status icon in **Tray & Menu Bar**: **Dot** (filled circle), **Ring** (hollow circle), **Square** (rounded square) or **Clock** (a clock face, fitting for a time tracker). Every preset keeps the state color (idle / running / paused / error) and the icon-size setting
 
 ### Bug Fixes

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createKimaiClient, type KimaiClient } from "../api/kimaiClient";
 import { getConnectionToken } from "../api/connectionTokenStore";
-import { loadSettings, onSettingsChange, saveSettings } from "../settings/service";
+import { loadSettings, onSettingsChange, saveSettings, defaultFeatureSettings } from "../settings/service";
 import type { SavedConnection, ColorMode } from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
 import { getIssueToken } from "../integrations/issues/issueTokenStore";
@@ -162,15 +162,11 @@ export function useKimaiClient(): UseKimaiClientResult {
     setPopupLayout(s.popupLayout ?? "classic");
     setColorMode(s.colorMode ?? "kimai");
     setDisplayMode(s.displayMode ?? "tray");
-    setFeatureFlags({
-      featureNote: s.featureNote ?? true,
-      featureTags: s.featureTags ?? false,
-      featurePausedTimerDescriptionHover:
-        s.featurePausedTimerDescriptionHover ?? false,
-      featureCustomerSelect: s.featureCustomerSelect ?? true,
-      featureCustomStartTime: s.featureCustomStartTime ?? true,
-    });
     const connId = nextConnId;
+    setFeatureFlags({
+      ...defaultFeatureSettings,
+      ...((s.features ?? {})[connId] ?? {}),
+    });
     const issueConfig = (s.issueIntegrations ?? {})[connId] ?? {
       enabled: false,
       provider: "gitlab" as const,

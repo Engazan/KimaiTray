@@ -50,6 +50,7 @@
     "title": "Connection",
     "tabConnection": "Connection",
     "saveFirstForIntegrations": "Save the connection first to configure integrations",
+    "saveFirstForFeatures": "Save the connection first to configure features",
     "connectionsTitle": "Connections",
     "description": "Connect to your Kimai instance using its base URL and a personal API token. You can save multiple connections and switch between them.",
     "addNew": "Add New Connection",

@@ -50,6 +50,7 @@
     "title": "Připojení",
     "tabConnection": "Připojení",
     "saveFirstForIntegrations": "Nejprve ulož připojení, abys mohl nastavit integrace",
+    "saveFirstForFeatures": "Nejprve ulož připojení, abys mohl nastavit funkce",
     "connectionsTitle": "Připojení",
     "description": "Připojte se k instanci Kimai pomocí základní URL adresy a osobního API tokenu. Můžete uložit více připojení a přepínat mezi nimi.",
     "addNew": "Přidat nové připojení",

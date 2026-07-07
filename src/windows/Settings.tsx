@@ -10,7 +10,6 @@ import ConnectionSection from "../settings/ConnectionSection";
 import GeneralSection from "../settings/GeneralSection";
 import AppearanceSection from "../settings/AppearanceSection";
 import TrayWindowSection from "../settings/TrayWindowSection";
-import FeaturesSection from "../settings/FeaturesSection";
 import IdleDetectionSection from "../settings/IdleDetectionSection";
 import ShortcutsSection from "../settings/ShortcutsSection";
 import TestSection from "../settings/TestSection";
@@ -86,7 +85,6 @@ const NAV_ORDER: SettingsSection[] = [
   "general",
   "appearance",
   "tray",
-  "features",
   "idle",
   "shortcuts",
   "test",
@@ -280,9 +278,6 @@ export default function Settings() {
           )}
           {section === "tray" && (
             <TrayWindowSection settings={settings} update={update} />
-          )}
-          {section === "features" && (
-            <FeaturesSection settings={settings} update={update} />
           )}
           {section === "idle" && (
             <IdleDetectionSection settings={settings} update={update} />
