@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings, SavedConnection } from "../types";
 import { testConnection, isInsecureUrl, type ConnectionResult } from "../api";
 import { getConnectionToken } from "../api/connectionTokenStore";
+import IntegrationsSection from "./IntegrationsSection";
 import {
   Divider,
   FieldGroup,
@@ -18,7 +19,10 @@ interface Props {
   onSelectedConnectionChange: (id: string | null) => void;
   saveConnection: (conn: SavedConnection, token: string) => Promise<void>;
   removeConnection: (id: string) => Promise<void>;
+  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }
+
+type ConnectionTab = "connection" | "integrations";
 
 export default function ConnectionSection({
   settings,
@@ -27,9 +31,11 @@ export default function ConnectionSection({
   onSelectedConnectionChange,
   saveConnection,
   removeConnection,
+  update,
 }: Props) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(selectedConnectionId);
+  const [activeTab, setActiveTab] = useState<ConnectionTab>("connection");
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [editToken, setEditToken] = useState("");
@@ -45,6 +51,8 @@ export default function ConnectionSection({
       setStatus("idle");
       setStatusMessage("");
       setShowToken(false);
+      // Integrations bind to a saved connection id — a new one has none yet.
+      if (!id) setActiveTab("connection");
 
       if (id) {
         const conn = settings.connections.find((c) => c.id === id);
@@ -169,6 +177,48 @@ export default function ConnectionSection({
         {t("connection.description")}
       </SectionDescription>
 
+      <div className="mb-4 mt-3 flex gap-4 border-b border-gray-200 dark:border-gray-800">
+        <TabButton
+          active={activeTab === "connection"}
+          onClick={() => setActiveTab("connection")}
+        >
+          {t("connection.tabConnection")}
+        </TabButton>
+        <TabButton
+          active={activeTab === "integrations"}
+          disabled={!editingId}
+          title={
+            !editingId ? t("connection.saveFirstForIntegrations") : undefined
+          }
+          onClick={() => setActiveTab("integrations")}
+        >
+          {t("integrations.title")}
+          {!editingId && (
+            <svg
+              className="h-3 w-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 00-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              />
+            </svg>
+          )}
+        </TabButton>
+      </div>
+
+      {activeTab === "integrations" && editingId ? (
+        <IntegrationsSection
+          settings={settings}
+          update={update}
+          connectionId={editingId}
+        />
+      ) : (
+        <>
       {editingId && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/50">
           <div className="min-w-0">
@@ -277,7 +327,41 @@ export default function ConnectionSection({
 
         <StatusBadge status={status} message={statusMessage} />
       </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  disabled,
+  title,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  title?: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13px] font-medium transition-colors
+        focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
+        disabled:cursor-not-allowed disabled:opacity-50 ${
+          active
+            ? "border-[var(--accent)] text-[var(--accent)]"
+            : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        }`}
+    >
+      {children}
+    </button>
   );
 }
 

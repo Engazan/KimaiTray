@@ -21,7 +21,6 @@ import {
 import {
   FieldGroup,
   SectionDescription,
-  SectionTitle,
   Select,
   TextInput,
   Toggle,
@@ -60,6 +59,9 @@ const emptyConfig: IssueIntegrationSettings = {
 interface Props {
   settings: AppSettings;
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  /** Connection whose issue integration is being configured. Empty for a
+   *  not-yet-saved connection. */
+  connectionId: string;
 }
 
 function CheckIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -180,21 +182,12 @@ function StatusMessage({
   );
 }
 
-export default function IntegrationsSection({ settings, update }: Props) {
+export default function IntegrationsSection({
+  settings,
+  update,
+  connectionId,
+}: Props) {
   const { t } = useTranslation();
-  const [selectedConnectionId, setSelectedConnectionId] = useState(
-    settings.activeConnectionId,
-  );
-  // Keep the selection valid if connections change (e.g. one is deleted),
-  // falling back to the active connection or the first available one.
-  const connectionId = settings.connections.some(
-    (c) => c.id === selectedConnectionId,
-  )
-    ? selectedConnectionId
-    : settings.activeConnectionId || settings.connections[0]?.id || "";
-  const selectedConnection = settings.connections.find(
-    (c) => c.id === connectionId,
-  );
   const config = settings.issueIntegrations[connectionId] ?? emptyConfig;
 
   const [issueToken, setIssueToken] = useState("");
@@ -340,112 +333,49 @@ export default function IntegrationsSection({ settings, update }: Props) {
 
   return (
     <div>
-      <SectionTitle>{t("integrations.title")}</SectionTitle>
       <SectionDescription>{t("integrations.description")}</SectionDescription>
 
       {noConnection ? (
         <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center text-[12px] text-gray-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
-          {t("status.notConfigured")}
+          {t("connection.saveFirstForIntegrations")}
         </div>
       ) : (
         <div className="space-y-4">
           <Panel
-            title={t("integrations.connection")}
-            description={t("integrations.connectionDescription")}
+            title={t("integrations.title")}
+            description={t("integrations.perConnectionHint")}
           >
-            <div className="grid gap-2 sm:grid-cols-2">
-              {settings.connections.map((c) => {
-                const selected = c.id === connectionId;
-                const isActive = c.id === settings.activeConnectionId;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelectedConnectionId(c.id)}
-                    className={`flex min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors
-                      focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-[#181818] ${
-                        selected
-                          ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                          : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-[#202020] dark:text-gray-300 dark:hover:bg-gray-800"
-                      }`}
-                  >
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        isActive
-                          ? "bg-emerald-500"
-                          : "bg-gray-300 dark:bg-gray-600"
-                      }`}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12px] font-medium text-gray-700 dark:text-gray-300">
-                        {c.name}
-                      </span>
-                      <span className="block truncate text-[11px] text-gray-400 dark:text-gray-500">
-                        {c.url}
-                      </span>
-                    </span>
-                    {selected && (
-                      <span className="shrink-0 text-[var(--accent)]">
-                        <CheckIcon />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between gap-3">
+              <span
+                className={`text-[12px] font-medium ${
+                  config.enabled
+                    ? "text-[var(--accent)]"
+                    : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                {t("integrations.enabled")}
+              </span>
+              <Toggle
+                checked={config.enabled}
+                onChange={(v) => updateField("enabled", v)}
+              />
             </div>
 
-            <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 dark:border-gray-800 dark:bg-[#151515]">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
-                      {selectedConnection?.name ?? t("integrations.connection")}
-                    </h3>
-                    {connectionId === settings.activeConnectionId && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {t("integrations.activeSuffix")}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 max-w-xl text-[11px] leading-4 text-gray-500 dark:text-gray-400">
-                    {t("integrations.perConnectionHint")}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2">
-                  <span
-                    className={`text-[11px] font-medium ${
-                      config.enabled
-                        ? "text-[var(--accent)]"
-                        : "text-gray-400 dark:text-gray-500"
-                    }`}
-                  >
-                    {t("integrations.enabled")}
-                  </span>
-                  <Toggle
-                    checked={config.enabled}
-                    onChange={(v) => updateField("enabled", v)}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <SummaryItem
-                  label={t("integrations.provider")}
-                  value={`${providerLabel} - ${PROVIDER_API_VERSION[config.provider]}`}
-                />
-                <SummaryItem
-                  label={t("integrations.baseUrl")}
-                  value={config.baseUrl || t("status.notConfigured")}
-                  muted={!config.baseUrl}
-                />
-                <SummaryItem
-                  label={t("integrations.repository")}
-                  value={config.projectPathOrRepo || t("status.notConfigured")}
-                  muted={repoMissing}
-                />
-              </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <SummaryItem
+                label={t("integrations.provider")}
+                value={`${providerLabel} - ${PROVIDER_API_VERSION[config.provider]}`}
+              />
+              <SummaryItem
+                label={t("integrations.baseUrl")}
+                value={config.baseUrl || t("status.notConfigured")}
+                muted={!config.baseUrl}
+              />
+              <SummaryItem
+                label={t("integrations.repository")}
+                value={config.projectPathOrRepo || t("status.notConfigured")}
+                muted={repoMissing}
+              />
             </div>
           </Panel>
 

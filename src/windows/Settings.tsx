@@ -11,7 +11,6 @@ import GeneralSection from "../settings/GeneralSection";
 import AppearanceSection from "../settings/AppearanceSection";
 import TrayWindowSection from "../settings/TrayWindowSection";
 import FeaturesSection from "../settings/FeaturesSection";
-import IntegrationsSection from "../settings/IntegrationsSection";
 import IdleDetectionSection from "../settings/IdleDetectionSection";
 import ShortcutsSection from "../settings/ShortcutsSection";
 import TestSection from "../settings/TestSection";
@@ -88,7 +87,6 @@ const NAV_ORDER: SettingsSection[] = [
   "appearance",
   "tray",
   "features",
-  "integrations",
   "idle",
   "shortcuts",
   "test",
@@ -262,7 +260,7 @@ export default function Settings() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto px-8 py-6">
-        <div className={section === "integrations" ? "max-w-2xl" : "max-w-lg"}>
+        <div className={section === "connection" ? "max-w-2xl" : "max-w-lg"}>
           {section === "connection" && (
               <ConnectionSection
                 settings={settings}
@@ -271,6 +269,7 @@ export default function Settings() {
                 onSelectedConnectionChange={setSelectedConnectionId}
                 saveConnection={saveConnection}
                 removeConnection={removeConnection}
+                update={update}
               />
             )}
           {section === "general" && (
@@ -284,9 +283,6 @@ export default function Settings() {
           )}
           {section === "features" && (
             <FeaturesSection settings={settings} update={update} />
-          )}
-          {section === "integrations" && (
-            <IntegrationsSection settings={settings} update={update} />
           )}
           {section === "idle" && (
             <IdleDetectionSection settings={settings} update={update} />

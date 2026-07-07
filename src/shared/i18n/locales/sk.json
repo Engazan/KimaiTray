@@ -48,6 +48,8 @@
   },
   "connection": {
     "title": "Pripojenie",
+    "tabConnection": "Pripojenie",
+    "saveFirstForIntegrations": "Najprv ulož pripojenie, aby si mohol nastaviť integrácie",
     "connectionsTitle": "Pripojenia",
     "description": "Pripojte sa k inštancii Kimai pomocou základnej URL adresy a osobného API tokenu. Môžete uložiť viacero pripojení a prepínať medzi nimi.",
     "addNew": "Pridať nové pripojenie",
