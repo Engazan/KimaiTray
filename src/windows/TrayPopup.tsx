@@ -274,7 +274,7 @@ export default function TrayPopup() {
     isStoppingActive,
     pauseError,
     dismissPauseError,
-  } = usePauseTimer(client, timer, baseUrl);
+  } = usePauseTimer(client, timer, activeConnectionId);
 
   const activeKey = timer ? `${timer.projectId}-${timer.activityId}` : null;
   const { tasks, isLoading: tasksLoading } = useRecentTasks(

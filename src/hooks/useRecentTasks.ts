@@ -30,7 +30,7 @@ export function useRecentTasks(
   const enabled = !!client && isConfigured;
 
   const recentQ = useQuery({
-    queryKey: ["recent-timesheets", client?.baseUrl],
+    queryKey: ["recent-timesheets", client?.connectionId],
     queryFn: () => getRecentTimesheets(client!, 20),
     enabled,
     staleTime: 30_000,

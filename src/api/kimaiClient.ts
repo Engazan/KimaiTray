@@ -194,6 +194,10 @@ async function request<T>(
 
 export interface KimaiClient {
   readonly baseUrl: string;
+  /** Identity of the connection this client belongs to. Used to partition
+   *  React Query caches so two connections to the same server (same baseUrl)
+   *  but different tokens/options don't share cached data. */
+  readonly connectionId: string;
   get<T>(path: string, params?: QueryParamLike): Promise<T>;
   post<T>(path: string, body?: unknown): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
@@ -203,10 +207,12 @@ export interface KimaiClient {
 export function createKimaiClient(
   rawBaseUrl: string,
   token: string,
+  connectionId = "",
 ): KimaiClient {
   const baseUrl = normalizeBaseUrl(rawBaseUrl);
   return {
     baseUrl,
+    connectionId,
     get: <T>(path: string, params?: QueryParamLike) =>
       request<T>(baseUrl, token, "GET", path, undefined, params as QueryParams),
     post: <T>(path: string, body?: unknown) =>

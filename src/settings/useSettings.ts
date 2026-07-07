@@ -2,32 +2,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppSettings, SavedConnection } from "../types";
 import { defaultSettings, loadSettings, saveSettings } from "./service";
 import {
-  deleteApiToken,
-  getApiToken,
-  saveApiToken,
-} from "../api/secureStore";
+  deleteConnectionToken,
+  getConnectionToken,
+  saveConnectionToken,
+} from "../api/connectionTokenStore";
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [token, setToken] = useState("");
   const [loaded, setLoaded] = useState(false);
-  const prevUrlRef = useRef("");
-  const urlRef = useRef("");
+  // Id of the connection whose token is currently loaded into `token`.
+  const activeIdRef = useRef("");
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
   useEffect(() => {
     loadSettings().then((s) => {
       setSettings(s);
-      prevUrlRef.current = s.kimaiUrl;
-      urlRef.current = s.kimaiUrl;
-      loadToken(s.kimaiUrl);
+      activeIdRef.current = s.activeConnectionId ?? "";
+      loadToken(s.activeConnectionId ?? "", s.kimaiUrl);
     });
   }, []);
 
-  async function loadToken(url: string) {
+  async function loadToken(connectionId: string, legacyUrl: string) {
     try {
-      const t = await getApiToken(url);
+      const t = await getConnectionToken(connectionId, legacyUrl);
       setToken(t ?? "");
     } catch {
       setToken("");
@@ -41,47 +40,31 @@ export function useSettings() {
       setSettings((prev) => {
         const next = { ...prev, [key]: value };
         saveSettings(next);
-
-        if (key === "kimaiUrl") {
-          const newUrl = value as string;
-          urlRef.current = newUrl;
-          if (newUrl !== prevUrlRef.current) {
-            prevUrlRef.current = newUrl;
-            loadToken(newUrl);
-          }
-        }
-
         return next;
       });
     },
     [],
   );
 
-  const updateToken = useCallback(
-    async (value: string) => {
-      setToken(value);
-      const url = urlRef.current;
-      if (url) {
-        try {
-          if (value) {
-            await saveApiToken(url, value);
-          } else {
-            await deleteApiToken(url);
-          }
-        } catch {
-          // Store unavailable
+  const updateToken = useCallback(async (value: string) => {
+    setToken(value);
+    const id = activeIdRef.current;
+    if (id) {
+      try {
+        if (value) {
+          await saveConnectionToken(id, value);
+        } else {
+          await deleteConnectionToken(id);
         }
+      } catch {
+        // Store unavailable
       }
-    },
-    [],
-  );
+    }
+  }, []);
 
   const saveConnection = useCallback(
     async (conn: SavedConnection, newToken: string) => {
       const prev = settingsRef.current;
-      const oldConn = prev.connections.find((c) => c.id === conn.id);
-      const oldUrl = oldConn?.url;
-
       const idx = prev.connections.findIndex((c) => c.id === conn.id);
       const connections = [...prev.connections];
       if (idx >= 0) {
@@ -99,27 +82,21 @@ export function useSettings() {
       setSettings(next);
       saveSettings(next);
 
-      if (oldUrl && oldUrl !== conn.url) {
-        const urlStillUsed = connections.some(
-          (c) => c.id !== conn.id && c.url === oldUrl,
-        );
-        if (!urlStillUsed) {
-          await deleteApiToken(oldUrl);
-        }
-      }
-      if (conn.url && newToken) {
-        await saveApiToken(conn.url, newToken);
+      // Tokens are keyed by connection id, so editing a connection's URL no
+      // longer needs to move the token between URL keys.
+      if (newToken) {
+        await saveConnectionToken(conn.id, newToken);
+      } else {
+        await deleteConnectionToken(conn.id);
       }
       setToken(newToken);
-      prevUrlRef.current = conn.url;
-      urlRef.current = conn.url;
+      activeIdRef.current = conn.id;
     },
     [],
   );
 
   const removeConnection = useCallback(async (id: string) => {
     const prev = settingsRef.current;
-    const conn = prev.connections.find((c) => c.id === id);
     const wasActive = prev.activeConnectionId === id;
     const remaining = prev.connections.filter((c) => c.id !== id);
     const newActive = wasActive ? remaining[0] : null;
@@ -135,22 +112,15 @@ export function useSettings() {
     setSettings(next);
     saveSettings(next);
 
-    if (conn?.url) {
-      const urlStillUsed = remaining.some((c) => c.url === conn.url);
-      if (!urlStillUsed) {
-        await deleteApiToken(conn.url);
-      }
-    }
+    await deleteConnectionToken(id);
 
     if (wasActive) {
       if (newActive) {
-        prevUrlRef.current = newActive.url;
-        urlRef.current = newActive.url;
-        await loadToken(newActive.url);
+        activeIdRef.current = newActive.id;
+        await loadToken(newActive.id, newActive.url);
       } else {
         setToken("");
-        prevUrlRef.current = "";
-        urlRef.current = "";
+        activeIdRef.current = "";
       }
     }
   }, []);
@@ -164,9 +134,8 @@ export function useSettings() {
     setSettings(next);
     saveSettings(next);
 
-    prevUrlRef.current = conn.url;
-    urlRef.current = conn.url;
-    await loadToken(conn.url);
+    activeIdRef.current = id;
+    await loadToken(id, conn.url);
   }, []);
 
   return {

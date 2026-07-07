@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings, SavedConnection } from "../types";
 import { testConnection, isInsecureUrl, type ConnectionResult } from "../api";
-import { getApiToken } from "../api/secureStore";
+import { getConnectionToken } from "../api/connectionTokenStore";
 import {
   Divider,
   FieldGroup,
@@ -52,7 +52,7 @@ export default function ConnectionSection({
           setName(conn.name);
           setUrl(conn.url);
           try {
-            const t = await getApiToken(conn.url);
+            const t = await getConnectionToken(conn.id, conn.url);
             setEditToken(t ?? "");
           } catch {
             setEditToken("");

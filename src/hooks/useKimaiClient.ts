@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createKimaiClient, type KimaiClient } from "../api/kimaiClient";
-import { getApiToken } from "../api/secureStore";
+import { getConnectionToken } from "../api/connectionTokenStore";
 import { loadSettings, onSettingsChange, saveSettings } from "../settings/service";
 import type { SavedConnection, ColorMode } from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
@@ -121,12 +121,19 @@ export function useKimaiClient(): UseKimaiClientResult {
   const [issueToken, setIssueToken] = useState<string | null>(null);
 
   const baseUrlRef = useRef("");
+  const activeIdRef = useRef("");
 
   const applySettings = useCallback(async (s: Awaited<ReturnType<typeof loadSettings>>) => {
+    const nextConnId = s.activeConnectionId ?? "";
     const urlChanged = s.kimaiUrl !== baseUrlRef.current;
+    const connChanged = nextConnId !== activeIdRef.current;
     baseUrlRef.current = s.kimaiUrl;
+    activeIdRef.current = nextConnId;
 
-    if (urlChanged) {
+    // Clear the token when switching connection (even to the same server URL)
+    // so the client turns null until the new connection's token loads — this
+    // avoids a fetch with the previous connection's token under the new key.
+    if (urlChanged || connChanged) {
       setToken("");
     }
     setBaseUrl(s.kimaiUrl);
@@ -163,7 +170,7 @@ export function useKimaiClient(): UseKimaiClientResult {
       featureCustomerSelect: s.featureCustomerSelect ?? true,
       featureCustomStartTime: s.featureCustomStartTime ?? true,
     });
-    const connId = s.activeConnectionId ?? "";
+    const connId = nextConnId;
     const issueConfig = (s.issueIntegrations ?? {})[connId] ?? {
       enabled: false,
       provider: "gitlab" as const,
@@ -184,9 +191,9 @@ export function useKimaiClient(): UseKimaiClientResult {
     } else {
       setIssueToken(null);
     }
-    if (s.kimaiUrl) {
+    if (s.kimaiUrl || connId) {
       try {
-        const t = await getApiToken(s.kimaiUrl);
+        const t = await getConnectionToken(connId, s.kimaiUrl);
         setToken(t ?? "");
       } catch {
         setToken("");
@@ -234,7 +241,7 @@ export function useKimaiClient(): UseKimaiClientResult {
 
     let t = "";
     try {
-      t = (await getApiToken(conn.url)) ?? "";
+      t = (await getConnectionToken(conn.id, conn.url)) ?? "";
     } catch { /* token load failed */ }
 
     baseUrlRef.current = conn.url;
@@ -247,8 +254,8 @@ export function useKimaiClient(): UseKimaiClientResult {
 
   const client = useMemo(() => {
     if (!baseUrl || !token) return null;
-    return createKimaiClient(baseUrl, token);
-  }, [baseUrl, token]);
+    return createKimaiClient(baseUrl, token, activeConnectionId);
+  }, [baseUrl, token, activeConnectionId]);
 
   return {
     client,

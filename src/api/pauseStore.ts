@@ -7,7 +7,9 @@ const MAX_PAUSED_TIMERS = 10;
 
 export interface PausedTimerData {
   id: string;
-  baseUrl: string;
+  /** Id of the connection this paused timer belongs to (so timers aren't
+   *  shared between two connections pointing at the same server). */
+  connectionId: string;
   lastTimesheetId?: number;
   projectId: number;
   activityId: number;

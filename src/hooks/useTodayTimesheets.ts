@@ -20,7 +20,7 @@ export function useTodayTimesheets(
   const [expanded, setExpanded] = useState(false);
 
   const timesheetsQ = useQuery({
-    queryKey: ["today-timesheets", client?.baseUrl],
+    queryKey: ["today-timesheets", client?.connectionId],
     queryFn: () => {
       const { begin, end } = getLocalDayRange();
       return getTimesheets(client!, {

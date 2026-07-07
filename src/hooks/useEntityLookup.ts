@@ -24,21 +24,21 @@ export function useEntityLookup(
   neededActivityIds: number[],
 ): EntityLookup {
   const projectsQ = useQuery({
-    queryKey: ["projects", client?.baseUrl],
+    queryKey: ["projects", client?.connectionId],
     queryFn: () => getProjects(client!),
     enabled,
     staleTime: 5 * 60 * 1000,
   });
 
   const activitiesQ = useQuery({
-    queryKey: ["activities", client?.baseUrl],
+    queryKey: ["activities", client?.connectionId],
     queryFn: () => getActivities(client!),
     enabled,
     staleTime: 5 * 60 * 1000,
   });
 
   const customersQ = useQuery({
-    queryKey: ["customers", client?.baseUrl],
+    queryKey: ["customers", client?.connectionId],
     queryFn: () => getCustomers(client!),
     enabled,
     staleTime: 5 * 60 * 1000,
@@ -64,7 +64,7 @@ export function useEntityLookup(
 
   const missingProjectQueries = useQueries({
     queries: missingProjectIds.map((id) => ({
-      queryKey: ["project", client?.baseUrl, id] as const,
+      queryKey: ["project", client?.connectionId, id] as const,
       queryFn: () => getProject(client!, id),
       enabled: enabled && missingProjectIds.length > 0,
       staleTime: 5 * 60 * 1000,
@@ -74,7 +74,7 @@ export function useEntityLookup(
 
   const missingActivityQueries = useQueries({
     queries: missingActivityIds.map((id) => ({
-      queryKey: ["activity", client?.baseUrl, id] as const,
+      queryKey: ["activity", client?.connectionId, id] as const,
       queryFn: () => getActivity(client!, id),
       enabled: enabled && missingActivityIds.length > 0,
       staleTime: 5 * 60 * 1000,
@@ -101,7 +101,7 @@ export function useEntityLookup(
 
   const missingCustomerQueries = useQueries({
     queries: missingCustomerIds.map((id) => ({
-      queryKey: ["customer", client?.baseUrl, id] as const,
+      queryKey: ["customer", client?.connectionId, id] as const,
       queryFn: () => getCustomer(client!, id),
       enabled: enabled && missingCustomerIds.length > 0,
       staleTime: 5 * 60 * 1000,

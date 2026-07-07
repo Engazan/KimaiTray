@@ -106,19 +106,19 @@ export default function NewTaskForm({
   const [beginTime, setBeginTime] = useState("");
 
   const customersQ = useQuery({
-    queryKey: ["customers", client.baseUrl],
+    queryKey: ["customers", client.connectionId],
     queryFn: () => getCustomers(client),
     staleTime: 5 * 60 * 1000,
   });
 
   const projectsQ = useQuery({
-    queryKey: ["projects", client.baseUrl],
+    queryKey: ["projects", client.connectionId],
     queryFn: () => getProjects(client),
     staleTime: 5 * 60 * 1000,
   });
 
   const activitiesQ = useQuery({
-    queryKey: ["activities", client.baseUrl],
+    queryKey: ["activities", client.connectionId],
     queryFn: () => getActivities(client),
     staleTime: 5 * 60 * 1000,
   });
@@ -133,15 +133,15 @@ export default function NewTaskForm({
     setRefreshing(true);
     try {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["customers", client.baseUrl] }),
-        qc.invalidateQueries({ queryKey: ["projects", client.baseUrl] }),
-        qc.invalidateQueries({ queryKey: ["activities", client.baseUrl] }),
-        qc.invalidateQueries({ queryKey: ["tags", client.baseUrl] }),
+        qc.invalidateQueries({ queryKey: ["customers", client.connectionId] }),
+        qc.invalidateQueries({ queryKey: ["projects", client.connectionId] }),
+        qc.invalidateQueries({ queryKey: ["activities", client.connectionId] }),
+        qc.invalidateQueries({ queryKey: ["tags", client.connectionId] }),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [qc, client.baseUrl, refreshing]);
+  }, [qc, client.connectionId, refreshing]);
 
   const customers = customersQ.data ?? [];
 

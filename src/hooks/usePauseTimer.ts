@@ -30,7 +30,7 @@ interface UsePauseTimerResult {
 export function usePauseTimer(
   client: KimaiClient | null,
   timer: ActiveTimer | null,
-  baseUrl: string,
+  connectionId: string,
 ): UsePauseTimerResult {
   const qc = useQueryClient();
   const [pausedTimers, setPausedTimers] = useState<PausedTimerData[]>([]);
@@ -42,13 +42,10 @@ export function usePauseTimer(
 
   useEffect(() => {
     loadPausedTimers().then((all) => {
-      const matching = all.filter((t) => t.baseUrl === baseUrl);
-      if (matching.length !== all.length) {
-        // Different baseUrl items exist — leave them in store, just show matching
-      }
-      setPausedTimers(matching);
+      // Different-connection items stay in the store; we only surface ours.
+      setPausedTimers(all.filter((t) => t.connectionId === connectionId));
     });
-  }, [baseUrl]);
+  }, [connectionId]);
 
   const invalidate = useCallback(() => {
     invalidateTimesheets(qc);
@@ -60,7 +57,7 @@ export function usePauseTimer(
       await stopTimesheet(client!, activeTimer.id);
       const data: PausedTimerData = {
         id: crypto.randomUUID(),
-        baseUrl,
+        connectionId,
         lastTimesheetId: activeTimer.id,
         projectId: activeTimer.projectId,
         activityId: activeTimer.activityId,
@@ -74,7 +71,7 @@ export function usePauseTimer(
         pausedAt: new Date().toISOString(),
       };
       const updated = await addPausedTimer(data);
-      return updated.filter((t) => t.baseUrl === baseUrl);
+      return updated.filter((t) => t.connectionId === connectionId);
     },
     onSuccess: (filtered) => {
       setPausedTimers(filtered);
@@ -97,7 +94,7 @@ export function usePauseTimer(
         await stopTimesheet(client!, currentTimer.id);
         const swapData: PausedTimerData = {
           id: crypto.randomUUID(),
-          baseUrl,
+          connectionId,
           lastTimesheetId: currentTimer.id,
           projectId: currentTimer.projectId,
           activityId: currentTimer.activityId,
@@ -124,7 +121,7 @@ export function usePauseTimer(
 
       // Remove the resumed timer from store
       const updated = await removePausedTimer(target.id);
-      return updated.filter((t) => t.baseUrl === baseUrl);
+      return updated.filter((t) => t.connectionId === connectionId);
     },
     onSuccess: (filtered) => {
       setPausedTimers(filtered);
@@ -143,7 +140,7 @@ export function usePauseTimer(
     mutationFn: async (id: string) => {
       setDiscardingId(id);
       const updated = await removePausedTimer(id);
-      return updated.filter((t) => t.baseUrl === baseUrl);
+      return updated.filter((t) => t.connectionId === connectionId);
     },
     onSuccess: (filtered) => {
       setPausedTimers(filtered);
