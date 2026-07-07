@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.0] - 2026-07-07
+
+### New Features
+
+- **Issues matching the selected project are highlighted** — when you pick a project in the new-timer form, issues whose title contains the project name (e.g. project `eshop.siklienka.sk` → issue "ANALYZA - eshop.siklienka.sk - Individuálne akcie") are marked with an accent bar and the first match is pre-selected, since it's likely the one you want
+
+### Bug Fixes
+
+- **Substring & accent-insensitive issue search** — searching GitLab issues now matches substrings anywhere in the title (e.g. "sik" finds "siklienka") and ignores diacritics (e.g. "individualne" finds "Individuálne"), instead of relying on GitLab's whole-word server-side search
+
 ## [0.12.1] - 2026-07-01
 
 ### Bug Fixes
