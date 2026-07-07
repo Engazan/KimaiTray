@@ -20,6 +20,15 @@ interface GitLabLabel {
   color: string;
 }
 
+// Case- and diacritic-insensitive normalization so a query like "sik" or
+// "individualne" matches "siklienka" / "Individuálne".
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function normalize(issue: GitLabIssue): ExternalIssue {
   return {
     id: issue.iid,
@@ -81,32 +90,56 @@ export function createGitLabProvider(
     },
 
     async searchIssues(query: string) {
-      const params: Record<string, string> = {
+      const baseParams: Record<string, string> = {
         per_page: "20",
         order_by: "updated_at",
       };
       if (config.defaultState !== "all") {
-        params.state = "opened";
+        baseParams.state = "opened";
       }
       if (config.assigneeOnly) {
-        params.scope = "assigned_to_me";
-      }
-      if (query.length >= 2) {
-        params.search = query;
+        baseParams.scope = "assigned_to_me";
       }
       if (config.filterLabels?.length) {
         if (config.filterLabelsMode === "exclude") {
-          params["not[labels]"] = config.filterLabels.join(",");
+          baseParams["not[labels]"] = config.filterLabels.join(",");
         } else {
-          params.labels = config.filterLabels.join(",");
+          baseParams.labels = config.filterLabels.join(",");
         }
       }
 
-      const issues = await request<GitLabIssue[]>(
-        `/projects/${encodedPath}/issues`,
-        params,
+      const path = `/projects/${encodedPath}/issues`;
+      const trimmed = query.trim();
+
+      if (trimmed.length < 2) {
+        const issues = await request<GitLabIssue[]>(path, baseParams);
+        return issues.map(normalize);
+      }
+
+      // GitLab's server-side `search` matches whole words/tokens, so a substring
+      // like "sik" won't match "siklienka". We fetch a wider recent window and
+      // filter client-side for substring matches (diacritic-insensitive), while
+      // still running the server search to catch matches outside that window.
+      const [serverMatched, recent] = await Promise.all([
+        request<GitLabIssue[]>(path, { ...baseParams, search: trimmed }),
+        request<GitLabIssue[]>(path, { ...baseParams, per_page: "100" }),
+      ]);
+
+      const needle = normalizeText(trimmed);
+      const localMatched = recent.filter((issue) =>
+        normalizeText(issue.title).includes(needle),
       );
-      return issues.map(normalize);
+
+      const seen = new Set<number>();
+      const merged: GitLabIssue[] = [];
+      for (const issue of [...serverMatched, ...localMatched]) {
+        if (!seen.has(issue.iid)) {
+          seen.add(issue.iid);
+          merged.push(issue);
+        }
+      }
+
+      return merged.slice(0, 20).map(normalize);
     },
 
     getIssueUrl(issue: ExternalIssue) {
