@@ -137,6 +137,7 @@
     "iconSizeSmall": "Малий",
     "iconSizeMedium": "Середній",
     "iconSizeLarge": "Великий",
+    "iconSizeXLarge": "Дуже великий",
     "iconShape": "Стиль значка",
     "iconShapeDescription": "Форма значка стану в лотку / рядку меню.",
     "iconShapeDot": "Крапка",

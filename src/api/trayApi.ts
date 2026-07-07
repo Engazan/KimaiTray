@@ -48,7 +48,7 @@ export async function setTrayIcon(state: TrayIconState): Promise<void> {
   }
 }
 
-export type TrayIconSize = "small" | "medium" | "large";
+export type TrayIconSize = "small" | "medium" | "large" | "xlarge";
 
 export async function setTrayIconSize(size: TrayIconSize): Promise<void> {
   try {

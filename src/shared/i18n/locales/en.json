@@ -137,6 +137,7 @@
     "iconSizeSmall": "Small",
     "iconSizeMedium": "Medium",
     "iconSizeLarge": "Large",
+    "iconSizeXLarge": "X-Large",
     "iconShape": "Tray icon style",
     "iconShapeDescription": "Shape of the status icon in the tray / menu bar.",
     "iconShapeDot": "Dot",

@@ -143,11 +143,12 @@ export default function TrayWindowSection({ settings, update }: Props) {
       <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
         {t("traySettings.iconSizeDescription")}
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-2">
+      <div className="grid grid-cols-4 gap-2 mb-2">
         {([
-          { value: "small" as const, label: t("traySettings.iconSizeSmall"), px: 13 },
-          { value: "medium" as const, label: t("traySettings.iconSizeMedium"), px: 17 },
-          { value: "large" as const, label: t("traySettings.iconSizeLarge"), px: 22 },
+          { value: "small" as const, label: t("traySettings.iconSizeSmall"), px: 12 },
+          { value: "medium" as const, label: t("traySettings.iconSizeMedium"), px: 16 },
+          { value: "large" as const, label: t("traySettings.iconSizeLarge"), px: 21 },
+          { value: "xlarge" as const, label: t("traySettings.iconSizeXLarge"), px: 26 },
         ]).map((opt) => {
           const active = (settings.trayIconSize ?? "medium") === opt.value;
           return (
@@ -158,7 +159,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                 update("trayIconSize", opt.value);
                 setTrayIconSize(opt.value);
               }}
-              className={`flex flex-col items-center gap-2 rounded-lg border px-3 py-3 transition-colors
+              className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
                 ${
                   active
@@ -166,10 +167,10 @@ export default function TrayWindowSection({ settings, update }: Props) {
                     : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
             >
-              <div className="h-6 flex items-center justify-center">
+              <div className="h-7 flex items-center justify-center">
                 <ShapeGlyph shape={settings.trayIconShape ?? "dot"} px={opt.px} />
               </div>
-              <span className="text-[12px] text-gray-600 dark:text-gray-400">
+              <span className="text-[11px] text-gray-600 dark:text-gray-400">
                 {opt.label}
               </span>
             </button>

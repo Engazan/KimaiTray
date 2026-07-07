@@ -154,6 +154,7 @@ fn size_code(size: &str) -> u8 {
     match size {
         "small" => 0,
         "large" => 2,
+        "xlarge" => 3,
         _ => 1, // medium
     }
 }
@@ -211,6 +212,7 @@ fn size_radius(size: u8) -> f64 {
     match size {
         0 => 8.5,   // small
         2 => 13.5,  // large
+        3 => 16.5,  // extra large
         _ => 10.5,  // medium
     }
 }

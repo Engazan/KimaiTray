@@ -137,6 +137,7 @@
     "iconSizeSmall": "Klein",
     "iconSizeMedium": "Mittel",
     "iconSizeLarge": "Groß",
+    "iconSizeXLarge": "Sehr groß",
     "iconShape": "Symbolstil",
     "iconShapeDescription": "Form des Statussymbols in der Leiste / Menüleiste.",
     "iconShapeDot": "Punkt",
