@@ -20,7 +20,9 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 
 - Tray-based timer control (start, stop, pause, resume)
 - Multiple Kimai server connections
-- Quick-start from recent tasks
+- Quick-start from recent tasks and favorites
+- Issue tracker integration (GitLab, GitHub, Gitea) — search and link issues to timers, browse per-repository issues, filter by state / assignee / labels, see GitLab time estimates (logged vs. estimate), and sync spent time back to the linked issue when the timer stops
+- Global keyboard shortcuts
 - Idle detection with configurable actions
 - Tag and description editing on running timers
 - Today's time entry history
