@@ -3,13 +3,8 @@ import { useTranslation } from "react-i18next";
 import type { AppSettings, FeatureSettings } from "../types";
 import { defaultFeatureSettings } from "./service";
 import CategoryModeSettingsSection from "../categorymode/CategoryModeSettingsSection";
-import {
-  Divider,
-  FieldGroup,
-  SectionDescription,
-  SectionTitle,
-  Toggle,
-} from "./Controls";
+import { SectionTitle, Toggle } from "./Controls";
+import { SettingsList, SettingsRow } from "./SettingsLayout";
 
 interface Props {
   settings: AppSettings;
@@ -62,90 +57,84 @@ export default function FeaturesSection({ settings, update, connectionId }: Prop
     );
   }
 
-  return (
-    <div>
-      <SectionDescription>
-        {t("featuresSettings.description")}
-      </SectionDescription>
-
-      {!connectionId ? (
+  if (!connectionId) {
+    return (
+      <div className="space-y-4">
+        <p className="text-[12.5px] leading-5 text-gray-500 dark:text-gray-400">
+          {t("featuresSettings.description")}
+        </p>
         <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center text-[12px] text-gray-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
           {t("connection.saveFirstForFeatures")}
         </div>
-      ) : (
-        <>
-          <FieldGroup label={t("featuresSettings.note")} description={t("featuresSettings.noteDescription")} horizontal>
-            <Toggle
-              checked={config.featureNote}
-              onChange={(v) => updateFeature("featureNote", v)}
-            />
-          </FieldGroup>
+      </div>
+    );
+  }
 
-          <Divider />
+  return (
+    <div className="space-y-4">
+      <p className="text-[12.5px] leading-5 text-gray-500 dark:text-gray-400">
+        {t("featuresSettings.description")}
+      </p>
 
-          <FieldGroup label={t("featuresSettings.tags")} description={t("featuresSettings.tagsDescription")} horizontal>
-            <Toggle
-              checked={config.featureTags}
-              onChange={(v) => updateFeature("featureTags", v)}
-            />
-          </FieldGroup>
+      <SettingsList>
+        <SettingsRow label={t("featuresSettings.note")} description={t("featuresSettings.noteDescription")}>
+          <Toggle checked={config.featureNote} onChange={(v) => updateFeature("featureNote", v)} />
+        </SettingsRow>
 
-          <Divider />
+        <SettingsRow label={t("featuresSettings.tags")} description={t("featuresSettings.tagsDescription")}>
+          <Toggle checked={config.featureTags} onChange={(v) => updateFeature("featureTags", v)} />
+        </SettingsRow>
 
-          <FieldGroup label={t("featuresSettings.pausedDescriptionHover")} description={t("featuresSettings.pausedDescriptionHoverDescription")} horizontal>
-            <Toggle
-              checked={config.featurePausedTimerDescriptionHover}
-              onChange={(v) => updateFeature("featurePausedTimerDescriptionHover", v)}
-            />
-          </FieldGroup>
+        <SettingsRow
+          label={t("featuresSettings.pausedDescriptionHover")}
+          description={t("featuresSettings.pausedDescriptionHoverDescription")}
+        >
+          <Toggle
+            checked={config.featurePausedTimerDescriptionHover}
+            onChange={(v) => updateFeature("featurePausedTimerDescriptionHover", v)}
+          />
+        </SettingsRow>
 
-          <Divider />
+        <SettingsRow label={t("featuresSettings.customerSelect")} description={t("featuresSettings.customerSelectDescription")}>
+          <Toggle
+            checked={config.featureCustomerSelect}
+            onChange={(v) => updateFeature("featureCustomerSelect", v)}
+          />
+        </SettingsRow>
 
-          <FieldGroup label={t("featuresSettings.customerSelect")} description={t("featuresSettings.customerSelectDescription")} horizontal>
-            <Toggle
-              checked={config.featureCustomerSelect}
-              onChange={(v) => updateFeature("featureCustomerSelect", v)}
-            />
-          </FieldGroup>
+        <SettingsRow label={t("featuresSettings.customStartTime")} description={t("featuresSettings.customStartTimeDescription")}>
+          <Toggle
+            checked={config.featureCustomStartTime}
+            onChange={(v) => updateFeature("featureCustomStartTime", v)}
+          />
+        </SettingsRow>
 
-          <Divider />
+        <SettingsRow label={t("featuresSettings.categoryMode")} description={t("featuresSettings.categoryModeDescription")}>
+          <Toggle
+            checked={config.featureCategoryMode}
+            onChange={(v) => updateFeature("featureCategoryMode", v)}
+          />
+        </SettingsRow>
+      </SettingsList>
 
-          <FieldGroup label={t("featuresSettings.customStartTime")} description={t("featuresSettings.customStartTimeDescription")} horizontal>
-            <Toggle
-              checked={config.featureCustomStartTime}
-              onChange={(v) => updateFeature("featureCustomStartTime", v)}
-            />
-          </FieldGroup>
-
-          <Divider />
-
-          <FieldGroup label={t("featuresSettings.categoryMode")} description={t("featuresSettings.categoryModeDescription")} horizontal>
-            <Toggle
-              checked={config.featureCategoryMode}
-              onChange={(v) => updateFeature("featureCategoryMode", v)}
-            />
-          </FieldGroup>
-
-          {config.featureCategoryMode && (
-            <button
-              type="button"
-              onClick={() => setCategoryEditorOpen(true)}
-              className="mt-1 flex w-full items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
-            >
-              <div className="min-w-0">
-                <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
-                  {t("featuresSettings.categoryModeConfigure")}
-                </div>
-                <div className="text-[11px] text-gray-400 dark:text-gray-500">
-                  {t("featuresSettings.categoryModeConfigureHint")}
-                </div>
-              </div>
-              <svg className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
-          )}
-        </>
+      {config.featureCategoryMode && (
+        <button
+          type="button"
+          onClick={() => setCategoryEditorOpen(true)}
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#181818] px-4 py-3 text-left shadow-sm shadow-gray-200/40 dark:shadow-black/10 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+        >
+          <div className="min-w-0">
+            <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
+              {t("featuresSettings.categoryModeConfigure")}
+            </div>
+            <div className="text-[11px] text-gray-400 dark:text-gray-500">
+              {t("featuresSettings.categoryModeConfigureHint")}
+            </div>
+          </div>
+          <svg className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
       )}
     </div>
   );

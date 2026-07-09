@@ -32,9 +32,11 @@
         "url": "/",
         "width": 780,
         "height": 600,
+        "minWidth": 640,
+        "minHeight": 480,
         "visible": false,
         "center": true,
-        "resizable": false
+        "resizable": true
       }
     ],
     "security": {

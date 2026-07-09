@@ -83,6 +83,12 @@
     "languageDescription": "Sprache der Benutzeroberfläche",
     "systemLanguage": "Systemsprache"
   },
+  "settingsGroups": {
+    "preferences": "Einstellungen",
+    "interface": "Oberfläche",
+    "automation": "Automatisierung",
+    "system": "System"
+  },
   "general": {
     "title": "Allgemein",
     "description": "Startverhalten, Datenaktualisierung und automatische Updates konfigurieren.",

@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
+import { Toggle } from "./Controls";
 import {
-  Divider,
-  FieldGroup,
-  SectionDescription,
-  SectionTitle,
-  Toggle,
-} from "./Controls";
+  SettingsCard,
+  SettingsList,
+  SettingsPage,
+  SettingsRow,
+} from "./SettingsLayout";
 
 interface Props {
   settings: AppSettings;
@@ -215,13 +215,14 @@ export default function AppearanceSection({ settings, update }: Props) {
   ];
 
   return (
-    <div>
-      <SectionTitle>{t("appearanceSettings.title")}</SectionTitle>
-      <SectionDescription>
-        {t("appearanceSettings.description")}
-      </SectionDescription>
-
-      <FieldGroup label={t("appearanceSettings.theme")} description={t("appearanceSettings.themeDescription")}>
+    <SettingsPage
+      title={t("appearanceSettings.title")}
+      description={t("appearanceSettings.description")}
+    >
+      <SettingsCard
+        title={t("appearanceSettings.theme")}
+        description={t("appearanceSettings.themeDescription")}
+      >
         <div className="flex gap-2 mt-1">
           {themeOptions.map((opt) => {
             const active = settings.theme === opt.value;
@@ -277,11 +278,12 @@ export default function AppearanceSection({ settings, update }: Props) {
             );
           })}
         </div>
-      </FieldGroup>
+      </SettingsCard>
 
-      <Divider />
-
-      <FieldGroup label={t("appearanceSettings.popupLayout")} description={t("appearanceSettings.popupLayoutDescription")}>
+      <SettingsCard
+        title={t("appearanceSettings.popupLayout")}
+        description={t("appearanceSettings.popupLayoutDescription")}
+      >
         <div className="relative mt-1">
           {/* Fade hint on the right edge */}
           <div className="pointer-events-none absolute right-0 top-0 bottom-1 w-6 z-10 bg-gradient-to-l from-white dark:from-gray-900 to-transparent rounded-r-lg" />
@@ -338,11 +340,12 @@ export default function AppearanceSection({ settings, update }: Props) {
             ))}
           </div>
         </div>
-      </FieldGroup>
+      </SettingsCard>
 
-      <Divider />
-
-      <FieldGroup label={t("appearanceSettings.uiSize")} description={t("appearanceSettings.uiSizeDescription")}>
+      <SettingsCard
+        title={t("appearanceSettings.uiSize")}
+        description={t("appearanceSettings.uiSizeDescription")}
+      >
         <div className="flex gap-2 mt-1">
           {([
             { value: "small" as const, label: t("appearanceSettings.uiSizeSmall"), fontSize: "13px" },
@@ -392,29 +395,34 @@ export default function AppearanceSection({ settings, update }: Props) {
             );
           })}
         </div>
-      </FieldGroup>
+      </SettingsCard>
 
-      <Divider />
+      <SettingsList>
+        <SettingsRow
+          label={t("appearanceSettings.roundedCorners")}
+          description={t("appearanceSettings.roundedCornersDescription")}
+        >
+          <Toggle
+            checked={settings.roundedPopupCorners}
+            onChange={(v) => update("roundedPopupCorners", v)}
+          />
+        </SettingsRow>
 
-      <FieldGroup label={t("appearanceSettings.roundedCorners")} description={t("appearanceSettings.roundedCornersDescription")} horizontal>
-        <Toggle
-          checked={settings.roundedPopupCorners}
-          onChange={(v) => update("roundedPopupCorners", v)}
-        />
-      </FieldGroup>
+        <SettingsRow
+          label={t("appearanceSettings.reduceEffects")}
+          description={t("appearanceSettings.reduceEffectsDescription")}
+        >
+          <Toggle
+            checked={settings.reduceVisualEffects}
+            onChange={(v) => update("reduceVisualEffects", v)}
+          />
+        </SettingsRow>
+      </SettingsList>
 
-      <Divider />
-
-      <FieldGroup label={t("appearanceSettings.reduceEffects")} description={t("appearanceSettings.reduceEffectsDescription")} horizontal>
-        <Toggle
-          checked={settings.reduceVisualEffects}
-          onChange={(v) => update("reduceVisualEffects", v)}
-        />
-      </FieldGroup>
-
-      <Divider />
-
-      <FieldGroup label={t("appearanceSettings.accentColor")} description={t("appearanceSettings.accentColorDescription")}>
+      <SettingsCard
+        title={t("appearanceSettings.accentColor")}
+        description={t("appearanceSettings.accentColorDescription")}
+      >
         <div className="flex gap-2 mt-1">
           {accentOptions.map((opt) => (
             <button
@@ -433,11 +441,12 @@ export default function AppearanceSection({ settings, update }: Props) {
             />
           ))}
         </div>
-      </FieldGroup>
+      </SettingsCard>
 
-      <Divider />
-
-      <FieldGroup label={t("appearanceSettings.colorMode")} description={t("appearanceSettings.colorModeDescription")}>
+      <SettingsCard
+        title={t("appearanceSettings.colorMode")}
+        description={t("appearanceSettings.colorModeDescription")}
+      >
         <div className="flex flex-col gap-1.5 mt-1">
           {([
             { value: "kimai" as const, label: t("appearanceSettings.colorModeKimai"), dots: 1 },
@@ -496,7 +505,7 @@ export default function AppearanceSection({ settings, update }: Props) {
             );
           })}
         </div>
-      </FieldGroup>
-    </div>
+      </SettingsCard>
+    </SettingsPage>
   );
 }

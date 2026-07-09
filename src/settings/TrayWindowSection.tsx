@@ -3,14 +3,13 @@ import { useEffect, useState } from "react";
 import type { AppSettings } from "../types";
 import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
 import type { MonitorInfo } from "../api/trayApi";
+import { Select, Toggle } from "./Controls";
 import {
-  Divider,
-  FieldGroup,
-  SectionDescription,
-  SectionTitle,
-  Select,
-  Toggle,
-} from "./Controls";
+  SettingsCard,
+  SettingsList,
+  SettingsPage,
+  SettingsRow,
+} from "./SettingsLayout";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const isLinux = navigator.platform.toUpperCase().includes("LINUX");
@@ -88,100 +87,83 @@ export default function TrayWindowSection({ settings, update }: Props) {
   ];
 
   return (
-    <div>
-      <SectionTitle>{t("traySettings.title")}</SectionTitle>
-      <SectionDescription>
-        {t("traySettings.description")}
-      </SectionDescription>
+    <SettingsPage title={t("traySettings.title")} description={t("traySettings.description")}>
+      <SettingsCard title={t("traySettings.iconShape")} description={t("traySettings.iconShapeDescription")}>
+        <div className="grid grid-cols-4 gap-2">
+          {([
+            { value: "dot" as const, label: t("traySettings.iconShapeDot") },
+            { value: "ring" as const, label: t("traySettings.iconShapeRing") },
+            { value: "square" as const, label: t("traySettings.iconShapeSquare") },
+            { value: "clock" as const, label: t("traySettings.iconShapeClock") },
+          ]).map((opt) => {
+            const active = (settings.trayIconShape ?? "dot") === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  update("trayIconShape", opt.value);
+                  setTrayIconShape(opt.value);
+                }}
+                className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
+                  ${
+                    active
+                      ? "border-[var(--accent)] bg-[var(--accent-light)]"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  }`}
+              >
+                <div className="h-5 flex items-center justify-center">
+                  <ShapeGlyph shape={opt.value} px={18} />
+                </div>
+                <span className="text-[11px] text-gray-600 dark:text-gray-400">
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </SettingsCard>
 
-      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-        {t("traySettings.iconShape")}
-      </div>
-      <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
-        {t("traySettings.iconShapeDescription")}
-      </div>
-      <div className="grid grid-cols-4 gap-2 mb-2">
-        {([
-          { value: "dot" as const, label: t("traySettings.iconShapeDot") },
-          { value: "ring" as const, label: t("traySettings.iconShapeRing") },
-          { value: "square" as const, label: t("traySettings.iconShapeSquare") },
-          { value: "clock" as const, label: t("traySettings.iconShapeClock") },
-        ]).map((opt) => {
-          const active = (settings.trayIconShape ?? "dot") === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                update("trayIconShape", opt.value);
-                setTrayIconShape(opt.value);
-              }}
-              className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
-                ${
-                  active
-                    ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                }`}
-            >
-              <div className="h-5 flex items-center justify-center">
-                <ShapeGlyph shape={opt.value} px={18} />
-              </div>
-              <span className="text-[11px] text-gray-600 dark:text-gray-400">
-                {opt.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <SettingsCard title={t("traySettings.iconSize")} description={t("traySettings.iconSizeDescription")}>
+        <div className="grid grid-cols-4 gap-2">
+          {([
+            { value: "small" as const, label: t("traySettings.iconSizeSmall"), px: 12 },
+            { value: "medium" as const, label: t("traySettings.iconSizeMedium"), px: 16 },
+            { value: "large" as const, label: t("traySettings.iconSizeLarge"), px: 21 },
+            { value: "xlarge" as const, label: t("traySettings.iconSizeXLarge"), px: 26 },
+          ]).map((opt) => {
+            const active = (settings.trayIconSize ?? "medium") === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  update("trayIconSize", opt.value);
+                  setTrayIconSize(opt.value);
+                }}
+                className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
+                  ${
+                    active
+                      ? "border-[var(--accent)] bg-[var(--accent-light)]"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  }`}
+              >
+                <div className="h-7 flex items-center justify-center">
+                  <ShapeGlyph shape={settings.trayIconShape ?? "dot"} px={opt.px} />
+                </div>
+                <span className="text-[11px] text-gray-600 dark:text-gray-400">
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </SettingsCard>
 
-      <Divider />
-
-      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-        {t("traySettings.iconSize")}
-      </div>
-      <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
-        {t("traySettings.iconSizeDescription")}
-      </div>
-      <div className="grid grid-cols-4 gap-2 mb-2">
-        {([
-          { value: "small" as const, label: t("traySettings.iconSizeSmall"), px: 12 },
-          { value: "medium" as const, label: t("traySettings.iconSizeMedium"), px: 16 },
-          { value: "large" as const, label: t("traySettings.iconSizeLarge"), px: 21 },
-          { value: "xlarge" as const, label: t("traySettings.iconSizeXLarge"), px: 26 },
-        ]).map((opt) => {
-          const active = (settings.trayIconSize ?? "medium") === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                update("trayIconSize", opt.value);
-                setTrayIconSize(opt.value);
-              }}
-              className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
-                ${
-                  active
-                    ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                }`}
-            >
-              <div className="h-7 flex items-center justify-center">
-                <ShapeGlyph shape={settings.trayIconShape ?? "dot"} px={opt.px} />
-              </div>
-              <span className="text-[11px] text-gray-600 dark:text-gray-400">
-                {opt.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <Divider />
-
-      <FieldGroup label={t("general.displayMode")} description={t("general.displayModeDescription")}>
-        <div className="flex gap-2 mt-1">
+      <SettingsCard title={t("general.displayMode")} description={t("general.displayModeDescription")}>
+        <div className="flex gap-2">
           {([
             { value: "tray" as const, label: t("general.displayModeTray"), desc: t("general.displayModeTrayDescription") },
             { value: "detached" as const, label: t("general.displayModeDetached"), desc: t("general.displayModeDetachedDescription") },
@@ -245,229 +227,246 @@ export default function TrayWindowSection({ settings, update }: Props) {
             );
           })}
         </div>
-      </FieldGroup>
 
-      {isMac && (
-        <>
-          <Divider />
-
-          <FieldGroup
-            label={t("traySettings.trueTray")}
-            description={t("traySettings.trueTrayDescription")}
-            horizontal
-          >
-            <Toggle
-              checked={settings.trueTrayMode}
-              onChange={(v) => update("trueTrayMode", v)}
-            />
-          </FieldGroup>
-          <p className="-mt-1 text-[10px] text-amber-600 dark:text-amber-500/80">
-            {t("traySettings.trueTrayRestartNote")}
-          </p>
-        </>
-      )}
-
-      {isLinux && (
-        <>
-          <Divider />
-
-          <FieldGroup
-            label={t("traySettings.popupMonitorMode")}
-            description={t("traySettings.popupMonitorModeDescription")}
-            horizontal
-          >
-            <Select
-              value={settings.popupMonitorMode}
-              onChange={(v) => {
-                const val = v as AppSettings["popupMonitorMode"];
-                update("popupMonitorMode", val);
-                setPopupMonitor(val, settings.popupMonitorIndex, settings.popupMonitorPosition);
-              }}
-              options={[
-                { value: "active", label: t("traySettings.popupMonitorModeActive") },
-                { value: "specific", label: t("traySettings.popupMonitorModeSpecific") },
-              ]}
-            />
-          </FieldGroup>
-
-          {settings.popupMonitorMode === "specific" && (
-            <>
-              <Divider />
-              <FieldGroup
-                label={t("traySettings.popupMonitorIndex")}
-                description={t("traySettings.popupMonitorIndexDescription")}
-                horizontal
-              >
-                <Select
-                  value={settings.popupMonitorIndex}
-                  onChange={(v) => {
-                    const val = Number(v);
-                    update("popupMonitorIndex", val);
-                    setPopupMonitor("specific", val, settings.popupMonitorPosition);
-                  }}
-                  options={
-                    monitors.length > 0
-                      ? monitors.map((m) => ({
-                          value: m.index,
-                          label: m.primary ? `${m.name} (primary)` : m.name,
-                        }))
-                      : [{ value: 0, label: "Monitor 1" }]
-                  }
-                />
-              </FieldGroup>
-
-              <Divider />
-              <FieldGroup
-                label={t("traySettings.popupMonitorPosition")}
-                description={t("traySettings.popupMonitorPositionDescription")}
-                horizontal
-              >
-                <Select
-                  value={settings.popupMonitorPosition}
-                  onChange={(v) => {
-                    const val = v as AppSettings["popupMonitorPosition"];
-                    update("popupMonitorPosition", val);
-                    setPopupMonitor("specific", settings.popupMonitorIndex, val);
-                  }}
-                  options={[
-                    { value: "bottom-right", label: t("traySettings.popupMonitorPositionBottomRight") },
-                    { value: "bottom-left",  label: t("traySettings.popupMonitorPositionBottomLeft") },
-                    { value: "top-right",    label: t("traySettings.popupMonitorPositionTopRight") },
-                    { value: "top-left",     label: t("traySettings.popupMonitorPositionTopLeft") },
-                    { value: "center",       label: t("traySettings.popupMonitorPositionCenter") },
-                  ]}
-                />
-              </FieldGroup>
-            </>
-          )}
-        </>
-      )}
-
-      <Divider />
-
-      <FieldGroup label={t("general.trayLeftClick")} description={isLinux ? t("traySettings.linuxOnly") : t("general.trayLeftClickDescription")} horizontal>
-        <Select
-          value={settings.trayLeftClickAction}
-          onChange={(v) => {
-            const val = v as AppSettings["trayLeftClickAction"];
-            update("trayLeftClickAction", val);
-            setTrayClickActions(val, settings.trayRightClickAction);
-          }}
-          options={[
-            { value: "popup", label: t("general.trayActionTogglePopup") },
-            { value: "nothing", label: t("general.trayActionDoNothing") },
-          ]}
-          disabled={isLinux}
-        />
-      </FieldGroup>
-
-      <Divider />
-
-      <FieldGroup label={t("general.trayRightClick")} description={isLinux ? t("traySettings.linuxOnly") : t("general.trayRightClickDescription")} horizontal>
-        <Select
-          value={settings.trayRightClickAction}
-          onChange={(v) => {
-            const val = v as AppSettings["trayRightClickAction"];
-            update("trayRightClickAction", val);
-            setTrayClickActions(settings.trayLeftClickAction, val);
-          }}
-          options={[
-            { value: "menu", label: t("general.trayActionShowMenu") },
-            { value: "popup", label: t("general.trayActionTogglePopup") },
-          ]}
-          disabled={isLinux}
-        />
-      </FieldGroup>
-
-      <Divider />
-
-      <div className={!isMac ? "opacity-50 pointer-events-none" : ""}>
-        <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-          {t("timerSettings.menuBarLabel")}
-        </div>
-        <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
-          {isMac
-            ? t("timerSettings.menuBarLabelDescription")
-            : t("traySettings.macOnly")}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          {menuBarOptions.map((opt) => {
-            const active = settings.menuBarLabelStyle === opt.value;
-            const preview = settings.showSecondsInTimer
-              ? opt.previewWithSeconds
-              : opt.previewWithoutSeconds;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                disabled={!isMac}
-                onClick={() => update("menuBarLabelStyle", opt.value)}
-                className={`relative flex flex-col items-center gap-2 rounded-lg border px-3 py-3 transition-colors text-left
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
-                  ${
-                    active
-                      ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
-              >
-                <div className="flex items-center gap-1.5 h-5">
-                  <TrayDot />
-                  {preview && (
-                    <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[80px]">
-                      {preview}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 w-full">
-                  <span
-                    className={`inline-flex items-center justify-center h-3.5 w-3.5 rounded-full border shrink-0
-                      ${
-                        active
-                          ? "border-[var(--accent)]"
-                          : "border-gray-300 dark:border-gray-600"
-                      }`}
-                  >
-                    {active && (
-                      <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
-                    )}
-                  </span>
-                  <span className="text-[12px] text-gray-600 dark:text-gray-400">
-                    {opt.label}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {settings.menuBarLabelStyle === "timer" && isMac && (
-          <div className="mt-3 flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2.5">
-            <div>
-              <div className="text-[12px] font-medium text-gray-700 dark:text-gray-300">
-                {t("timerSettings.showSeconds")}
+        {isMac && (
+          <div className="mt-4 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
+                {t("traySettings.trueTray")}
               </div>
-              <div className="text-[11px] text-gray-400 dark:text-gray-500">
-                {t("timerSettings.showSecondsDescription")}
+              <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+                {t("traySettings.trueTrayDescription")}
               </div>
+              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-500/80">
+                {t("traySettings.trueTrayRestartNote")}
+              </p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={settings.showSecondsInTimer}
-              onClick={() => update("showSecondsInTimer", !settings.showSecondsInTimer)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1
-                ${settings.showSecondsInTimer ? "bg-[var(--accent)]" : "bg-gray-200 dark:bg-gray-700"}`}
-            >
-              <span
-                className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform
-                  ${settings.showSecondsInTimer ? "translate-x-[18px]" : "translate-x-[3px]"}`}
+            <div className="shrink-0">
+              <Toggle
+                checked={settings.trueTrayMode}
+                onChange={(v) => update("trueTrayMode", v)}
               />
-            </button>
+            </div>
           </div>
         )}
-      </div>
-    </div>
+
+        {isLinux && (
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
+                  {t("traySettings.popupMonitorMode")}
+                </div>
+                <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+                  {t("traySettings.popupMonitorModeDescription")}
+                </div>
+              </div>
+              <div className="shrink-0">
+                <Select
+                  value={settings.popupMonitorMode}
+                  onChange={(v) => {
+                    const val = v as AppSettings["popupMonitorMode"];
+                    update("popupMonitorMode", val);
+                    setPopupMonitor(val, settings.popupMonitorIndex, settings.popupMonitorPosition);
+                  }}
+                  options={[
+                    { value: "active", label: t("traySettings.popupMonitorModeActive") },
+                    { value: "specific", label: t("traySettings.popupMonitorModeSpecific") },
+                  ]}
+                />
+              </div>
+            </div>
+
+            {settings.popupMonitorMode === "specific" && (
+              <>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
+                      {t("traySettings.popupMonitorIndex")}
+                    </div>
+                    <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+                      {t("traySettings.popupMonitorIndexDescription")}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <Select
+                      value={settings.popupMonitorIndex}
+                      onChange={(v) => {
+                        const val = Number(v);
+                        update("popupMonitorIndex", val);
+                        setPopupMonitor("specific", val, settings.popupMonitorPosition);
+                      }}
+                      options={
+                        monitors.length > 0
+                          ? monitors.map((m) => ({
+                              value: m.index,
+                              label: m.primary ? `${m.name} (primary)` : m.name,
+                            }))
+                          : [{ value: 0, label: "Monitor 1" }]
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
+                      {t("traySettings.popupMonitorPosition")}
+                    </div>
+                    <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+                      {t("traySettings.popupMonitorPositionDescription")}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <Select
+                      value={settings.popupMonitorPosition}
+                      onChange={(v) => {
+                        const val = v as AppSettings["popupMonitorPosition"];
+                        update("popupMonitorPosition", val);
+                        setPopupMonitor("specific", settings.popupMonitorIndex, val);
+                      }}
+                      options={[
+                        { value: "bottom-right", label: t("traySettings.popupMonitorPositionBottomRight") },
+                        { value: "bottom-left",  label: t("traySettings.popupMonitorPositionBottomLeft") },
+                        { value: "top-right",    label: t("traySettings.popupMonitorPositionTopRight") },
+                        { value: "top-left",     label: t("traySettings.popupMonitorPositionTopLeft") },
+                        { value: "center",       label: t("traySettings.popupMonitorPositionCenter") },
+                      ]}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </SettingsCard>
+
+      <SettingsList>
+        <SettingsRow
+          label={t("general.trayLeftClick")}
+          description={isLinux ? t("traySettings.linuxOnly") : t("general.trayLeftClickDescription")}
+        >
+          <Select
+            value={settings.trayLeftClickAction}
+            onChange={(v) => {
+              const val = v as AppSettings["trayLeftClickAction"];
+              update("trayLeftClickAction", val);
+              setTrayClickActions(val, settings.trayRightClickAction);
+            }}
+            options={[
+              { value: "popup", label: t("general.trayActionTogglePopup") },
+              { value: "nothing", label: t("general.trayActionDoNothing") },
+            ]}
+            disabled={isLinux}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label={t("general.trayRightClick")}
+          description={isLinux ? t("traySettings.linuxOnly") : t("general.trayRightClickDescription")}
+        >
+          <Select
+            value={settings.trayRightClickAction}
+            onChange={(v) => {
+              const val = v as AppSettings["trayRightClickAction"];
+              update("trayRightClickAction", val);
+              setTrayClickActions(settings.trayLeftClickAction, val);
+            }}
+            options={[
+              { value: "menu", label: t("general.trayActionShowMenu") },
+              { value: "popup", label: t("general.trayActionTogglePopup") },
+            ]}
+            disabled={isLinux}
+          />
+        </SettingsRow>
+      </SettingsList>
+
+      <SettingsCard title={t("timerSettings.menuBarLabel")}>
+        <div className={!isMac ? "opacity-50 pointer-events-none" : ""}>
+          <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
+            {isMac
+              ? t("timerSettings.menuBarLabelDescription")
+              : t("traySettings.macOnly")}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {menuBarOptions.map((opt) => {
+              const active = settings.menuBarLabelStyle === opt.value;
+              const preview = settings.showSecondsInTimer
+                ? opt.previewWithSeconds
+                : opt.previewWithoutSeconds;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={!isMac}
+                  onClick={() => update("menuBarLabelStyle", opt.value)}
+                  className={`relative flex flex-col items-center gap-2 rounded-lg border px-3 py-3 transition-colors text-left
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
+                    ${
+                      active
+                        ? "border-[var(--accent)] bg-[var(--accent-light)]"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                    }`}
+                >
+                  <div className="flex items-center gap-1.5 h-5">
+                    <TrayDot />
+                    {preview && (
+                      <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[80px]">
+                        {preview}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 w-full">
+                    <span
+                      className={`inline-flex items-center justify-center h-3.5 w-3.5 rounded-full border shrink-0
+                        ${
+                          active
+                            ? "border-[var(--accent)]"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}
+                    >
+                      {active && (
+                        <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+                      )}
+                    </span>
+                    <span className="text-[12px] text-gray-600 dark:text-gray-400">
+                      {opt.label}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {settings.menuBarLabelStyle === "timer" && isMac && (
+            <div className="mt-3 flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2.5">
+              <div>
+                <div className="text-[12px] font-medium text-gray-700 dark:text-gray-300">
+                  {t("timerSettings.showSeconds")}
+                </div>
+                <div className="text-[11px] text-gray-400 dark:text-gray-500">
+                  {t("timerSettings.showSecondsDescription")}
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={settings.showSecondsInTimer}
+                onClick={() => update("showSecondsInTimer", !settings.showSecondsInTimer)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1
+                  ${settings.showSecondsInTimer ? "bg-[var(--accent)]" : "bg-gray-200 dark:bg-gray-700"}`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform
+                    ${settings.showSecondsInTimer ? "translate-x-[18px]" : "translate-x-[3px]"}`}
+                />
+              </button>
+            </div>
+          )}
+        </div>
+      </SettingsCard>
+    </SettingsPage>
   );
 }

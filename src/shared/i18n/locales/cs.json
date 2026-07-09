@@ -83,6 +83,12 @@
     "languageDescription": "Jazyk rozhraní aplikace",
     "systemLanguage": "Systémový jazyk"
   },
+  "settingsGroups": {
+    "preferences": "Předvolby",
+    "interface": "Rozhraní",
+    "automation": "Automatizace",
+    "system": "Systém"
+  },
   "general": {
     "title": "Obecné",
     "description": "Nastavte chování při spuštění, obnovu dat a automatické aktualizace.",

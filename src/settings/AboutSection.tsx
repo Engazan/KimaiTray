@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Divider, SectionTitle } from "./Controls";
+import { SettingsCard, SettingsList, SettingsPage } from "./SettingsLayout";
 
 function LinkButton({
   label,
@@ -20,7 +20,7 @@ function LinkButton({
       type="button"
       onClick={() => { if (!disabled) openUrl(href).catch(() => {}); }}
       disabled={disabled}
-      className={`flex items-center gap-2 rounded-md px-3 py-2 text-[12px]
+      className={`flex items-center gap-2 px-4 py-2.5 text-[12px]
         focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
         transition-colors w-full text-left
         ${disabled
@@ -61,10 +61,8 @@ export default function AboutSection() {
   }, []);
 
   return (
-    <div>
-      <SectionTitle>{t("aboutSection.title")}</SectionTitle>
-
-      <div className="mb-5 rounded-lg bg-gray-50 px-4 py-4 dark:bg-gray-800/50">
+    <SettingsPage title={t("aboutSection.title")}>
+      <SettingsCard>
         <div className="text-[15px] font-semibold text-gray-800 dark:text-gray-200">
           {t("aboutSection.appName")}
         </div>
@@ -74,9 +72,9 @@ export default function AboutSection() {
         <div className="mt-2 text-[12px] text-gray-400 dark:text-gray-500">
           {t("aboutSection.appDescription")}
         </div>
-      </div>
+      </SettingsCard>
 
-      <div className="space-y-0.5">
+      <SettingsList>
         <LinkButton
           label={t("aboutSection.githubRepo")}
           href="https://github.com/Engazan/KimaiTray"
@@ -99,14 +97,9 @@ export default function AboutSection() {
           icon={<ExternalIcon />}
           disabled
         />
-      </div>
+      </SettingsList>
 
-      <Divider />
-
-      <div className="mt-1">
-        <div className="mb-2 text-[13px] font-medium text-gray-700 dark:text-gray-300">
-          {t("aboutSection.supportTitle")}
-        </div>
+      <SettingsCard title={t("aboutSection.supportTitle")}>
         <p className="mb-3 text-[12px] text-gray-400 dark:text-gray-500">
           {t("aboutSection.supportDescription")}
         </p>
@@ -130,14 +123,12 @@ export default function AboutSection() {
             disabled
           />
         </div>
-      </div>
+      </SettingsCard>
 
-      <Divider />
-
-      <div className="text-[11px] text-gray-300 dark:text-gray-600">
+      <div className="px-1 text-[11px] text-gray-300 dark:text-gray-600">
         {t("aboutSection.copyright")}
       </div>
-    </div>
+    </SettingsPage>
   );
 }
 

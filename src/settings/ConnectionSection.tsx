@@ -5,13 +5,12 @@ import { testConnection, isInsecureUrl, type ConnectionResult } from "../api";
 import { getConnectionToken } from "../api/connectionTokenStore";
 import IntegrationsSection from "./IntegrationsSection";
 import FeaturesSection from "./FeaturesSection";
+import { TextInput } from "./Controls";
 import {
-  Divider,
-  FieldGroup,
-  SectionDescription,
-  SectionTitle,
-  TextInput,
-} from "./Controls";
+  SettingsList,
+  SettingsPage,
+  SettingsRowStacked,
+} from "./SettingsLayout";
 
 interface Props {
   settings: AppSettings;
@@ -172,13 +171,8 @@ export default function ConnectionSection({
   );
 
   return (
-    <div>
-      <SectionTitle>{t("connection.title")}</SectionTitle>
-      <SectionDescription>
-        {t("connection.description")}
-      </SectionDescription>
-
-      <div className="mb-4 mt-3 flex gap-4 border-b border-gray-200 dark:border-gray-800">
+    <SettingsPage title={t("connection.title")} description={t("connection.description")}>
+      <div className="-mt-1 flex gap-4 border-b border-gray-200 dark:border-gray-800">
         <TabButton
           active={activeTab === "connection"}
           onClick={() => setActiveTab("connection")}
@@ -248,118 +242,116 @@ export default function ConnectionSection({
           connectionId={editingId ?? ""}
         />
       ) : (
-        <>
-      {editingId && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/50">
-          <div className="min-w-0">
-            <div className="truncate text-[12px] font-medium text-gray-700 dark:text-gray-300">
-              {settings.connections.find((c) => c.id === editingId)?.name}
+        <div className="space-y-4">
+          {editingId && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
+              <div className="min-w-0">
+                <div className="truncate text-[12px] font-medium text-gray-700 dark:text-gray-300">
+                  {settings.connections.find((c) => c.id === editingId)?.name}
+                </div>
+                <div className="truncate text-[11px] text-gray-400 dark:text-gray-500">
+                  {settings.connections.find((c) => c.id === editingId)?.url}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+              >
+                {t("common.delete")}
+              </button>
             </div>
-            <div className="truncate text-[11px] text-gray-400 dark:text-gray-500">
-              {settings.connections.find((c) => c.id === editingId)?.url}
+          )}
+
+          {insecure && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12px] text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400">
+              <svg
+                className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                />
+              </svg>
+              <span>{t("connection.httpsWarning")}</span>
             </div>
+          )}
+
+          <SettingsList>
+            <SettingsRowStacked
+              label={t("connection.connectionName")}
+              description={t("connection.connectionNameDescription")}
+            >
+              <TextInput
+                value={name}
+                onChange={setName}
+                placeholder={t("connection.connectionNamePlaceholder")}
+              />
+            </SettingsRowStacked>
+
+            <SettingsRowStacked
+              label={t("connection.baseUrl")}
+              description={t("connection.baseUrlDescription")}
+            >
+              <TextInput
+                type="url"
+                value={url}
+                onChange={setUrl}
+                placeholder={t("connection.baseUrlPlaceholder")}
+              />
+            </SettingsRowStacked>
+
+            <SettingsRowStacked
+              label={t("connection.apiToken")}
+              description={t("connection.apiTokenDescription")}
+            >
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <TextInput
+                    type={showToken ? "text" : "password"}
+                    value={editToken}
+                    onChange={setEditToken}
+                    placeholder={t("connection.apiTokenPlaceholder")}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-500
+                    hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700
+                    focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                >
+                  {showToken ? t("common.hide") : t("common.show")}
+                </button>
+              </div>
+            </SettingsRowStacked>
+          </SettingsList>
+
+          {/* Test & Save + status */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleTestAndSave}
+              disabled={status === "testing" || !url || !editToken}
+              className="rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-medium text-white
+                hover:bg-[var(--accent-hover)] active:opacity-80
+                disabled:opacity-50 disabled:cursor-not-allowed
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1
+                transition-colors"
+            >
+              {status === "testing" ? t("connection.testing") : t("connection.testAndSave")}
+            </button>
+
+            <StatusBadge status={status} message={statusMessage} />
           </div>
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-          >
-            {t("common.delete")}
-          </button>
         </div>
       )}
-
-      {insecure && (
-        <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400">
-          <svg
-            className="mt-0.5 h-3.5 w-3.5 shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-            />
-          </svg>
-          <span>
-            {t("connection.httpsWarning")}
-          </span>
-        </div>
-      )}
-
-      <FieldGroup
-        label={t("connection.connectionName")}
-        description={t("connection.connectionNameDescription")}
-      >
-        <TextInput
-          value={name}
-          onChange={setName}
-          placeholder={t("connection.connectionNamePlaceholder")}
-        />
-      </FieldGroup>
-
-      <FieldGroup
-        label={t("connection.baseUrl")}
-        description={t("connection.baseUrlDescription")}
-      >
-        <TextInput
-          type="url"
-          value={url}
-          onChange={setUrl}
-          placeholder={t("connection.baseUrlPlaceholder")}
-        />
-      </FieldGroup>
-
-      <FieldGroup
-        label={t("connection.apiToken")}
-        description={t("connection.apiTokenDescription")}
-      >
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <TextInput
-              type={showToken ? "text" : "password"}
-              value={editToken}
-              onChange={setEditToken}
-              placeholder={t("connection.apiTokenPlaceholder")}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowToken(!showToken)}
-            className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-500
-              hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700
-              focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
-          >
-            {showToken ? t("common.hide") : t("common.show")}
-          </button>
-        </div>
-      </FieldGroup>
-
-      <Divider />
-
-      {/* Test & Save + status */}
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleTestAndSave}
-          disabled={status === "testing" || !url || !editToken}
-          className="rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-medium text-white
-            hover:bg-[var(--accent-hover)] active:opacity-80
-            disabled:opacity-50 disabled:cursor-not-allowed
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1
-            transition-colors"
-        >
-          {status === "testing" ? t("connection.testing") : t("connection.testAndSave")}
-        </button>
-
-        <StatusBadge status={status} message={statusMessage} />
-      </div>
-        </>
-      )}
-    </div>
+    </SettingsPage>
   );
 }
 

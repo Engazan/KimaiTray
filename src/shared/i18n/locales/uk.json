@@ -83,6 +83,12 @@
     "languageDescription": "Мова інтерфейсу застосунку",
     "systemLanguage": "Системна мова"
   },
+  "settingsGroups": {
+    "preferences": "Параметри",
+    "interface": "Інтерфейс",
+    "automation": "Автоматизація",
+    "system": "Система"
+  },
   "general": {
     "title": "Загальні",
     "description": "Налаштуйте поведінку при запуску, оновлення даних та автоматичні оновлення.",

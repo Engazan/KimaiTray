@@ -83,6 +83,12 @@
     "languageDescription": "Application interface language",
     "systemLanguage": "System language"
   },
+  "settingsGroups": {
+    "preferences": "Preferences",
+    "interface": "Interface",
+    "automation": "Automation",
+    "system": "System"
+  },
   "general": {
     "title": "General",
     "description": "Configure startup behavior, data refresh, and automatic updates.",
