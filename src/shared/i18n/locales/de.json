@@ -406,6 +406,11 @@
   "integrations": {
     "title": "Integrationen",
     "description": "Verbinden Sie GitLab, GitHub oder Gitea, um Issues mit Zeiteinträgen zu verknüpfen.",
+    "listDescription": "Verbinde KimaiTray mit externen Diensten. Öffne eine Integration, um sie zu konfigurieren.",
+    "git": {
+      "name": "Git-Issues",
+      "description": "Verknüpfe GitLab-, GitHub- oder Gitea-Issues mit deinen Zeiteinträgen."
+    },
     "enabled": "Issue-Integration aktivieren",
     "enabledDescription": "Issue-Auswahl im Formular für neue Aufgaben anzeigen",
     "provider": "Anbieter",
@@ -469,7 +474,10 @@
     "showTimeEstimate": "Zeitschätzung anzeigen",
     "showTimeEstimateDescription": "Aufgewendete / geschätzte Zeit aus GitLab neben jedem Issue anzeigen",
     "timeBudgetTooltip": "{{spent}} von {{estimate}} geschätzt erfasst",
-    "perConnectionHint": "Diese Einstellungen gelten nur für die aktuell gewählte Verbindung"
+    "perConnectionHint": "Diese Einstellungen gelten nur für die aktuell gewählte Verbindung",
+    "statusEnabled": "Aktiviert",
+    "statusDisabled": "Aus",
+    "comingSoon": "Weitere Integrationen folgen bald."
   },
   "testSection": {
     "title": "Test",

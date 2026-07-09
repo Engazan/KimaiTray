@@ -406,6 +406,11 @@
   "integrations": {
     "title": "Integrácie",
     "description": "Prepojte GitLab, GitHub alebo Gitea na priradenie úloh k časovým záznamom.",
+    "listDescription": "Prepojte KimaiTray s externými službami. Otvorte integráciu a nastavte ju.",
+    "git": {
+      "name": "Git úlohy",
+      "description": "Prepojte úlohy z GitLab, GitHub alebo Gitea s vašimi časovými záznamami."
+    },
     "enabled": "Povoliť integráciu úloh",
     "enabledDescription": "Zobraziť výber úloh vo formulári novej úlohy",
     "provider": "Poskytovateľ",
@@ -469,7 +474,10 @@
     "showTimeEstimate": "Zobraziť odhad času",
     "showTimeEstimateDescription": "Zobraziť odpracovaný / odhadovaný čas z GitLabu pri každej úlohe",
     "timeBudgetTooltip": "Zalogované {{spent}} z odhadovaných {{estimate}}",
-    "perConnectionHint": "Tieto nastavenia platia len pre aktuálne zvolené pripojenie"
+    "perConnectionHint": "Tieto nastavenia platia len pre aktuálne zvolené pripojenie",
+    "statusEnabled": "Zapnuté",
+    "statusDisabled": "Vypnuté",
+    "comingSoon": "Ďalšie integrácie čoskoro."
   },
   "testSection": {
     "title": "Test",

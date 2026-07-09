@@ -406,6 +406,11 @@
   "integrations": {
     "title": "Integrations",
     "description": "Connect to GitLab, GitHub or Gitea to link issues to your time entries.",
+    "listDescription": "Connect KimaiTray to external services. Open an integration to configure it.",
+    "git": {
+      "name": "Git Issues",
+      "description": "Link GitLab, GitHub or Gitea issues to your time entries."
+    },
     "enabled": "Enable issue integration",
     "enabledDescription": "Show issue picker in the new task form",
     "provider": "Provider",
@@ -469,7 +474,10 @@
     "showTimeEstimate": "Show time estimate",
     "showTimeEstimateDescription": "Show spent / estimated time from GitLab next to each issue",
     "timeBudgetTooltip": "Logged {{spent}} of {{estimate}} estimated",
-    "perConnectionHint": "These settings apply only to the currently active connection"
+    "perConnectionHint": "These settings apply only to the currently active connection",
+    "statusEnabled": "Enabled",
+    "statusDisabled": "Off",
+    "comingSoon": "More integrations coming soon."
   },
   "testSection": {
     "title": "Test",

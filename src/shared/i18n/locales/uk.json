@@ -406,6 +406,11 @@
   "integrations": {
     "title": "Інтеграції",
     "description": "Підключіть GitLab, GitHub або Gitea для прив'язки задач до часових записів.",
+    "listDescription": "Підключіть KimaiTray до зовнішніх сервісів. Відкрийте інтеграцію, щоб налаштувати її.",
+    "git": {
+      "name": "Git-задачі",
+      "description": "Пов’яжіть задачі GitLab, GitHub або Gitea з вашими записами часу."
+    },
     "enabled": "Увімкнути інтеграцію задач",
     "enabledDescription": "Показувати вибір задач у формі нової задачі",
     "provider": "Постачальник",
@@ -469,7 +474,10 @@
     "showTimeEstimate": "Показувати оцінку часу",
     "showTimeEstimateDescription": "Показувати витрачений / оцінений час із GitLab біля кожної задачі",
     "timeBudgetTooltip": "Зафіксовано {{spent}} із {{estimate}} оцінених",
-    "perConnectionHint": "Ці налаштування стосуються лише поточного активного підключення"
+    "perConnectionHint": "Ці налаштування стосуються лише поточного активного підключення",
+    "statusEnabled": "Увімкнено",
+    "statusDisabled": "Вимкнено",
+    "comingSoon": "Більше інтеграцій незабаром."
   },
   "testSection": {
     "title": "Тест",
