@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 /**
  * Card-based settings layout primitives shared by every settings section.
@@ -111,13 +111,18 @@ export function SettingsRow({
   label,
   description,
   children,
+  inset = false,
 }: {
-  label: string;
-  description?: string;
+  label: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
+  /** Drop the row's own padding — for use inside an already-padded SettingsCard. */
+  inset?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3">
+    <div
+      className={`flex items-center justify-between gap-4 ${inset ? "" : "px-4 py-3"}`}
+    >
       <div className="min-w-0">
         <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
           {label}
@@ -130,6 +135,72 @@ export function SettingsRow({
       </div>
       <div className="shrink-0">{children}</div>
     </div>
+  );
+}
+
+/** The circular selected/unselected indicator used across option cards. */
+export function RadioDot({
+  active,
+  size = "md",
+}: {
+  active: boolean;
+  size?: "sm" | "md";
+}) {
+  const outer = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5";
+  const inner = size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2";
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border ${outer} ${
+        active
+          ? "border-[var(--accent)]"
+          : "border-gray-300 dark:border-gray-600"
+      }`}
+    >
+      {active && (
+        <span className={`rounded-full bg-[var(--accent)] ${inner}`} />
+      )}
+    </span>
+  );
+}
+
+/**
+ * A selectable option card (radio-like). Owns the shared border / active /
+ * hover / focus treatment; callers pass layout & padding via `className`.
+ */
+export function SelectableCard({
+  active,
+  onClick,
+  disabled,
+  title,
+  className = "",
+  style,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={style}
+      className={`rounded-lg border transition-colors
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
+        disabled:cursor-not-allowed ${
+          active
+            ? "border-[var(--accent)] bg-[var(--accent-light)]"
+            : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
+        } ${className}`}
+    >
+      {children}
+    </button>
   );
 }
 

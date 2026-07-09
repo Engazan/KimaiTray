@@ -11,6 +11,7 @@ import {
   SettingsPage,
   SettingsRowStacked,
 } from "./SettingsLayout";
+import { LockClosed } from "./icons";
 
 interface Props {
   settings: AppSettings;
@@ -60,8 +61,8 @@ export default function ConnectionSection({
           setName(conn.name);
           setUrl(conn.url);
           try {
-            const t = await getConnectionToken(conn.id, conn.url);
-            setEditToken(t ?? "");
+            const tok = await getConnectionToken(conn.id, conn.url);
+            setEditToken(tok ?? "");
           } catch {
             setEditToken("");
           }
@@ -103,6 +104,9 @@ export default function ConnectionSection({
   }, [token, editingId, settings.activeConnectionId, editToken]);
 
   const insecure = url.length > 0 && isInsecureUrl(url);
+  const editingConn = editingId
+    ? settings.connections.find((c) => c.id === editingId)
+    : undefined;
 
   const handleTestAndSave = useCallback(async () => {
     setStatus("testing");
@@ -186,21 +190,7 @@ export default function ConnectionSection({
           onClick={() => setActiveTab("features")}
         >
           {t("featuresSettings.title")}
-          {!editingId && (
-            <svg
-              className="h-3 w-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M16.5 10.5V6.75a4.5 4.5 0 00-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-              />
-            </svg>
-          )}
+          {!editingId && <LockClosed />}
         </TabButton>
         <TabButton
           active={activeTab === "integrations"}
@@ -211,21 +201,7 @@ export default function ConnectionSection({
           onClick={() => setActiveTab("integrations")}
         >
           {t("integrations.title")}
-          {!editingId && (
-            <svg
-              className="h-3 w-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M16.5 10.5V6.75a4.5 4.5 0 00-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-              />
-            </svg>
-          )}
+          {!editingId && <LockClosed />}
         </TabButton>
       </div>
 
@@ -243,14 +219,14 @@ export default function ConnectionSection({
         />
       ) : (
         <div className="space-y-4">
-          {editingId && (
+          {editingConn && (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
               <div className="min-w-0">
                 <div className="truncate text-[12px] font-medium text-gray-700 dark:text-gray-300">
-                  {settings.connections.find((c) => c.id === editingId)?.name}
+                  {editingConn.name}
                 </div>
                 <div className="truncate text-[11px] text-gray-400 dark:text-gray-500">
-                  {settings.connections.find((c) => c.id === editingId)?.url}
+                  {editingConn.url}
                 </div>
               </div>
               <button

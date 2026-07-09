@@ -5,6 +5,8 @@ import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, set
 import type { MonitorInfo } from "../api/trayApi";
 import { Select, Toggle } from "./Controls";
 import {
+  RadioDot,
+  SelectableCard,
   SettingsCard,
   SettingsList,
   SettingsPage,
@@ -98,20 +100,14 @@ export default function TrayWindowSection({ settings, update }: Props) {
           ]).map((opt) => {
             const active = (settings.trayIconShape ?? "dot") === opt.value;
             return (
-              <button
+              <SelectableCard
                 key={opt.value}
-                type="button"
+                active={active}
                 onClick={() => {
                   update("trayIconShape", opt.value);
                   setTrayIconShape(opt.value);
                 }}
-                className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
-                  ${
-                    active
-                      ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
+                className="flex flex-col items-center gap-2 px-2 py-3"
               >
                 <div className="h-5 flex items-center justify-center">
                   <ShapeGlyph shape={opt.value} px={18} />
@@ -119,7 +115,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                 <span className="text-[11px] text-gray-600 dark:text-gray-400">
                   {opt.label}
                 </span>
-              </button>
+              </SelectableCard>
             );
           })}
         </div>
@@ -135,20 +131,14 @@ export default function TrayWindowSection({ settings, update }: Props) {
           ]).map((opt) => {
             const active = (settings.trayIconSize ?? "medium") === opt.value;
             return (
-              <button
+              <SelectableCard
                 key={opt.value}
-                type="button"
+                active={active}
                 onClick={() => {
                   update("trayIconSize", opt.value);
                   setTrayIconSize(opt.value);
                 }}
-                className={`flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-colors
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
-                  ${
-                    active
-                      ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
+                className="flex flex-col items-center gap-2 px-2 py-3"
               >
                 <div className="h-7 flex items-center justify-center">
                   <ShapeGlyph shape={settings.trayIconShape ?? "dot"} px={opt.px} />
@@ -156,7 +146,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                 <span className="text-[11px] text-gray-600 dark:text-gray-400">
                   {opt.label}
                 </span>
-              </button>
+              </SelectableCard>
             );
           })}
         </div>
@@ -170,20 +160,14 @@ export default function TrayWindowSection({ settings, update }: Props) {
           ]).map((opt) => {
             const active = settings.displayMode === opt.value;
             return (
-              <button
+              <SelectableCard
                 key={opt.value}
-                type="button"
+                active={active}
                 onClick={() => {
                   update("displayMode", opt.value);
                   setDisplayMode(opt.value);
                 }}
-                className={`flex-1 flex flex-col items-center gap-1.5 rounded-lg border px-3 py-3 transition-colors
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
-                  ${
-                    active
-                      ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
+                className="flex-1 flex flex-col items-center gap-1.5 px-3 py-3"
               >
                 <div className={`h-10 w-full rounded-md border flex items-center justify-center ${
                   active
@@ -204,18 +188,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className={`inline-flex items-center justify-center h-3.5 w-3.5 rounded-full border shrink-0
-                      ${
-                        active
-                          ? "border-[var(--accent)]"
-                          : "border-gray-300 dark:border-gray-600"
-                      }`}
-                  >
-                    {active && (
-                      <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
-                    )}
-                  </span>
+                  <RadioDot active={active} size="md" />
                   <span className="text-[12px] text-gray-600 dark:text-gray-400">
                     {opt.label}
                   </span>
@@ -223,118 +196,100 @@ export default function TrayWindowSection({ settings, update }: Props) {
                 <span className="text-[10px] text-gray-400 dark:text-gray-500 text-center leading-tight">
                   {opt.desc}
                 </span>
-              </button>
+              </SelectableCard>
             );
           })}
         </div>
 
         {isMac && (
-          <div className="mt-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
-                {t("traySettings.trueTray")}
-              </div>
-              <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
-                {t("traySettings.trueTrayDescription")}
-              </div>
-              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-500/80">
-                {t("traySettings.trueTrayRestartNote")}
-              </p>
-            </div>
-            <div className="shrink-0">
+          <div className="mt-4">
+            <SettingsRow
+              inset
+              label={t("traySettings.trueTray")}
+              description={
+                <>
+                  {t("traySettings.trueTrayDescription")}
+                  <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-500/80">
+                    {t("traySettings.trueTrayRestartNote")}
+                  </p>
+                </>
+              }
+            >
               <Toggle
                 checked={settings.trueTrayMode}
                 onChange={(v) => update("trueTrayMode", v)}
               />
-            </div>
+            </SettingsRow>
           </div>
         )}
 
         {isLinux && (
           <div className="mt-4 space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
-                  {t("traySettings.popupMonitorMode")}
-                </div>
-                <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
-                  {t("traySettings.popupMonitorModeDescription")}
-                </div>
-              </div>
-              <div className="shrink-0">
-                <Select
-                  value={settings.popupMonitorMode}
-                  onChange={(v) => {
-                    const val = v as AppSettings["popupMonitorMode"];
-                    update("popupMonitorMode", val);
-                    setPopupMonitor(val, settings.popupMonitorIndex, settings.popupMonitorPosition);
-                  }}
-                  options={[
-                    { value: "active", label: t("traySettings.popupMonitorModeActive") },
-                    { value: "specific", label: t("traySettings.popupMonitorModeSpecific") },
-                  ]}
-                />
-              </div>
-            </div>
+            <SettingsRow
+              inset
+              label={t("traySettings.popupMonitorMode")}
+              description={t("traySettings.popupMonitorModeDescription")}
+            >
+              <Select
+                value={settings.popupMonitorMode}
+                onChange={(v) => {
+                  const val = v as AppSettings["popupMonitorMode"];
+                  update("popupMonitorMode", val);
+                  setPopupMonitor(val, settings.popupMonitorIndex, settings.popupMonitorPosition);
+                }}
+                options={[
+                  { value: "active", label: t("traySettings.popupMonitorModeActive") },
+                  { value: "specific", label: t("traySettings.popupMonitorModeSpecific") },
+                ]}
+              />
+            </SettingsRow>
 
             {settings.popupMonitorMode === "specific" && (
               <>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
-                      {t("traySettings.popupMonitorIndex")}
-                    </div>
-                    <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
-                      {t("traySettings.popupMonitorIndexDescription")}
-                    </div>
-                  </div>
-                  <div className="shrink-0">
-                    <Select
-                      value={settings.popupMonitorIndex}
-                      onChange={(v) => {
-                        const val = Number(v);
-                        update("popupMonitorIndex", val);
-                        setPopupMonitor("specific", val, settings.popupMonitorPosition);
-                      }}
-                      options={
-                        monitors.length > 0
-                          ? monitors.map((m) => ({
-                              value: m.index,
-                              label: m.primary ? `${m.name} (primary)` : m.name,
-                            }))
-                          : [{ value: 0, label: "Monitor 1" }]
-                      }
-                    />
-                  </div>
-                </div>
+                <SettingsRow
+                  inset
+                  label={t("traySettings.popupMonitorIndex")}
+                  description={t("traySettings.popupMonitorIndexDescription")}
+                >
+                  <Select
+                    value={settings.popupMonitorIndex}
+                    onChange={(v) => {
+                      const val = Number(v);
+                      update("popupMonitorIndex", val);
+                      setPopupMonitor("specific", val, settings.popupMonitorPosition);
+                    }}
+                    options={
+                      monitors.length > 0
+                        ? monitors.map((m) => ({
+                            value: m.index,
+                            label: m.primary ? `${m.name} (primary)` : m.name,
+                          }))
+                        : [{ value: 0, label: "Monitor 1" }]
+                    }
+                  />
+                </SettingsRow>
 
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
-                      {t("traySettings.popupMonitorPosition")}
-                    </div>
-                    <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
-                      {t("traySettings.popupMonitorPositionDescription")}
-                    </div>
-                  </div>
-                  <div className="shrink-0">
-                    <Select
-                      value={settings.popupMonitorPosition}
-                      onChange={(v) => {
-                        const val = v as AppSettings["popupMonitorPosition"];
-                        update("popupMonitorPosition", val);
-                        setPopupMonitor("specific", settings.popupMonitorIndex, val);
-                      }}
-                      options={[
-                        { value: "bottom-right", label: t("traySettings.popupMonitorPositionBottomRight") },
-                        { value: "bottom-left",  label: t("traySettings.popupMonitorPositionBottomLeft") },
-                        { value: "top-right",    label: t("traySettings.popupMonitorPositionTopRight") },
-                        { value: "top-left",     label: t("traySettings.popupMonitorPositionTopLeft") },
-                        { value: "center",       label: t("traySettings.popupMonitorPositionCenter") },
-                      ]}
-                    />
-                  </div>
-                </div>
+                <SettingsRow
+                  inset
+                  label={t("traySettings.popupMonitorPosition")}
+                  description={t("traySettings.popupMonitorPositionDescription")}
+                >
+                  <Select
+                    value={settings.popupMonitorPosition}
+                    onChange={(v) => {
+                      const val = v as AppSettings["popupMonitorPosition"];
+                      update("popupMonitorPosition", val);
+                      setPopupMonitor("specific", settings.popupMonitorIndex, val);
+                    }}
+                    options={[
+                      { value: "bottom-right", label: t("traySettings.popupMonitorPositionBottomRight") },
+                      { value: "bottom-left",  label: t("traySettings.popupMonitorPositionBottomLeft") },
+                      { value: "top-right",    label: t("traySettings.popupMonitorPositionTopRight") },
+                      { value: "top-left",     label: t("traySettings.popupMonitorPositionTopLeft") },
+                      { value: "center",       label: t("traySettings.popupMonitorPositionCenter") },
+                    ]}
+                  />
+                </SettingsRow>
               </>
             )}
           </div>
@@ -396,18 +351,12 @@ export default function TrayWindowSection({ settings, update }: Props) {
                 ? opt.previewWithSeconds
                 : opt.previewWithoutSeconds;
               return (
-                <button
+                <SelectableCard
                   key={opt.value}
-                  type="button"
+                  active={active}
                   disabled={!isMac}
                   onClick={() => update("menuBarLabelStyle", opt.value)}
-                  className={`relative flex flex-col items-center gap-2 rounded-lg border px-3 py-3 transition-colors text-left
-                    focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
-                    ${
-                      active
-                        ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                    }`}
+                  className="relative flex flex-col items-center gap-2 px-3 py-3 text-left"
                 >
                   <div className="flex items-center gap-1.5 h-5">
                     <TrayDot />
@@ -418,23 +367,12 @@ export default function TrayWindowSection({ settings, update }: Props) {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 w-full">
-                    <span
-                      className={`inline-flex items-center justify-center h-3.5 w-3.5 rounded-full border shrink-0
-                        ${
-                          active
-                            ? "border-[var(--accent)]"
-                            : "border-gray-300 dark:border-gray-600"
-                        }`}
-                    >
-                      {active && (
-                        <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
-                      )}
-                    </span>
+                    <RadioDot active={active} size="md" />
                     <span className="text-[12px] text-gray-600 dark:text-gray-400">
                       {opt.label}
                     </span>
                   </div>
-                </button>
+                </SelectableCard>
               );
             })}
           </div>

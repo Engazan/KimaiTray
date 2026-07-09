@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
 import { ShortcutInput } from "./Controls";
-import { SettingsList, SettingsPage } from "./SettingsLayout";
+import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
 
 interface Props {
   settings: AppSettings;
@@ -38,27 +38,25 @@ export default function ShortcutsSection({ settings, update }: Props) {
         {SHORTCUT_KEYS.map((item) => {
           const conflict = findConflict(item.key, settings[item.key], settings, t);
           return (
-            <div key={item.key} className="flex items-center justify-between gap-4 px-4 py-3">
-              <div className="min-w-0">
-                <div className="text-[13px] font-medium text-gray-700 dark:text-gray-200">
-                  {t(item.labelKey)}
-                </div>
-                <div className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+            <SettingsRow
+              key={item.key}
+              label={t(item.labelKey)}
+              description={
+                <>
                   {t(item.descKey)}
-                </div>
-                {conflict && (
-                  <div className="mt-1 text-[11px] text-red-500 dark:text-red-400">
-                    {conflict}
-                  </div>
-                )}
-              </div>
-              <div className="shrink-0">
-                <ShortcutInput
-                  value={settings[item.key]}
-                  onChange={(v) => update(item.key, v)}
-                />
-              </div>
-            </div>
+                  {conflict && (
+                    <span className="mt-1 block text-red-500 dark:text-red-400">
+                      {conflict}
+                    </span>
+                  )}
+                </>
+              }
+            >
+              <ShortcutInput
+                value={settings[item.key]}
+                onChange={(v) => update(item.key, v)}
+              />
+            </SettingsRow>
           );
         })}
       </SettingsList>
