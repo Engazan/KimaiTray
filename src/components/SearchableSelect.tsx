@@ -5,6 +5,24 @@ type OptionValue = string | number;
 interface Option<T extends OptionValue> {
   value: T;
   label: string;
+  /** Optional swatch shown as a leading dot (e.g. Kimai project/activity color). */
+  color?: string | null;
+}
+
+/** Leading color swatch. Renders a faint ring placeholder to keep labels aligned
+ *  when the option carries no color but its siblings do. */
+function Dot({ color, placeholder }: { color?: string | null; placeholder?: boolean }) {
+  if (!color && !placeholder) return null;
+  return (
+    <span
+      className="h-2 w-2 shrink-0 rounded-full"
+      style={
+        color
+          ? { backgroundColor: color }
+          : { boxShadow: "inset 0 0 0 1px rgba(128,128,128,0.3)" }
+      }
+    />
+  );
 }
 
 interface SearchableSelectProps<T extends OptionValue> {
@@ -33,9 +51,14 @@ export default function SearchableSelect<T extends OptionValue>({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const selectedLabel = useMemo(
-    () => options.find((o) => o.value === value)?.label ?? null,
+  const selected = useMemo(
+    () => options.find((o) => o.value === value) ?? null,
     [options, value],
+  );
+  const selectedLabel = selected?.label ?? null;
+  const hasColors = useMemo(
+    () => options.some((o) => o.color != null),
+    [options],
   );
 
   const filtered = useMemo(() => {
@@ -118,16 +141,19 @@ export default function SearchableSelect<T extends OptionValue>({
           if (!disabled) setOpen(!open);
         }}
         disabled={disabled}
-        className="w-full rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.08] px-3 py-2 text-[13px] text-left focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none disabled:opacity-40 transition-colors flex items-center justify-between gap-1"
+        className="w-full rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.08] px-3 py-2 text-[13px] text-left focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none disabled:opacity-40 transition-colors flex items-center justify-between gap-2"
       >
-        <span
-          className={
-            hasValue
-              ? "text-gray-700 dark:text-gray-300 truncate"
-              : "text-gray-400 dark:text-gray-500 truncate"
-          }
-        >
-          {displayText}
+        <span className="flex items-center gap-2 min-w-0">
+          {hasValue && selected?.color && <Dot color={selected.color} />}
+          <span
+            className={`truncate ${
+              hasValue
+                ? "text-gray-700 dark:text-gray-300"
+                : "text-gray-400 dark:text-gray-500"
+            }`}
+          >
+            {displayText}
+          </span>
         </span>
         <svg
           className={`h-3 w-3 shrink-0 text-gray-400 dark:text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
@@ -165,13 +191,14 @@ export default function SearchableSelect<T extends OptionValue>({
               <button
                 type="button"
                 onClick={() => select(null)}
-                className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors ${
+                className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
                   highlightIndex === 0
                     ? "bg-[var(--accent)]/10 text-[var(--accent)]"
                     : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                 } ${value === null ? "font-medium" : ""}`}
               >
-                {emptyLabel ?? "—"}
+                {hasColors && <Dot placeholder />}
+                <span className="truncate">{emptyLabel ?? "—"}</span>
               </button>
             )}
             {filtered.map((opt, i) => {
@@ -181,13 +208,14 @@ export default function SearchableSelect<T extends OptionValue>({
                   key={opt.value}
                   type="button"
                   onClick={() => select(opt.value)}
-                  className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors ${
+                  className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
                     highlightIndex === idx
                       ? "bg-[var(--accent)]/10 text-[var(--accent)]"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                   } ${opt.value === value ? "font-medium" : ""}`}
                 >
-                  {opt.label}
+                  {hasColors && <Dot color={opt.color} placeholder />}
+                  <span className="truncate">{opt.label}</span>
                 </button>
               );
             })}

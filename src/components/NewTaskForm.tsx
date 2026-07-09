@@ -34,6 +34,27 @@ interface NewTaskFormProps {
 const selectCls =
   "w-full rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.08] px-3 py-2 text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none disabled:opacity-40 transition-colors";
 
+/** Compact field label. A small accent dot marks required fields. */
+function FieldLabel({
+  children,
+  required,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+      <span>{children}</span>
+      {required && (
+        <span
+          aria-hidden
+          className="h-1 w-1 rounded-full bg-[var(--accent)]"
+        />
+      )}
+    </label>
+  );
+}
+
 export default function NewTaskForm({
   client,
   hasActiveTimer,
@@ -104,6 +125,7 @@ export default function NewTaskForm({
   };
   const [useCustomTime, setUseCustomTime] = useState(false);
   const [beginTime, setBeginTime] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const customersQ = useQuery({
     queryKey: ["customers", client.connectionId],
@@ -176,6 +198,12 @@ export default function NewTaskForm({
   const selectedProject = filteredProjects.find((p) => p.id === projectId);
   const canSubmit = projectId != null && activityId != null && !isSubmitting;
 
+  // "More options" holds the low-frequency fields (tags, custom start time).
+  const hasMoreSection = showTags || showCustomStartTime;
+  const hasMoreContent =
+    (showTags && tags.length > 0) ||
+    (showCustomStartTime && useCustomTime && beginTime !== "");
+
   const handleSubmit = () => {
     if (!canSubmit) return;
     onIssueLinked?.(selectedIssue);
@@ -190,13 +218,14 @@ export default function NewTaskForm({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center gap-2 px-3 pt-2.5 pb-1.5 border-b border-gray-100 dark:border-white/[0.06]">
+      <div className="flex items-center gap-2 px-2.5 h-11 shrink-0 border-b border-gray-100 dark:border-white/[0.06]">
         <button
           onClick={onCancel}
-          className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 -ml-0.5 p-0.5 rounded transition-colors"
+          aria-label={t("common.cancel")}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
         >
           <svg
-            className="h-3.5 w-3.5"
+            className="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -209,7 +238,12 @@ export default function NewTaskForm({
             />
           </svg>
         </button>
-        <span className="text-[12px] font-semibold text-gray-700 dark:text-gray-200">
+        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--accent)]/10 text-[var(--accent)]">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+          </svg>
+        </span>
+        <span className="text-[13px] font-semibold text-gray-800 dark:text-gray-100">
           {t("newTask.title")}
         </span>
         <button
@@ -218,10 +252,10 @@ export default function NewTaskForm({
           disabled={refreshing}
           title={t("newTask.refreshLists")}
           aria-label={t("newTask.refreshLists")}
-          className="ml-auto -mr-0.5 p-0.5 rounded text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg
-            className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -236,14 +270,12 @@ export default function NewTaskForm({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2.5 space-y-2.5">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-1 space-y-3">
         {showCustomerSelect && (
           <div>
-            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-              {t("newTask.customer")}
-            </label>
+            <FieldLabel>{t("newTask.customer")}</FieldLabel>
             <SearchableSelect
-              options={customers.map((c) => ({ value: c.id, label: c.name }))}
+              options={customers.map((c) => ({ value: c.id, label: c.name, color: c.color }))}
               value={customerId}
               onChange={handleCustomerChange}
               placeholder={t("newTask.allCustomers")}
@@ -255,11 +287,9 @@ export default function NewTaskForm({
         )}
 
         <div>
-          <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-            {t("newTask.project")} <span className="text-[var(--accent)]">*</span>
-          </label>
+          <FieldLabel required>{t("newTask.project")}</FieldLabel>
           <SearchableSelect
-            options={filteredProjects.map((p) => ({ value: p.id, label: p.name }))}
+            options={filteredProjects.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
             value={projectId}
             onChange={handleProjectChange}
             placeholder={t("newTask.selectProject")}
@@ -268,11 +298,9 @@ export default function NewTaskForm({
         </div>
 
         <div>
-          <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-            {t("newTask.activity")} <span className="text-[var(--accent)]">*</span>
-          </label>
+          <FieldLabel required>{t("newTask.activity")}</FieldLabel>
           <SearchableSelect
-            options={filteredActivities.map((a) => ({ value: a.id, label: a.name }))}
+            options={filteredActivities.map((a) => ({ value: a.id, label: a.name, color: a.color }))}
             value={activityId}
             onChange={setActivityId}
             placeholder={projectId == null ? t("newTask.selectProjectFirst") : t("newTask.selectActivity")}
@@ -284,9 +312,7 @@ export default function NewTaskForm({
           <div className="space-y-2">
             {repoOptions.length > 0 && (
               <div>
-                <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {t("integrations.repository")}
-                </label>
+                <FieldLabel>{t("integrations.repository")}</FieldLabel>
                 <SearchableSelect
                   options={repoOptions}
                   value={selectedRepo || null}
@@ -297,9 +323,7 @@ export default function NewTaskForm({
               </div>
             )}
             <div>
-              <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-                {t("integrations.issuePicker")}
-              </label>
+              <FieldLabel>{t("integrations.issuePicker")}</FieldLabel>
               <IssuePicker
                 config={effectiveIssueConfig ?? issueIntegrationConfig}
                 token={issueToken}
@@ -321,9 +345,7 @@ export default function NewTaskForm({
 
         {showNote && (
           <div>
-            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-              {t("newTask.description")}
-            </label>
+            <FieldLabel>{t("newTask.description")}</FieldLabel>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -335,55 +357,82 @@ export default function NewTaskForm({
           </div>
         )}
 
-        {showTags && (
-          <div>
-            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
-              {t("tags.label")}
-            </label>
-            <TagsInput
-              tags={tags}
-              onChange={setTags}
-              disabled={isSubmitting}
-              suggestions={tagSuggestions}
-              size="md"
-            />
-          </div>
-        )}
-
-        {showCustomStartTime && (
-          <div>
-            <div className="flex items-center gap-1.5 mb-1">
-              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
-                {t("newTask.startTime")}
-              </label>
-              <button
-                type="button"
-                onClick={() => setUseCustomTime(!useCustomTime)}
-                className="text-[9px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
+        {hasMoreSection && (
+          <div className="pt-0.5">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-expanded={moreOpen}
+              className="group flex w-full items-center gap-1.5 rounded-md py-1 text-[11px] font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors focus:outline-none"
+            >
+              <svg
+                className={`h-3.5 w-3.5 text-gray-400 dark:text-gray-500 transition-transform ${moreOpen ? "rotate-90" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
               >
-                {useCustomTime ? t("newTask.useNow") : t("newTask.custom")}
-              </button>
-            </div>
-            {useCustomTime ? (
-              <DateTimePicker
-                value={beginTime}
-                onChange={setBeginTime}
-                disabled={isSubmitting}
-              />
-            ) : (
-              <span className="text-xs text-gray-400 dark:text-gray-500">
-                {t("common.now")}
-              </span>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+              <span>{t("newTask.moreOptions")}</span>
+              {!moreOpen && hasMoreContent && (
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" aria-hidden />
+              )}
+            </button>
+
+            {moreOpen && (
+              <div className="mt-2 space-y-3">
+                {showTags && (
+                  <div>
+                    <FieldLabel>{t("tags.label")}</FieldLabel>
+                    <TagsInput
+                      tags={tags}
+                      onChange={setTags}
+                      disabled={isSubmitting}
+                      suggestions={tagSuggestions}
+                      size="md"
+                    />
+                  </div>
+                )}
+
+                {showCustomStartTime && (
+                  <div>
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                        {t("newTask.startTime")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setUseCustomTime(!useCustomTime)}
+                        className="text-[10px] font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
+                      >
+                        {useCustomTime ? t("newTask.useNow") : t("newTask.custom")}
+                      </button>
+                    </div>
+                    {useCustomTime ? (
+                      <DateTimePicker
+                        value={beginTime}
+                        onChange={setBeginTime}
+                        disabled={isSubmitting}
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {t("common.now")}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-3 py-2.5 border-t border-gray-100 dark:border-white/[0.06]">
+      <div className="flex items-center gap-2 px-3 py-2.5 shrink-0 border-t border-gray-100 dark:border-white/[0.06]">
         <button
           onClick={onCancel}
           disabled={isSubmitting}
-          className="flex-1 rounded-lg px-3 py-1.5 text-[11px] font-medium
+          className="rounded-lg px-4 py-2 text-[12px] font-medium
             text-gray-500 dark:text-gray-400
             border border-gray-200 dark:border-white/10
             hover:bg-gray-100 dark:hover:bg-white/[0.08]
@@ -395,18 +444,18 @@ export default function NewTaskForm({
         <button
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold
-            bg-[var(--accent)] text-white
+          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-semibold
+            bg-[var(--accent)] text-white shadow-sm
             hover:bg-[var(--accent-hover)] active:brightness-90
-            disabled:opacity-40 disabled:cursor-not-allowed
+            disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
             transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
         >
           {isSubmitting ? (
-            <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
           ) : hasActiveTimer ? (
             <>
               <svg
-                className="h-3 w-3"
+                className="h-3.5 w-3.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -422,7 +471,7 @@ export default function NewTaskForm({
             </>
           ) : (
             <>
-              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
               {t("timer.startTimer")}
