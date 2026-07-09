@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.16.0] - 2026-07-09
+
+### New Features
+
+- **Category Mode** — an optional, per-connection menu-bar mode that replaces the recent/favorites lists with a configurable two-level category tree mapped onto your Kimai activities. Drill from a category to a subcategory (picking the client/project when one is required) to start tracking — the previous timer is stopped automatically, and a "continue last activity" window lets you pick straight back up. Categories are name-mapped to activities and resolved per project. A built-in visual editor supports Export / Import / Reset and raw JSON, and you can optionally load the tree from a URL with hourly auto-sync (which hides the manual editor while the categories are managed remotely). Off by default; translated across all five languages
+- **Customizable tray icon colors** — a new **Tray icon colors** setting in **Tray & Menu Bar** lets you pick the status-icon color for each timer state (running, paused, idle and error). Each state opens a color picker with a curated preset palette, a hex input, and a full-range OS picker; your choices are saved and re-applied on startup. Defaults match the previous colors, and the labels are translated across all five languages
+
+### Improvements
+
+- **Redesigned settings** — every settings section is rebuilt on a new card-based design system for a cleaner, more consistent look. The sidebar is reorganized into logical groups with app branding, the content is centered responsively, and the settings window is now resizable (with sensible minimum bounds)
+- **Integrations are now a browsable list** — a connection's **Integrations** tab lists the available integrations (currently Git Issues) and opens a dedicated configuration screen for each, backed by an extensible registry so more can be added over time
+- **Simpler new-timer form** — the New Task form was reworked for a cleaner, less cluttered feel: a clearer header, Project and Activity as the primary fields, and the less-used Tags and custom start time tucked into a collapsible **More options** drawer (with an indicator dot when it holds something). Start is now the full-width primary action, and the project / activity / customer pickers show each item's Kimai color as a swatch
+
 ## [0.15.0] - 2026-07-08
 
 ### New Features
