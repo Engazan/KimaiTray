@@ -150,7 +150,14 @@
     "iconShapeDot": "Punkt",
     "iconShapeRing": "Ring",
     "iconShapeSquare": "Quadrat",
-    "iconShapeClock": "Uhr"
+    "iconShapeClock": "Uhr",
+    "iconColors": "Symbolfarben in der Leiste",
+    "iconColorsDescription": "Passen Sie die Statusfarbe für jeden Timer-Zustand an.",
+    "stateIdle": "Inaktiv",
+    "stateRunning": "Läuft",
+    "statePaused": "Pausiert",
+    "stateError": "Fehler",
+    "resetColors": "Auf Standard zurücksetzen"
   },
   "timerSettings": {
     "title": "Timer",

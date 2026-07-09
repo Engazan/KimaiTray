@@ -150,7 +150,14 @@
     "iconShapeDot": "Tečka",
     "iconShapeRing": "Kroužek",
     "iconShapeSquare": "Čtverec",
-    "iconShapeClock": "Hodiny"
+    "iconShapeClock": "Hodiny",
+    "iconColors": "Barvy ikony v liště",
+    "iconColorsDescription": "Přizpůsobte barvu stavu pro každý stav časovače.",
+    "stateIdle": "Nečinné",
+    "stateRunning": "Běží",
+    "statePaused": "Pozastaveno",
+    "stateError": "Chyba",
+    "resetColors": "Obnovit výchozí"
   },
   "timerSettings": {
     "title": "Časovač",

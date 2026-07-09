@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 #[cfg(target_os = "macos")]
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
@@ -136,6 +136,16 @@ static TRAY_ICON_SIZE: AtomicU8 = AtomicU8::new(1);
 // 0 = dot, 1 = ring, 2 = square, 3 = clock
 static TRAY_ICON_SHAPE: AtomicU8 = AtomicU8::new(0);
 
+// Per-state icon colors, packed as 0x00RRGGBB. Indexed by state code
+// (0 = idle, 1 = running, 2 = paused, 3 = error). Defaults mirror the
+// Tailwind palette used before colors were user-configurable.
+static TRAY_COLORS: [AtomicU32; 4] = [
+    AtomicU32::new(0x9c_a3_af), // gray-400 (idle/disconnected)
+    AtomicU32::new(0x10_b9_81), // emerald-500 (running)
+    AtomicU32::new(0xf5_9e_0b), // amber-500 (paused)
+    AtomicU32::new(0xef_44_44), // red-500 (error)
+];
+
 // The tray icon is drawn at a high pixel resolution and downscaled by the OS
 // (macOS pins the menu-bar image to 18pt height), so a Retina display has enough
 // pixels to render the dot crisply instead of upscaling a tiny bitmap.
@@ -197,15 +207,40 @@ pub fn set_tray_icon_shape(app: AppHandle, shape: String) -> Result<(), String> 
     render_current_icon(&app)
 }
 
+#[tauri::command]
+pub fn set_tray_colors(
+    app: AppHandle,
+    idle: String,
+    running: String,
+    paused: String,
+    error: String,
+) -> Result<(), String> {
+    for (idx, hex) in [idle, running, paused, error].iter().enumerate() {
+        if let Some(packed) = parse_hex_color(hex) {
+            TRAY_COLORS[idx].store(packed, Ordering::SeqCst);
+        }
+    }
+    render_current_icon(&app)
+}
+
 type Rgb = (f64, f64, f64);
 
 fn state_color(state: u8) -> Rgb {
-    match state {
-        1 => (16.0, 185.0, 129.0),   // emerald-500 (running)
-        2 => (245.0, 158.0, 11.0),   // amber-500 (paused)
-        3 => (239.0, 68.0, 68.0),    // red-500 (error)
-        _ => (156.0, 163.0, 175.0),  // gray-400 (idle/disconnected)
+    let packed = TRAY_COLORS[state.min(3) as usize].load(Ordering::SeqCst);
+    (
+        ((packed >> 16) & 0xff) as f64,
+        ((packed >> 8) & 0xff) as f64,
+        (packed & 0xff) as f64,
+    )
+}
+
+/// Parse a `#RRGGBB` (or `RRGGBB`) hex string into a packed 0x00RRGGBB value.
+fn parse_hex_color(s: &str) -> Option<u32> {
+    let hex = s.strip_prefix('#').unwrap_or(s);
+    if hex.len() != 6 {
+        return None;
     }
+    u32::from_str_radix(hex, 16).ok()
 }
 
 fn size_radius(size: u8) -> f64 {
@@ -812,6 +847,13 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("dot");
             TRAY_ICON_SHAPE.store(shape_code(icon_shape), Ordering::SeqCst);
+            if let Some(colors) = s.get("trayColors").and_then(|v| v.as_object()) {
+                for (idx, key) in ["idle", "running", "paused", "error"].iter().enumerate() {
+                    if let Some(packed) = colors.get(*key).and_then(|v| v.as_str()).and_then(parse_hex_color) {
+                        TRAY_COLORS[idx].store(packed, Ordering::SeqCst);
+                    }
+                }
+            }
             right == "popup"
         } else {
             false

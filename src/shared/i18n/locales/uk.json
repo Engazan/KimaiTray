@@ -150,7 +150,14 @@
     "iconShapeDot": "Крапка",
     "iconShapeRing": "Кільце",
     "iconShapeSquare": "Квадрат",
-    "iconShapeClock": "Годинник"
+    "iconShapeClock": "Годинник",
+    "iconColors": "Кольори піктограми в лотку",
+    "iconColorsDescription": "Налаштуйте колір стану для кожного стану таймера.",
+    "stateIdle": "Очікування",
+    "stateRunning": "Виконується",
+    "statePaused": "Призупинено",
+    "stateError": "Помилка",
+    "resetColors": "Скинути до типових"
   },
   "timerSettings": {
     "title": "Таймер",

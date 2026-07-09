@@ -1,8 +1,16 @@
 import { load } from "@tauri-apps/plugin-store";
-import type { AppSettings, FeatureSettings } from "../types";
+import type { AppSettings, FeatureSettings, TrayStateColors } from "../types";
 
 const STORE_PATH = "settings.json";
 const SETTINGS_KEY = "settings";
+
+// Default tray status-icon colors, mirroring the fallbacks in tray.rs.
+export const defaultTrayColors: TrayStateColors = {
+  idle: "#9ca3af", // gray-400
+  running: "#10b981", // emerald-500
+  paused: "#f59e0b", // amber-500
+  error: "#ef4444", // red-500
+};
 
 export const defaultFeatureSettings: FeatureSettings = {
   featureNote: true,
@@ -30,6 +38,7 @@ export const defaultSettings: AppSettings = {
   showSecondsInTimer: true,
   trayIconSize: "medium",
   trayIconShape: "dot",
+  trayColors: { ...defaultTrayColors },
 
   enableIdleDetection: false,
   idleThresholdMinutes: 5,

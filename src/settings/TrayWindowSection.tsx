@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
-import type { AppSettings } from "../types";
-import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
+import type { AppSettings, TrayStateColors } from "../types";
+import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, setTrayIconSize, setTrayIconShape, setTrayColors } from "../api/trayApi";
 import type { MonitorInfo } from "../api/trayApi";
+import { defaultTrayColors } from "./service";
+import ColorPicker from "./ColorPicker";
 import { Select, Toggle } from "./Controls";
 import {
   RadioDot,
@@ -31,27 +33,37 @@ function TrayDot() {
 }
 
 const GLYPH_FILL = "#10b981"; // emerald-500
-const GLYPH_RIM = "#0b7a5c"; // darker emerald rim, mirrors the tray rendering
+
+// Darken a #RRGGBB hex color by `factor`, mirroring the tray rim shade (0.62).
+function darken(hex: string, factor: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  if (Number.isNaN(n)) return hex;
+  const r = Math.round(((n >> 16) & 0xff) * factor);
+  const g = Math.round(((n >> 8) & 0xff) * factor);
+  const b = Math.round((n & 0xff) * factor);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
 
 // SVG preview mirroring the tray icon presets, so pickers show a live preview.
-function ShapeGlyph({ shape, px }: { shape: AppSettings["trayIconShape"]; px: number }) {
+function ShapeGlyph({ shape, px, color = GLYPH_FILL }: { shape: AppSettings["trayIconShape"]; px: number; color?: string }) {
   const common = { width: px, height: px };
+  const rim = darken(color, 0.62);
   switch (shape) {
     case "ring":
       return (
         <svg {...common} viewBox="0 0 24 24" className="shrink-0">
-          <circle cx="12" cy="12" r="9" fill="none" stroke={GLYPH_FILL} strokeWidth="4.5" />
+          <circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth="4.5" />
         </svg>
       );
     case "square":
       return (
         <svg {...common} viewBox="0 0 24 24" className="shrink-0">
-          <rect x="3" y="3" width="18" height="18" rx="6" fill={GLYPH_FILL} stroke={GLYPH_RIM} strokeWidth="1.5" />
+          <rect x="3" y="3" width="18" height="18" rx="6" fill={color} stroke={rim} strokeWidth="1.5" />
         </svg>
       );
     case "clock":
       return (
-        <svg {...common} viewBox="0 0 24 24" className="shrink-0" stroke={GLYPH_FILL} strokeWidth="2" strokeLinecap="round">
+        <svg {...common} viewBox="0 0 24 24" className="shrink-0" stroke={color} strokeWidth="2" strokeLinecap="round">
           <circle cx="12" cy="12" r="9" fill="none" />
           <line x1="12" y1="12" x2="17.2" y2="8.9" />
           <line x1="12" y1="12" x2="6.8" y2="8.9" />
@@ -60,7 +72,7 @@ function ShapeGlyph({ shape, px }: { shape: AppSettings["trayIconShape"]; px: nu
     default:
       return (
         <svg {...common} viewBox="0 0 24 24" className="shrink-0">
-          <circle cx="12" cy="12" r="9" fill={GLYPH_FILL} stroke={GLYPH_RIM} strokeWidth="1.5" />
+          <circle cx="12" cy="12" r="9" fill={color} stroke={rim} strokeWidth="1.5" />
         </svg>
       );
   }
@@ -75,6 +87,27 @@ export default function TrayWindowSection({ settings, update }: Props) {
       listMonitors().then(setMonitors);
     }
   }, []);
+
+  const trayColors: TrayStateColors = { ...defaultTrayColors, ...(settings.trayColors ?? {}) };
+
+  const updateTrayColor = (state: keyof TrayStateColors, value: string) => {
+    const next = { ...trayColors, [state]: value };
+    update("trayColors", next);
+    setTrayColors(next);
+  };
+
+  const resetTrayColors = () => {
+    const next = { ...defaultTrayColors };
+    update("trayColors", next);
+    setTrayColors(next);
+  };
+
+  const trayColorOptions: { state: keyof TrayStateColors; label: string }[] = [
+    { state: "running", label: t("traySettings.stateRunning") },
+    { state: "paused", label: t("traySettings.statePaused") },
+    { state: "idle", label: t("traySettings.stateIdle") },
+    { state: "error", label: t("traySettings.stateError") },
+  ];
 
   const menuBarOptions: {
     value: AppSettings["menuBarLabelStyle"];
@@ -149,6 +182,45 @@ export default function TrayWindowSection({ settings, update }: Props) {
               </SelectableCard>
             );
           })}
+        </div>
+      </SettingsCard>
+
+      <SettingsCard title={t("traySettings.iconColors")} description={t("traySettings.iconColorsDescription")}>
+        <div className="grid grid-cols-4 gap-2">
+          {trayColorOptions.map((opt, i) => {
+            const value = trayColors[opt.state];
+            return (
+              <ColorPicker
+                key={opt.state}
+                value={value}
+                onChange={(hex) => updateTrayColor(opt.state, hex)}
+                align={i === 0 ? "start" : i === trayColorOptions.length - 1 ? "end" : "center"}
+                ariaLabel={opt.label}
+              >
+                <div className="flex flex-col items-center gap-2 px-2 py-3">
+                  <div className="h-7 flex items-center justify-center">
+                    <ShapeGlyph shape={settings.trayIconShape ?? "dot"} px={22} color={value} />
+                  </div>
+                  <span className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full border border-black/10 dark:border-white/10"
+                      style={{ backgroundColor: value }}
+                    />
+                    {opt.label}
+                  </span>
+                </div>
+              </ColorPicker>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={resetTrayColors}
+            className="text-[11px] text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+          >
+            {t("traySettings.resetColors")}
+          </button>
         </div>
       </SettingsCard>
 

@@ -48,6 +48,14 @@ export interface SavedConnection {
   url: string;
 }
 
+/** Custom hex colors for the tray status icon in each timer state. */
+export interface TrayStateColors {
+  idle: string;
+  running: string;
+  paused: string;
+  error: string;
+}
+
 export interface FeatureSettings {
   featureNote: boolean;
   featureTags: boolean;
@@ -76,6 +84,7 @@ export interface AppSettings {
   showSecondsInTimer: boolean;
   trayIconSize: "small" | "medium" | "large" | "xlarge";
   trayIconShape: "dot" | "ring" | "square" | "clock";
+  trayColors: TrayStateColors;
 
   enableIdleDetection: boolean;
   idleThresholdMinutes: number;

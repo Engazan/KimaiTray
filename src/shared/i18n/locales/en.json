@@ -150,7 +150,14 @@
     "iconShapeDot": "Dot",
     "iconShapeRing": "Ring",
     "iconShapeSquare": "Square",
-    "iconShapeClock": "Clock"
+    "iconShapeClock": "Clock",
+    "iconColors": "Tray icon colors",
+    "iconColorsDescription": "Customize the status color for each timer state.",
+    "stateIdle": "Idle",
+    "stateRunning": "Running",
+    "statePaused": "Paused",
+    "stateError": "Error",
+    "resetColors": "Reset to defaults"
   },
   "timerSettings": {
     "title": "Timer",
