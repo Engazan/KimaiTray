@@ -35,6 +35,7 @@ interface FeatureFlags {
   featurePausedTimerDescriptionHover: boolean;
   featureCustomerSelect: boolean;
   featureCustomStartTime: boolean;
+  featureCategoryMode: boolean;
 }
 
 interface UseKimaiClientResult {
@@ -100,6 +101,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     featurePausedTimerDescriptionHover: false,
     featureCustomerSelect: true,
     featureCustomStartTime: true,
+    featureCategoryMode: false,
   });
   const [shortcutSettings, setShortcutSettings] =
     useState<ShortcutSettings>(defaultShortcutSettings);

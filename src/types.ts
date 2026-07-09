@@ -54,6 +54,9 @@ export interface FeatureSettings {
   featurePausedTimerDescriptionHover: boolean;
   featureCustomerSelect: boolean;
   featureCustomStartTime: boolean;
+  /** Category Mode: replace the recent/favorites panel with a fixed 2-level category
+   *  menu for the Customer Success / Helpdesk team. Off by default. */
+  featureCategoryMode: boolean;
 }
 
 export interface AppSettings {

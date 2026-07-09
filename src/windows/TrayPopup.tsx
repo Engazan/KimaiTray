@@ -10,6 +10,7 @@ import RecentTasksList from "../components/RecentTasksList";
 import FavoriteTasksList from "../components/FavoriteTasksList";
 import PopupFooterActions from "../components/PopupFooterActions";
 import NewTaskForm from "../components/NewTaskForm";
+import CategoryModePanel from "../categorymode/CategoryModePanel";
 import IdleDialog from "../components/IdleDialog";
 import ApiErrorDialog from "../components/ApiErrorDialog";
 import TodaySection from "../components/TodaySection";
@@ -850,7 +851,34 @@ export default function TrayPopup() {
 
             {/* Scrollable content — layout-dependent */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-            {popupLayout === "focus" ? (
+            {featureFlags.featureCategoryMode && client ? (
+              <>
+                <CategoryModePanel
+                  client={client}
+                  connectionId={activeConnectionId}
+                  hasActiveTimer={!!timer}
+                  startTask={startTask}
+                  startingKey={startingKey}
+                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                />
+                {status !== "unconfigured" && (
+                  <TodaySection
+                    entries={today.entries}
+                    totalCount={today.totalCount}
+                    totalDuration={today.totalDuration}
+                    hasMore={today.hasMore}
+                    expanded={today.expanded}
+                    onToggleExpand={() => today.setExpanded(!today.expanded)}
+                    sortAsc={today.sortAsc}
+                    onToggleSort={() => today.setSortAsc(!today.sortAsc)}
+                    isLoading={today.isLoading}
+                    isError={today.isError}
+                    onRetry={() => today.refetch()}
+                    colorMode={colorMode}
+                  />
+                )}
+              </>
+            ) : popupLayout === "focus" ? (
               <>
                 {/* Tab bar */}
                 <div className="sticky top-0 z-10 bg-white/95 py-1.5 backdrop-blur-sm dark:bg-[#1a1a1a]/95">

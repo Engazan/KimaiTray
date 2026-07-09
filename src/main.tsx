@@ -23,7 +23,11 @@ document.documentElement.dataset.window = label;
 function App() {
   switch (label) {
     case "settings":
-      return <Settings />;
+      return (
+        <QueryProvider>
+          <Settings />
+        </QueryProvider>
+      );
     case "tray-popup":
     default:
       return (

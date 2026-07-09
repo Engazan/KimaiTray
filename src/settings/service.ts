@@ -10,6 +10,7 @@ export const defaultFeatureSettings: FeatureSettings = {
   featurePausedTimerDescriptionHover: false,
   featureCustomerSelect: true,
   featureCustomStartTime: true,
+  featureCategoryMode: false,
 };
 
 export const defaultSettings: AppSettings = {
@@ -118,10 +119,26 @@ export async function loadSettings(): Promise<AppSettings> {
           (rawObj.featureCustomerSelect as boolean) ?? defaultFeatureSettings.featureCustomerSelect,
         featureCustomStartTime:
           (rawObj.featureCustomStartTime as boolean) ?? defaultFeatureSettings.featureCustomStartTime,
+        featureCategoryMode: defaultFeatureSettings.featureCategoryMode,
       };
       for (const conn of settings.connections ?? []) {
         settings.features[conn.id] = { ...migrated };
       }
+      await store.set(SETTINGS_KEY, settings);
+      await store.save();
+    }
+
+    // Migrate the per-connection toggle from the old "CS Mode" name.
+    let migratedCategoryMode = false;
+    for (const [id, feat] of Object.entries(settings.features)) {
+      const legacy = (feat as { featureCsMode?: boolean }).featureCsMode;
+      if (legacy !== undefined && feat.featureCategoryMode === undefined) {
+        settings.features[id] = { ...feat, featureCategoryMode: legacy };
+        delete (settings.features[id] as { featureCsMode?: boolean }).featureCsMode;
+        migratedCategoryMode = true;
+      }
+    }
+    if (migratedCategoryMode) {
       await store.set(SETTINGS_KEY, settings);
       await store.save();
     }
