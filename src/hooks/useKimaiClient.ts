@@ -140,6 +140,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     // avoids a fetch with the previous connection's token under the new key.
     if (urlChanged || connChanged) {
       setToken("");
+      setIssueToken(null);
     }
     setBaseUrl(s.kimaiUrl);
     setConnections(s.connections ?? []);
@@ -183,6 +184,9 @@ export function useKimaiClient(): UseKimaiClientResult {
     };
     setIssueIntegration(issueConfig);
     if (issueConfig.enabled && connId) {
+      // Never pair a newly selected integration with the previous connection's
+      // credential while the secure lookup is still pending.
+      setIssueToken(null);
       try {
         const it = await getIssueToken(connId);
         if (!settingsRequestsRef.current.isCurrent(generation)) return;

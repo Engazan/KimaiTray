@@ -804,6 +804,7 @@ export default function TrayPopup() {
 
       {showNewTask && client ? (
         <NewTaskForm
+          key={client.connectionId}
           client={client}
           hasActiveTimer={!!timer}
           onSubmit={handleNewTaskSubmit}
