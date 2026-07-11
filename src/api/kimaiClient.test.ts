@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildApiUrl,
   expectArrayResponse,
+  expectObjectResponse,
   isInsecureUrl,
   KimaiApiError,
   normalizeBaseUrl,
@@ -36,6 +37,12 @@ describe("Kimai URL helpers", () => {
 
   it("rejects malformed array responses at the API boundary", () => {
     expect(() => expectArrayResponse({}, "/api/timesheets")).toThrow(
+      KimaiApiError,
+    );
+  });
+
+  it("rejects malformed object responses at the API boundary", () => {
+    expect(() => expectObjectResponse([], "/api/users/me")).toThrow(
       KimaiApiError,
     );
   });

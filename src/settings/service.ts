@@ -84,7 +84,7 @@ function getStore() {
   return storePromise;
 }
 
-function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
+export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
   if (!raw) return {
     ...defaultSettings,
     trayColors: { ...defaultSettings.trayColors },

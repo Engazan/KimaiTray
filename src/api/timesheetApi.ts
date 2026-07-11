@@ -1,4 +1,8 @@
-import { expectArrayResponse, type KimaiClient } from "./kimaiClient";
+import {
+  expectArrayResponse,
+  expectObjectResponse,
+  type KimaiClient,
+} from "./kimaiClient";
 import type {
   KimaiTimesheetCreate,
   KimaiTimesheetEntry,
@@ -41,29 +45,46 @@ export async function getTimesheet(
   client: KimaiClient,
   id: number,
 ): Promise<KimaiTimesheetEntry> {
-  return client.get<KimaiTimesheetEntry>(`/api/timesheets/${id}`);
+  const path = `/api/timesheets/${id}`;
+  return expectObjectResponse<KimaiTimesheetEntry>(
+    await client.get<unknown>(path),
+    path,
+  );
 }
 
 export async function startTimesheet(
   client: KimaiClient,
   payload: KimaiTimesheetCreate,
 ): Promise<KimaiTimesheetEntry> {
-  return client.post<KimaiTimesheetEntry>("/api/timesheets", payload);
+  const path = "/api/timesheets";
+  return expectObjectResponse<KimaiTimesheetEntry>(
+    await client.post<unknown>(path, payload),
+    path,
+    "POST",
+  );
 }
 
 export async function stopTimesheet(
   client: KimaiClient,
   id: number,
 ): Promise<KimaiTimesheetEntry> {
-  return client.patch<KimaiTimesheetEntry>(`/api/timesheets/${id}/stop`);
+  const path = `/api/timesheets/${id}/stop`;
+  return expectObjectResponse<KimaiTimesheetEntry>(
+    await client.patch<unknown>(path),
+    path,
+    "PATCH",
+  );
 }
 
 export async function restartTimesheet(
   client: KimaiClient,
   id: number,
 ): Promise<KimaiTimesheetEntry> {
-  return client.patch<KimaiTimesheetEntry>(
-    `/api/timesheets/${id}/restart`,
+  const path = `/api/timesheets/${id}/restart`;
+  return expectObjectResponse<KimaiTimesheetEntry>(
+    await client.patch<unknown>(path),
+    path,
+    "PATCH",
   );
 }
 
@@ -72,9 +93,11 @@ export async function updateTimesheet(
   id: number,
   payload: KimaiTimesheetUpdate,
 ): Promise<KimaiTimesheetEntry> {
-  return client.patch<KimaiTimesheetEntry>(
-    `/api/timesheets/${id}`,
-    payload,
+  const path = `/api/timesheets/${id}`;
+  return expectObjectResponse<KimaiTimesheetEntry>(
+    await client.patch<unknown>(path, payload),
+    path,
+    "PATCH",
   );
 }
 

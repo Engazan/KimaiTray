@@ -1,4 +1,8 @@
-import type { KimaiClient } from "./kimaiClient";
+import {
+  expectArrayResponse,
+  expectObjectResponse,
+  type KimaiClient,
+} from "./kimaiClient";
 import type {
   KimaiCustomer,
   KimaiProject,
@@ -10,26 +14,36 @@ export async function getProjects(
   client: KimaiClient,
   params?: ProjectListParams,
 ): Promise<KimaiProject[]> {
-  return client.get<KimaiProject[]>("/api/projects", params);
+  const path = "/api/projects";
+  return expectArrayResponse<KimaiProject>(
+    await client.get<unknown>(path, params),
+    path,
+  );
 }
 
 export async function getProject(
   client: KimaiClient,
   id: number,
 ): Promise<KimaiProject> {
-  return client.get<KimaiProject>(`/api/projects/${id}`);
+  const path = `/api/projects/${id}`;
+  return expectObjectResponse<KimaiProject>(await client.get<unknown>(path), path);
 }
 
 export async function getCustomers(
   client: KimaiClient,
   params?: CustomerListParams,
 ): Promise<KimaiCustomer[]> {
-  return client.get<KimaiCustomer[]>("/api/customers", params);
+  const path = "/api/customers";
+  return expectArrayResponse<KimaiCustomer>(
+    await client.get<unknown>(path, params),
+    path,
+  );
 }
 
 export async function getCustomer(
   client: KimaiClient,
   id: number,
 ): Promise<KimaiCustomer> {
-  return client.get<KimaiCustomer>(`/api/customers/${id}`);
+  const path = `/api/customers/${id}`;
+  return expectObjectResponse<KimaiCustomer>(await client.get<unknown>(path), path);
 }

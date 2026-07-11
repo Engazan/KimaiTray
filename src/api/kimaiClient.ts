@@ -224,6 +224,20 @@ export function expectArrayResponse<T>(value: unknown, path: string): T[] {
   throw error;
 }
 
+export function expectObjectResponse<T>(
+  value: unknown,
+  path: string,
+  method = "GET",
+): T {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return value as T;
+  }
+  const error = new KimaiApiError(200, "Parse Error", null, "parse_error");
+  error.method = method;
+  error.path = path;
+  throw error;
+}
+
 export function createKimaiClient(
   rawBaseUrl: string,
   token: string,

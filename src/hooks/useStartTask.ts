@@ -19,11 +19,45 @@ export interface StartTaskPayload {
   label: string;
 }
 
-class TaskSwitchError extends Error {
+export class TaskSwitchError extends Error {
   stoppedExisting: boolean;
   constructor(cause: unknown, stoppedExisting: boolean) {
     super(cause instanceof KimaiApiError ? cause.message : String(cause));
     this.stoppedExisting = stoppedExisting;
+  }
+}
+
+export async function switchTask(
+  client: KimaiClient,
+  payload: StartTaskPayload,
+) {
+  let stoppedExisting = false;
+  const stoppedIds: number[] = [];
+  try {
+    const active = await getActiveTimesheets(client);
+    for (const entry of active) {
+      await stopTimesheet(client, entry.id);
+      stoppedExisting = true;
+      stoppedIds.push(entry.id);
+    }
+    return await startTimesheet(client, {
+      project: payload.projectId,
+      activity: payload.activityId,
+      description: payload.description,
+      tags: payload.tags?.length
+        ? serializeKimaiTags(payload.tags)
+        : undefined,
+    });
+  } catch (err) {
+    let rolledBack = stoppedIds.length > 0;
+    for (const id of [...stoppedIds].reverse()) {
+      try {
+        await restartTimesheet(client, id);
+      } catch {
+        rolledBack = false;
+      }
+    }
+    throw new TaskSwitchError(err, stoppedExisting && !rolledBack);
   }
 }
 
@@ -36,36 +70,7 @@ export function useStartTask(
   const [switchError, setSwitchError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async (payload: StartTaskPayload) => {
-      let stoppedExisting = false;
-      const stoppedIds: number[] = [];
-      try {
-        const active = await getActiveTimesheets(client!);
-        for (const entry of active) {
-          await stopTimesheet(client!, entry.id);
-          stoppedExisting = true;
-          stoppedIds.push(entry.id);
-        }
-        return await startTimesheet(client!, {
-          project: payload.projectId,
-          activity: payload.activityId,
-          description: payload.description,
-          tags: payload.tags?.length
-            ? serializeKimaiTags(payload.tags)
-            : undefined,
-        });
-      } catch (err) {
-        let rolledBack = stoppedIds.length > 0;
-        for (const id of [...stoppedIds].reverse()) {
-          try {
-            await restartTimesheet(client!, id);
-          } catch {
-            rolledBack = false;
-          }
-        }
-        throw new TaskSwitchError(err, stoppedExisting && !rolledBack);
-      }
-    },
+    mutationFn: (payload: StartTaskPayload) => switchTask(client!, payload),
     onMutate: () => {
       setSwitchError(null);
     },

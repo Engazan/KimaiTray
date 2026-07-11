@@ -1,6 +1,7 @@
 import i18n from "../shared/i18n";
 import {
   createKimaiClient,
+  expectObjectResponse,
   isInsecureUrl,
   KimaiApiError,
   type KimaiClient,
@@ -19,13 +20,15 @@ export interface ConnectionResult {
 export async function getCurrentUser(
   client: KimaiClient,
 ): Promise<KimaiUser> {
-  return client.get<KimaiUser>("/api/users/me");
+  const path = "/api/users/me";
+  return expectObjectResponse<KimaiUser>(await client.get<unknown>(path), path);
 }
 
 export async function getVersion(
   client: KimaiClient,
 ): Promise<KimaiVersion> {
-  return client.get<KimaiVersion>("/api/version");
+  const path = "/api/version";
+  return expectObjectResponse<KimaiVersion>(await client.get<unknown>(path), path);
 }
 
 export async function testConnection(
