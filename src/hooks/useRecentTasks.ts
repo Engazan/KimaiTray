@@ -5,17 +5,13 @@ import { getRecentTimesheets } from "../api/timesheetApi";
 import type { RecentTask } from "../types";
 import { extractId } from "../api/kimaiTypes";
 import { normalizeKimaiTags } from "../api/tagUtils";
-import { parseKimaiDate } from "../utils/time";
+import { differenceInLocalCalendarDays, parseKimaiDate } from "../utils/time";
 import { useEntityLookup } from "./useEntityLookup";
 
 function formatRelativeDate(iso: string): string {
   const d = parseKimaiDate(iso);
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffDays = Math.floor(
-    (today.getTime() - target.getTime()) / 86_400_000,
-  );
+  const diffDays = differenceInLocalCalendarDays(now, d);
 
   if (diffDays <= 1) {
     return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(

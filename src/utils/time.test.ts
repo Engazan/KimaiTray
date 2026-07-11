@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getLocalDayRange, parseKimaiDate } from "./time";
+import {
+  differenceInLocalCalendarDays,
+  getLocalDayRange,
+  parseKimaiDate,
+} from "./time";
 
 describe("time utilities", () => {
   beforeEach(() => {
@@ -23,5 +27,14 @@ describe("time utilities", () => {
       begin: "2026-07-11T00:00:00",
       end: "2026-07-11T23:59:59",
     });
+  });
+
+  it("compares calendar days independently of DST-length days", () => {
+    const beforeSpringShift = new Date(2025, 2, 30, 12, 0);
+    const afterSpringShift = new Date(2025, 2, 31, 12, 0);
+
+    expect(
+      differenceInLocalCalendarDays(afterSpringShift, beforeSpringShift),
+    ).toBe(1);
   });
 });

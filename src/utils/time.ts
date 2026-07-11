@@ -36,3 +36,20 @@ export function getLocalDayRange(): { begin: string; end: string } {
     end: `${date}T23:59:59`,
   };
 }
+
+export function differenceInLocalCalendarDays(
+  later: Date,
+  earlier: Date,
+): number {
+  const laterDay = Date.UTC(
+    later.getFullYear(),
+    later.getMonth(),
+    later.getDate(),
+  );
+  const earlierDay = Date.UTC(
+    earlier.getFullYear(),
+    earlier.getMonth(),
+    earlier.getDate(),
+  );
+  return Math.round((laterDay - earlierDay) / 86_400_000);
+}
