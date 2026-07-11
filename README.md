@@ -126,6 +126,7 @@ src-tauri/              # Tauri / Rust backend
   src/tray.rs           # System tray, icon generation
   src/shortcuts.rs      # Global keyboard shortcuts
   src/keychain.rs       # API token storage
+  src/http.rs           # Bounded native HTTP broker
   src/idle.rs           # Platform idle detection
   tauri.conf.json       # App metadata & bundle config
   capabilities/         # Permission declarations
