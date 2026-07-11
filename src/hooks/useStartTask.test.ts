@@ -6,16 +6,35 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { KimaiClient } from "../api/kimaiClient";
 import { switchTask, TaskSwitchError, useStartTask } from "./useStartTask";
+import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
+
+function timesheet(id: number): KimaiTimesheetEntry {
+  return {
+    id,
+    begin: "2026-07-11T09:00:00+0200",
+    end: null,
+    duration: null,
+    description: "",
+    rate: 0,
+    internalRate: 0,
+    exported: false,
+    billable: true,
+    tags: [],
+    activity: 2,
+    project: 1,
+    user: 1,
+  };
+}
 
 function mockClient(overrides: Partial<KimaiClient> = {}): KimaiClient {
   return {
     baseUrl: "https://kimai.example.test",
     connectionId: "connection-a",
-    get: vi.fn(async () => [{ id: 42 }]),
+    get: vi.fn(async () => [timesheet(42)]),
     post: vi.fn(async () => {
       throw new Error("start failed");
     }),
-    patch: vi.fn(async () => ({ id: 42 })),
+    patch: vi.fn(async () => timesheet(42)),
     del: vi.fn(async () => undefined),
     ...overrides,
   } as KimaiClient;
@@ -45,7 +64,7 @@ describe("transactional timer switching", () => {
   it("reports a partial stop when rollback also fails", async () => {
     const patch = vi
       .fn()
-      .mockResolvedValueOnce({ id: 42 })
+      .mockResolvedValueOnce(timesheet(42))
       .mockRejectedValueOnce(new Error("restart failed"));
     const client = mockClient({ patch });
 
@@ -55,7 +74,7 @@ describe("transactional timer switching", () => {
   });
 
   it("forwards a custom begin timestamp to the Kimai create request", async () => {
-    const post = vi.fn(async () => ({ id: 99 }));
+    const post = vi.fn(async () => timesheet(99));
     const client = mockClient({
       get: vi.fn(async () => []) as unknown as KimaiClient["get"],
       post: post as unknown as KimaiClient["post"],
@@ -79,7 +98,7 @@ describe("transactional timer switching", () => {
   });
 
   it("publishes task metadata only after the create request succeeds", async () => {
-    let resolveStart!: (entry: { id: number }) => void;
+    let resolveStart!: (entry: KimaiTimesheetEntry) => void;
     const post = vi.fn(
       () =>
         new Promise((resolve) => {
@@ -108,11 +127,11 @@ describe("transactional timer switching", () => {
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
 
     await act(async () => {
-      resolveStart({ id: 99 });
+      resolveStart(timesheet(99));
       await startPromise;
     });
     await waitFor(() =>
-      expect(onStarted).toHaveBeenCalledWith({ id: 99 }, payload),
+      expect(onStarted).toHaveBeenCalledWith(timesheet(99), payload),
     );
     queryClient.clear();
   });

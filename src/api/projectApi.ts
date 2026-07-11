@@ -9,6 +9,10 @@ import type {
   CustomerListParams,
   ProjectListParams,
 } from "./kimaiTypes";
+import {
+  isKimaiCustomer,
+  isKimaiProject,
+} from "./kimaiValidation";
 
 export async function getProjects(
   client: KimaiClient,
@@ -18,6 +22,7 @@ export async function getProjects(
   return expectArrayResponse<KimaiProject>(
     await client.get<unknown>(path, params),
     path,
+    isKimaiProject,
   );
 }
 
@@ -26,7 +31,12 @@ export async function getProject(
   id: number,
 ): Promise<KimaiProject> {
   const path = `/api/projects/${id}`;
-  return expectObjectResponse<KimaiProject>(await client.get<unknown>(path), path);
+  return expectObjectResponse<KimaiProject>(
+    await client.get<unknown>(path),
+    path,
+    "GET",
+    isKimaiProject,
+  );
 }
 
 export async function getCustomers(
@@ -37,6 +47,7 @@ export async function getCustomers(
   return expectArrayResponse<KimaiCustomer>(
     await client.get<unknown>(path, params),
     path,
+    isKimaiCustomer,
   );
 }
 
@@ -45,5 +56,10 @@ export async function getCustomer(
   id: number,
 ): Promise<KimaiCustomer> {
   const path = `/api/customers/${id}`;
-  return expectObjectResponse<KimaiCustomer>(await client.get<unknown>(path), path);
+  return expectObjectResponse<KimaiCustomer>(
+    await client.get<unknown>(path),
+    path,
+    "GET",
+    isKimaiCustomer,
+  );
 }

@@ -211,8 +211,12 @@ export interface KimaiClient {
   del(path: string): Promise<void>;
 }
 
-export function expectArrayResponse<T>(value: unknown, path: string): T[] {
-  if (Array.isArray(value)) return value as T[];
+export function expectArrayResponse<T>(
+  value: unknown,
+  path: string,
+  guard?: (item: unknown) => item is T,
+): T[] {
+  if (Array.isArray(value) && (!guard || value.every(guard))) return value as T[];
   const error = new KimaiApiError(
     200,
     "Parse Error",
@@ -228,8 +232,14 @@ export function expectObjectResponse<T>(
   value: unknown,
   path: string,
   method = "GET",
+  guard?: (item: unknown) => item is T,
 ): T {
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (!guard || guard(value))
+  ) {
     return value as T;
   }
   const error = new KimaiApiError(200, "Parse Error", null, "parse_error");

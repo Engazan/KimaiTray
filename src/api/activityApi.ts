@@ -4,6 +4,7 @@ import {
   type KimaiClient,
 } from "./kimaiClient";
 import type { ActivityListParams, KimaiActivity } from "./kimaiTypes";
+import { isKimaiActivity } from "./kimaiValidation";
 
 export async function getActivities(
   client: KimaiClient,
@@ -13,6 +14,7 @@ export async function getActivities(
   return expectArrayResponse<KimaiActivity>(
     await client.get<unknown>(path, params),
     path,
+    isKimaiActivity,
   );
 }
 
@@ -28,5 +30,10 @@ export async function getActivity(
   id: number,
 ): Promise<KimaiActivity> {
   const path = `/api/activities/${id}`;
-  return expectObjectResponse<KimaiActivity>(await client.get<unknown>(path), path);
+  return expectObjectResponse<KimaiActivity>(
+    await client.get<unknown>(path),
+    path,
+    "GET",
+    isKimaiActivity,
+  );
 }

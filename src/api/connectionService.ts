@@ -7,6 +7,7 @@ import {
   type KimaiClient,
 } from "./kimaiClient";
 import type { KimaiUser, KimaiVersion } from "./kimaiTypes";
+import { isKimaiUser, isKimaiVersion } from "./kimaiValidation";
 
 export interface ConnectionResult {
   success: boolean;
@@ -21,14 +22,24 @@ export async function getCurrentUser(
   client: KimaiClient,
 ): Promise<KimaiUser> {
   const path = "/api/users/me";
-  return expectObjectResponse<KimaiUser>(await client.get<unknown>(path), path);
+  return expectObjectResponse<KimaiUser>(
+    await client.get<unknown>(path),
+    path,
+    "GET",
+    isKimaiUser,
+  );
 }
 
 export async function getVersion(
   client: KimaiClient,
 ): Promise<KimaiVersion> {
   const path = "/api/version";
-  return expectObjectResponse<KimaiVersion>(await client.get<unknown>(path), path);
+  return expectObjectResponse<KimaiVersion>(
+    await client.get<unknown>(path),
+    path,
+    "GET",
+    isKimaiVersion,
+  );
 }
 
 export async function testConnection(

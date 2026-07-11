@@ -9,6 +9,7 @@ import type {
   KimaiTimesheetUpdate,
   TimesheetListParams,
 } from "./kimaiTypes";
+import { isKimaiTimesheet } from "./kimaiValidation";
 
 export async function getActiveTimesheets(
   client: KimaiClient,
@@ -17,6 +18,7 @@ export async function getActiveTimesheets(
   return expectArrayResponse<KimaiTimesheetEntry>(
     await client.get<unknown>(path),
     path,
+    isKimaiTimesheet,
   );
 }
 
@@ -25,9 +27,11 @@ export async function getRecentTimesheets(
   size = 10,
 ): Promise<KimaiTimesheetEntry[]> {
   const path = "/api/timesheets/recent";
-  return expectArrayResponse<KimaiTimesheetEntry>(await client.get<unknown>(path, {
-    size,
-  }), path);
+  return expectArrayResponse<KimaiTimesheetEntry>(
+    await client.get<unknown>(path, { size }),
+    path,
+    isKimaiTimesheet,
+  );
 }
 
 export async function getTimesheets(
@@ -38,6 +42,7 @@ export async function getTimesheets(
   return expectArrayResponse<KimaiTimesheetEntry>(
     await client.get<unknown>(path, params),
     path,
+    isKimaiTimesheet,
   );
 }
 
@@ -49,6 +54,8 @@ export async function getTimesheet(
   return expectObjectResponse<KimaiTimesheetEntry>(
     await client.get<unknown>(path),
     path,
+    "GET",
+    isKimaiTimesheet,
   );
 }
 
@@ -61,6 +68,7 @@ export async function startTimesheet(
     await client.post<unknown>(path, payload),
     path,
     "POST",
+    isKimaiTimesheet,
   );
 }
 
@@ -73,6 +81,7 @@ export async function stopTimesheet(
     await client.patch<unknown>(path),
     path,
     "PATCH",
+    isKimaiTimesheet,
   );
 }
 
@@ -85,6 +94,7 @@ export async function restartTimesheet(
     await client.patch<unknown>(path),
     path,
     "PATCH",
+    isKimaiTimesheet,
   );
 }
 
@@ -98,6 +108,7 @@ export async function updateTimesheet(
     await client.patch<unknown>(path, payload),
     path,
     "PATCH",
+    isKimaiTimesheet,
   );
 }
 
