@@ -11,7 +11,9 @@ use crate::tray;
 
 const STORE_PATH: &str = "settings.json";
 type ShortcutSet = [String; 3];
-static LAST_SHORTCUTS: Mutex<Option<ShortcutSet>> = Mutex::new(None);
+// Protect the complete unregister/register/rollback transaction. Separate
+// snapshots allow concurrent settings windows to interleave OS registrations.
+static SHORTCUT_STATE: Mutex<Option<ShortcutSet>> = Mutex::new(None);
 
 fn validate_shortcuts(values: [&str; 3]) -> Result<(), String> {
     let mut ids = HashSet::new();
@@ -76,10 +78,10 @@ pub fn register_shortcuts(
 ) -> Result<(), String> {
     validate_shortcuts([&toggle_popup, &start_stop_timer, &open_settings])?;
     let next = [toggle_popup, start_stop_timer, open_settings];
-    let previous = LAST_SHORTCUTS
+    let mut state = SHORTCUT_STATE
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .clone();
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let previous = state.clone();
     let gs = app.global_shortcut();
     gs.unregister_all().map_err(|e| e.to_string())?;
 
@@ -88,15 +90,14 @@ pub fn register_shortcuts(
         if let Some(previous) = previous {
             if let Err(rollback_error) = register_handlers(&app, &previous) {
                 let _ = gs.unregister_all();
+                *state = None;
                 error!("Failed to restore previous shortcuts: {rollback_error}");
             }
         }
         return Err(registration_error);
     }
 
-    *LAST_SHORTCUTS
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(next);
+    *state = Some(next);
     Ok(())
 }
 
