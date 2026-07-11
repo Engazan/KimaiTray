@@ -100,11 +100,17 @@ describe("transactional timer switching", () => {
       { wrapper },
     );
 
-    await act(async () => result.current.startTask(payload));
+    let startPromise!: ReturnType<typeof result.current.startTask>;
+    act(() => {
+      startPromise = result.current.startTask(payload);
+    });
     expect(onStarted).not.toHaveBeenCalled();
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
 
-    await act(async () => resolveStart({ id: 99 }));
+    await act(async () => {
+      resolveStart({ id: 99 });
+      await startPromise;
+    });
     await waitFor(() =>
       expect(onStarted).toHaveBeenCalledWith({ id: 99 }, payload),
     );

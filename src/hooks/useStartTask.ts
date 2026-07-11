@@ -102,10 +102,18 @@ export function useStartTask(
   });
 
   const startTask = useCallback(
-    (payload: StartTaskPayload, trackingKey?: string) => {
-      if (!client || mutation.isPending) return;
+    async (
+      payload: StartTaskPayload,
+      trackingKey?: string,
+    ): Promise<KimaiTimesheetEntry | null> => {
+      if (!client || mutation.isPending) return null;
       setStartingKey(trackingKey ?? null);
-      mutation.mutate(payload);
+      try {
+        return await mutation.mutateAsync(payload);
+      } catch {
+        // The mutation callbacks already publish the user-facing error state.
+        return null;
+      }
     },
     [client, mutation],
   );

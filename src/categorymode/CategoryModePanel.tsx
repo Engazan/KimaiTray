@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
 import { getProjects } from "../api/projectApi";
 import type { StartTaskPayload } from "../hooks/useStartTask";
+import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 import { useCategoryConfig } from "./useCategoryConfig";
 import { useCategoryActivityMapping } from "./useCategoryActivityMapping";
 import { useCategoryRemoteSync } from "./useCategoryRemoteSync";
@@ -15,7 +16,10 @@ interface CategoryModePanelProps {
   client: KimaiClient;
   connectionId: string;
   hasActiveTimer: boolean;
-  startTask: (payload: StartTaskPayload, trackingKey?: string) => void;
+  startTask: (
+    payload: StartTaskPayload,
+    trackingKey?: string,
+  ) => Promise<KimaiTimesheetEntry | null>;
   startingKey: string | null;
   disabled: boolean;
 }
@@ -123,10 +127,10 @@ export default function CategoryModePanel({
     saveCategoryLastActivity(connectionId, running);
   };
 
-  const startLeaf = (leaf: CategoryLeaf, projectId: number) => {
+  const startLeaf = async (leaf: CategoryLeaf, projectId: number) => {
     const activityId = mapping.resolve(leaf.activityName, projectId);
     if (activityId == null) return;
-    startTask(
+    const started = await startTask(
       {
         projectId,
         activityId,
@@ -135,6 +139,7 @@ export default function CategoryModePanel({
       },
       leaf.id,
     );
+    if (!started) return;
     recordStart({
       leafId: leaf.id,
       label: leaf.label,
@@ -155,7 +160,7 @@ export default function CategoryModePanel({
       return;
     }
     if (config.defaultProjectId == null) return; // default project not set
-    startLeaf(leaf, config.defaultProjectId);
+    void startLeaf(leaf, config.defaultProjectId);
   };
 
   const continueLast =
@@ -173,7 +178,8 @@ export default function CategoryModePanel({
               <CategoryButton
                 label={t("categoryMode.continueLast", { label: last.label })}
                 onClick={() => {
-                  startTask(
+                  void (async () => {
+                    const started = await startTask(
                     {
                       projectId: last.projectId,
                       activityId: last.activityId,
@@ -182,7 +188,13 @@ export default function CategoryModePanel({
                     },
                     last.leafId,
                   );
-                  recordStart({ ...last, startedAt: Math.floor(Date.now() / 1000) });
+                    if (started) {
+                      recordStart({
+                        ...last,
+                        startedAt: Math.floor(Date.now() / 1000),
+                      });
+                    }
+                  })();
                 }}
                 disabled={disabled}
                 isStarting={startingKey === last.leafId}
