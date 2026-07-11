@@ -27,14 +27,25 @@ async function nativeFetch(
   if (signal?.aborted) {
     throw signal.reason ?? new DOMException("Request aborted", "AbortError");
   }
-  const result = await invoke<NativeHttpResponse>("http_request", {
-    request: {
-      url,
-      method,
-      headers: Array.from(headers.entries()),
-      body: serializeBody(body),
-    },
-  });
+  const requestId = crypto.randomUUID();
+  const cancel = () => {
+    void invoke("cancel_http_request", { requestId }).catch(() => {});
+  };
+  signal?.addEventListener("abort", cancel, { once: true });
+  let result: NativeHttpResponse;
+  try {
+    result = await invoke<NativeHttpResponse>("http_request", {
+      request: {
+        requestId,
+        url,
+        method,
+        headers: Array.from(headers.entries()),
+        body: serializeBody(body),
+      },
+    });
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+  }
   const bodyAllowed = ![204, 205, 304].includes(result.status);
   return new Response(bodyAllowed ? result.body : null, {
     status: result.status,

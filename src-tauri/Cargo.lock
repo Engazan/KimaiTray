@@ -2213,6 +2213,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tempfile",
+ "tokio",
  "window-vibrancy",
  "windows-sys 0.59.0",
 ]

@@ -57,6 +57,7 @@ describe("safe HTTP redirects", () => {
 
     expect(core.invoke).toHaveBeenCalledWith("http_request", {
       request: {
+        requestId: expect.any(String),
         url: `${origin}/api/timesheets`,
         method: "POST",
         headers: expect.arrayContaining([
@@ -96,5 +97,38 @@ describe("safe HTTP redirects", () => {
       }),
     );
     await expect(response.text()).resolves.toBe("done");
+  });
+
+  it("propagates AbortSignal cancellation to the native request", async () => {
+    let rejectRequest!: (reason: unknown) => void;
+    core.invoke.mockImplementation((command: string) => {
+      if (command === "http_request") {
+        return new Promise((_resolve, reject) => {
+          rejectRequest = reject;
+        });
+      }
+      if (command === "cancel_http_request") {
+        rejectRequest("HTTP request cancelled");
+        return Promise.resolve();
+      }
+      return Promise.reject(new Error("unexpected command"));
+    });
+    const controller = new AbortController();
+    const request = safeHttpFetch(`${origin}/api/version`, {
+      signal: controller.signal,
+    });
+    await vi.waitFor(() =>
+      expect(core.invoke).toHaveBeenCalledWith(
+        "http_request",
+        expect.any(Object),
+      ),
+    );
+
+    controller.abort();
+
+    await expect(request).rejects.toBe("HTTP request cancelled");
+    expect(core.invoke).toHaveBeenCalledWith("cancel_http_request", {
+      requestId: expect.any(String),
+    });
   });
 });

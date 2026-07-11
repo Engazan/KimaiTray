@@ -164,6 +164,7 @@ pub fn run() {
             keychain::get_api_token,
             keychain::delete_api_token,
             http::http_request,
+            http::cancel_http_request,
             tray::set_tray_tooltip,
             tray::set_tray_title,
             tray::set_tray_icon,
