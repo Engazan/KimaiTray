@@ -7,6 +7,8 @@ import { I18nextProvider } from "react-i18next";
 import i18n, { initPromise } from "../shared/i18n";
 import SearchableSelect from "./SearchableSelect";
 import ApiErrorDialog from "./ApiErrorDialog";
+import IdleDialog from "./IdleDialog";
+import TagsInput from "./TagsInput";
 
 beforeAll(async () => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -69,5 +71,72 @@ describe("accessible custom controls", () => {
     );
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("traps keyboard focus inside the idle decision dialog", async () => {
+    const user = userEvent.setup();
+    renderLocalized(
+      <IdleDialog
+        timer={{
+          id: 1,
+          projectId: 2,
+          activityId: 3,
+          project: "Project",
+          projectColor: "#000000",
+          activityColor: "#000000",
+          customerColor: "#000000",
+          activity: "Activity",
+          description: "",
+          tags: [],
+          beginSeconds: 0,
+          beginIso: "2026-01-01T00:00:00Z",
+        }}
+        idleStartedAt={new Date("2026-01-01T10:00:00")}
+        idleDurationSeconds={600}
+        onContinue={vi.fn()}
+        onStopAtIdleStart={vi.fn()}
+        onStopNow={vi.fn()}
+        onStopAndStartNew={vi.fn()}
+        isProcessing={false}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: /you were idle/i });
+    const buttons = screen.getAllByRole("button");
+    expect(document.activeElement).toBe(buttons[0]);
+    buttons[buttons.length - 1]?.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(buttons[0]);
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+  });
+
+  it("supports keyboard tag selection and removal", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = renderLocalized(
+      <TagsInput
+        tags={[]}
+        onChange={onChange}
+        suggestions={[{ name: "billable", color: "#10b981" }]}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    await user.click(input);
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenCalledWith(["billable"]);
+
+    rerender(
+      <I18nextProvider i18n={i18n}>
+        <TagsInput
+          tags={["billable"]}
+          onChange={onChange}
+          suggestions={[{ name: "billable", color: "#10b981" }]}
+        />
+      </I18nextProvider>,
+    );
+    await user.click(screen.getByRole("combobox"));
+    await user.keyboard("{Backspace}");
+    expect(onChange).toHaveBeenLastCalledWith([]);
   });
 });
