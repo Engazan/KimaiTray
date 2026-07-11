@@ -37,54 +37,16 @@ import { updateTimesheet, stopTimesheet } from "../api/timesheetApi";
 import type { RecentTask, FavoriteTask } from "../types";
 import type { ExternalIssue } from "../integrations/issues/types";
 import { createIssueProvider } from "../integrations/issues/issueProvider";
+import {
+  readLinkedIssueForTimer,
+  readLinkedIssueMap,
+  storeLinkedIssueForTask,
+  storeLinkedIssueForTimer,
+  taskKeyOf,
+} from "../integrations/issues/linkedIssueStore";
 import { logger } from "../utils/logger";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
-
-// localStorage key for the linked issue ↔ active timer association, used to
-// restore the time-estimate badge after a popup reload or app restart.
-const LINKED_ISSUE_KEY_PREFIX = "kimai:linkedIssue";
-
-// localStorage key for a best-effort map of task identity (projectId-activityId)
-// → last linked issue. Recents/favorites carry no issue reference, so this lets
-// the time-estimate badge reappear when such a task is started.
-const LINKED_ISSUE_BY_KEY_PREFIX = "kimai:linkedIssueByKey";
-
-const scopedStorageKey = (prefix: string, connectionId: string) =>
-  `${prefix}:${encodeURIComponent(connectionId)}`;
-
-const taskKeyOf = (projectId: number, activityId: number) =>
-  `${projectId}-${activityId}`;
-
-function readLinkedIssueMap(connectionId: string): Record<string, ExternalIssue> {
-  try {
-    const raw = localStorage.getItem(
-      scopedStorageKey(LINKED_ISSUE_BY_KEY_PREFIX, connectionId),
-    );
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function storeLinkedIssueForTask(
-  connectionId: string,
-  key: string,
-  issue: ExternalIssue,
-) {
-  try {
-    const map = readLinkedIssueMap(connectionId);
-    map[key] = issue;
-    localStorage.setItem(
-      scopedStorageKey(LINKED_ISSUE_BY_KEY_PREFIX, connectionId),
-      JSON.stringify(map),
-    );
-  } catch {
-    /* storage unavailable — non-fatal */
-  }
-}
 
 function TrafficLight({ color, hoverColor, onClick, children }: {
   color: string; hoverColor: string; onClick: () => void; children: React.ReactNode;
@@ -707,14 +669,7 @@ export default function TrayPopup() {
   // and Kimai never reuses timesheet ids.
   useEffect(() => {
     if (!timer || !linkedIssue) return;
-    try {
-      localStorage.setItem(
-        scopedStorageKey(LINKED_ISSUE_KEY_PREFIX, activeConnectionId),
-        JSON.stringify({ timerId: timer.id, issue: linkedIssue }),
-      );
-    } catch {
-      /* storage unavailable — non-fatal */
-    }
+    storeLinkedIssueForTimer(activeConnectionId, timer.id, linkedIssue);
     // Also remember the issue by task identity so the estimate can be restored
     // when the same project+activity is later started from recents/favorites,
     // which don't embed the issue URL in their description.
@@ -736,18 +691,7 @@ export default function TrayPopup() {
       return;
     }
 
-    let storedIssue: ExternalIssue | null = null;
-    try {
-      const raw = localStorage.getItem(
-        scopedStorageKey(LINKED_ISSUE_KEY_PREFIX, activeConnectionId),
-      );
-      if (raw) {
-        const parsed = JSON.parse(raw) as { timerId?: number; issue?: ExternalIssue };
-        if (parsed?.timerId === timer.id && parsed.issue) storedIssue = parsed.issue;
-      }
-    } catch {
-      /* ignore malformed storage */
-    }
+    let storedIssue = readLinkedIssueForTimer(activeConnectionId, timer.id);
 
     // Fall back to the per-task association (project+activity). This is what
     // makes the badge appear for timers started from recents/favorites: they
