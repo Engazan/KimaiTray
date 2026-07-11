@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, useMemo, useLayoutEffect } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -55,6 +62,15 @@ export default function DateTimePicker({
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  const closePopup = useCallback(() => {
+    setOpen(false);
+    onClose?.();
+    window.requestAnimationFrame(() =>
+      (previouslyFocusedRef.current ?? buttonRef.current)?.focus(),
+    );
+  }, [onClose]);
 
   const parsed = useMemo(() => (value ? new Date(value) : null), [value]);
   const [viewYear, setViewYear] = useState(parsed?.getFullYear() ?? new Date().getFullYear());
@@ -67,12 +83,50 @@ export default function DateTimePicker({
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (ref.current?.contains(target) || popupRef.current?.contains(target)) return;
-      setOpen(false);
-      onClose?.();
+      closePopup();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open, onClose]);
+  }, [open, closePopup]);
+
+  useEffect(() => {
+    if (!open) return;
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const frame = window.requestAnimationFrame(() => {
+      const selected = popupRef.current?.querySelector<HTMLElement>(
+        '[aria-selected="true"]',
+      );
+      const first = popupRef.current?.querySelector<HTMLElement>(
+        "button, input",
+      );
+      (selected ?? first)?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
+
+  const handleDialogKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePopup();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(
+      popupRef.current?.querySelectorAll<HTMLElement>(
+        "button:not(:disabled), input:not(:disabled)",
+      ) ?? [],
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   useEffect(() => {
     if (open && parsed) {
@@ -213,7 +267,11 @@ export default function DateTimePicker({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => !disabled && setOpen(!open)}
+        onClick={() => {
+          if (disabled) return;
+          if (open) closePopup();
+          else setOpen(true);
+        }}
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -236,6 +294,7 @@ export default function DateTimePicker({
           role="dialog"
           aria-modal="true"
           aria-label={monthName}
+          onKeyDown={handleDialogKeyDown}
           className="fixed z-[9999] w-[15rem] max-w-[calc(100vw-1rem)] rounded-xl border border-gray-200 dark:border-white/15 bg-white dark:bg-gray-800 shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden"
           style={{ top: popupPos.top, left: popupPos.left }}
         >
@@ -290,6 +349,8 @@ export default function DateTimePicker({
                   key={day}
                   type="button"
                   onClick={() => selectDay(day)}
+                  aria-selected={isSelected}
+                  aria-current={isToday ? "date" : undefined}
                   className={`h-7 w-7 mx-auto rounded-full text-[11px] font-medium transition-colors
                     ${isSelected
                       ? "bg-[var(--accent)] text-white"

@@ -9,6 +9,7 @@ import SearchableSelect from "./SearchableSelect";
 import ApiErrorDialog from "./ApiErrorDialog";
 import IdleDialog from "./IdleDialog";
 import TagsInput from "./TagsInput";
+import DateTimePicker from "./DateTimePicker";
 
 beforeAll(async () => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -140,5 +141,26 @@ describe("accessible custom controls", () => {
     await user.click(screen.getByRole("combobox"));
     await user.keyboard("{Backspace}");
     expect(onChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it("manages focus and Escape for the date-time modal", async () => {
+    const user = userEvent.setup();
+    renderLocalized(
+      <DateTimePicker
+        value="2026-07-11T09:30"
+        onChange={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { expanded: false });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog");
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(document.activeElement).toBe(trigger);
   });
 });
