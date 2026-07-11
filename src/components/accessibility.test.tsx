@@ -98,6 +98,7 @@ describe("accessible custom controls", () => {
         onStopNow={vi.fn()}
         onStopAndStartNew={vi.fn()}
         isProcessing={false}
+        error="Failed to stop timer"
       />,
     );
 
@@ -108,6 +109,7 @@ describe("accessible custom controls", () => {
     await user.tab();
     expect(document.activeElement).toBe(buttons[0]);
     expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(screen.getByRole("alert").textContent).toMatch(/failed to stop/i);
   });
 
   it("supports keyboard tag selection and removal", async () => {

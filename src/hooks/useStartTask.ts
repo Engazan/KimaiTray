@@ -10,6 +10,7 @@ import {
 } from "../api/timesheetApi";
 import { serializeKimaiTags } from "../api/tagUtils";
 import { invalidateTimesheets } from "./invalidateTimesheets";
+import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 
 export interface StartTaskPayload {
   projectId: number;
@@ -65,7 +66,11 @@ export async function switchTask(
 
 export function useStartTask(
   client: KimaiClient | null,
-  onTaskStarted?: () => void,
+  onTaskStarted?: (
+    entry: KimaiTimesheetEntry,
+    payload: StartTaskPayload,
+  ) => void,
+  onTaskFailed?: (error: Error, payload: StartTaskPayload) => void,
 ) {
   const qc = useQueryClient();
   const [startingKey, setStartingKey] = useState<string | null>(null);
@@ -76,10 +81,10 @@ export function useStartTask(
     onMutate: () => {
       setSwitchError(null);
     },
-    onSuccess: () => {
+    onSuccess: (entry, payload) => {
       setStartingKey(null);
       invalidateTimesheets(qc);
-      onTaskStarted?.();
+      onTaskStarted?.(entry, payload);
     },
     onError: (err: Error, payload) => {
       setStartingKey(null);
@@ -92,6 +97,7 @@ export function useStartTask(
       } else {
         setSwitchError(`Failed to start "${payload.label}": ${err.message}`);
       }
+      onTaskFailed?.(err, payload);
     },
   });
 

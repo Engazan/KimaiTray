@@ -11,6 +11,7 @@ interface IdleDialogProps {
   onStopNow: () => void;
   onStopAndStartNew: () => void;
   isProcessing: boolean;
+  error?: string | null;
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -37,6 +38,7 @@ export default function IdleDialog({
   onStopNow,
   onStopAndStartNew,
   isProcessing,
+  error,
 }: IdleDialogProps) {
   const { t } = useTranslation();
   const titleId = useId();
@@ -124,6 +126,15 @@ export default function IdleDialog({
             </span>
           </p>
         </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+          >
+            {error}
+          </p>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <button

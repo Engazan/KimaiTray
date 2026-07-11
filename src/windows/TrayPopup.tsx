@@ -168,6 +168,7 @@ export default function TrayPopup() {
   const qc = useQueryClient();
   const [showNewTask, setShowNewTask] = useState(false);
   const [idleProcessing, setIdleProcessing] = useState(false);
+  const [idleActionError, setIdleActionError] = useState<string | null>(null);
   const [focusTab, setFocusTab] = useState<"recent" | "today">("recent");
   const [recentCollapsed, setRecentCollapsed] = useState(false);
   const [todayCollapsed, setTodayCollapsed] = useState(false);
@@ -260,8 +261,59 @@ export default function TrayPopup() {
 
   const today = useTodayTimesheets(client, isConfigured, refreshInterval);
 
+  const submittedIssueRef = useRef<{
+    payload: StartTaskPayload;
+    issue: ExternalIssue | null;
+    connectionId: string;
+  } | null>(null);
+  const pendingLinkedIssueRef = useRef<{
+    timerId: number;
+    issue: ExternalIssue;
+    connectionId: string;
+  } | null>(null);
+  const [pendingLinkedIssueVersion, setPendingLinkedIssueVersion] = useState(0);
+  const linkedIssueRef = useRef<ExternalIssue | null>(null);
+  const linkedIssueConnectionRef = useRef<string | null>(null);
+  const [linkedIssue, setLinkedIssue] = useState<ExternalIssue | null>(null);
+  const prevTimerIdRef = useRef<number | null>(null);
+  const prevTimerBeginRef = useRef<number | null>(null);
+
   const { startTask, startingKey, switchError, dismissError, isStarting } =
-    useStartTask(client, () => setShowNewTask(false));
+    useStartTask(
+      client,
+      (entry, payload) => {
+        setShowNewTask(false);
+        const submitted = submittedIssueRef.current;
+        submittedIssueRef.current = null;
+        if (
+          submitted?.payload === payload &&
+          submitted.issue &&
+          submitted.connectionId === activeConnectionId
+        ) {
+          pendingLinkedIssueRef.current = {
+            timerId: entry.id,
+            issue: submitted.issue,
+            connectionId: submitted.connectionId,
+          };
+          storeLinkedIssueForTimer(
+            submitted.connectionId,
+            entry.id,
+            submitted.issue,
+          );
+          storeLinkedIssueForTask(
+            submitted.connectionId,
+            taskKeyOf(payload.projectId, payload.activityId),
+            submitted.issue,
+          );
+          setPendingLinkedIssueVersion((version) => version + 1);
+        }
+      },
+      (_error, payload) => {
+        if (submittedIssueRef.current?.payload === payload) {
+          submittedIssueRef.current = null;
+        }
+      },
+    );
 
   const { editTimer, isSaving, saveError } = useEditTimer(client);
   const { hiddenKeys, hideTask, clearAll: clearHidden } = useHiddenTasks(activeConnectionId);
@@ -298,14 +350,6 @@ export default function TrayPopup() {
     t,
   ]);
 
-  const linkedIssueRef = useRef<ExternalIssue | null>(null);
-  const linkedIssueConnectionRef = useRef<string | null>(null);
-  // State mirror of the linked issue so the active timer card can show its
-  // time estimate. Set when an issue is linked, cleared when the timer stops.
-  const [linkedIssue, setLinkedIssue] = useState<ExternalIssue | null>(null);
-  const prevTimerIdRef = useRef<number | null>(null);
-  const prevTimerBeginRef = useRef<number | null>(null);
-
   useEffect(() => {
     if (
       linkedIssueConnectionRef.current &&
@@ -315,7 +359,28 @@ export default function TrayPopup() {
       linkedIssueConnectionRef.current = null;
       setLinkedIssue(null);
     }
+    if (
+      pendingLinkedIssueRef.current &&
+      pendingLinkedIssueRef.current.connectionId !== activeConnectionId
+    ) {
+      pendingLinkedIssueRef.current = null;
+    }
   }, [activeConnectionId]);
+
+  useEffect(() => {
+    const pending = pendingLinkedIssueRef.current;
+    if (
+      !pending ||
+      pending.connectionId !== activeConnectionId ||
+      timer?.id !== pending.timerId
+    ) {
+      return;
+    }
+    pendingLinkedIssueRef.current = null;
+    linkedIssueRef.current = pending.issue;
+    linkedIssueConnectionRef.current = pending.connectionId;
+    setLinkedIssue(pending.issue);
+  }, [timer?.id, activeConnectionId, pendingLinkedIssueVersion]);
 
   useEffect(() => {
     const prevId = prevTimerIdRef.current;
@@ -403,6 +468,8 @@ export default function TrayPopup() {
 
     const handle = async () => {
       setIdleProcessing(true);
+      setIdleActionError(null);
+      let succeeded = false;
       try {
         if (idleSettings.idleAction === "continue") {
           // Do nothing, just dismiss
@@ -415,12 +482,13 @@ export default function TrayPopup() {
           });
           invalidateTimesheets(qc);
         }
+        succeeded = true;
       } catch {
-        // Ignore errors for auto-actions
+        setIdleActionError(t("errors.failedToStopTimer"));
       } finally {
         setIdleProcessing(false);
-        dismissIdle();
       }
+      if (succeeded) dismissIdle();
     };
     handle();
   }, [
@@ -431,69 +499,88 @@ export default function TrayPopup() {
     idleStartedAt,
     dismissIdle,
     qc,
+    t,
   ]);
 
+  useEffect(() => {
+    if (idleState !== "returned") setIdleActionError(null);
+  }, [idleState]);
+
   const handleIdleContinue = useCallback(() => {
+    setIdleActionError(null);
     dismissIdle();
   }, [dismissIdle]);
 
   const handleIdleStopAtStart = useCallback(async () => {
     if (!client || !timer || !idleStartedAt) return;
     setIdleProcessing(true);
+    setIdleActionError(null);
+    let succeeded = false;
     try {
       await updateTimesheet(client, timer.id, {
         end: idleStartedAt.toISOString(),
       });
       invalidateTimesheets(qc);
+      succeeded = true;
     } catch {
       // fallback: just stop now
       try {
         await stopTimesheet(client, timer.id);
         invalidateTimesheets(qc);
+        succeeded = true;
       } catch {
-        // Both corrections failed; keep the dialog dismissal behavior.
+        setIdleActionError(t("errors.failedToStopTimer"));
       }
     } finally {
       setIdleProcessing(false);
-      dismissIdle();
     }
-  }, [client, timer, idleStartedAt, dismissIdle, qc]);
+    if (succeeded) dismissIdle();
+  }, [client, timer, idleStartedAt, dismissIdle, qc, t]);
 
   const handleIdleStopNow = useCallback(async () => {
     if (!client || !timer) return;
     setIdleProcessing(true);
+    setIdleActionError(null);
+    let succeeded = false;
     try {
       await stopTimesheet(client, timer.id);
       invalidateTimesheets(qc);
+      succeeded = true;
     } catch {
-      // stop failed, still dismiss
+      setIdleActionError(t("errors.failedToStopTimer"));
     } finally {
       setIdleProcessing(false);
-      dismissIdle();
     }
-  }, [client, timer, dismissIdle, qc]);
+    if (succeeded) dismissIdle();
+  }, [client, timer, dismissIdle, qc, t]);
 
   const handleIdleStopAndNew = useCallback(async () => {
     if (!client || !timer || !idleStartedAt) return;
     setIdleProcessing(true);
+    setIdleActionError(null);
+    let succeeded = false;
     try {
       await updateTimesheet(client, timer.id, {
         end: idleStartedAt.toISOString(),
       });
       invalidateTimesheets(qc);
+      succeeded = true;
     } catch {
       try {
         await stopTimesheet(client, timer.id);
         invalidateTimesheets(qc);
+        succeeded = true;
       } catch {
-        // Both corrections failed; the normal query refresh can recover later.
+        setIdleActionError(t("errors.failedToStopTimer"));
       }
     } finally {
       setIdleProcessing(false);
-      dismissIdle();
     }
-    setShowNewTask(true);
-  }, [client, timer, idleStartedAt, dismissIdle, qc]);
+    if (succeeded) {
+      dismissIdle();
+      setShowNewTask(true);
+    }
+  }, [client, timer, idleStartedAt, dismissIdle, qc, t]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -645,15 +732,17 @@ export default function TrayPopup() {
     [removeFav],
   );
 
-  const handleNewTaskSubmit = (payload: StartTaskPayload) => {
+  const handleNewTaskSubmit = (
+    payload: StartTaskPayload,
+    issue: ExternalIssue | null,
+  ) => {
+    submittedIssueRef.current = {
+      payload,
+      issue,
+      connectionId: activeConnectionId,
+    };
     startTask(payload);
   };
-
-  const handleIssueLinked = useCallback((issue: ExternalIssue | null) => {
-    linkedIssueRef.current = issue;
-    linkedIssueConnectionRef.current = issue ? activeConnectionId : null;
-    setLinkedIssue(issue);
-  }, [activeConnectionId]);
 
   const estimateEnabled =
     issueIntegration.enabled &&
@@ -757,7 +846,7 @@ export default function TrayPopup() {
   const showIdleDialog =
     !!client &&
     idleState === "returned" &&
-    idleSettings.idleAction === "ask" &&
+    (idleSettings.idleAction === "ask" || !!idleActionError) &&
     timer &&
     idleStartedAt;
 
@@ -817,7 +906,6 @@ export default function TrayPopup() {
           showIssuePicker={issueIntegration.enabled}
           issueIntegrationConfig={issueIntegration}
           issueToken={issueToken}
-          onIssueLinked={handleIssueLinked}
         />
       ) : (
         <>
@@ -1202,6 +1290,7 @@ export default function TrayPopup() {
           onStopNow={handleIdleStopNow}
           onStopAndStartNew={handleIdleStopAndNew}
           isProcessing={idleProcessing}
+          error={idleActionError}
         />
       )}
     </div>

@@ -1,6 +1,11 @@
+// @vitest-environment jsdom
+
+import { createElement, type PropsWithChildren } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { KimaiClient } from "../api/kimaiClient";
-import { switchTask, TaskSwitchError } from "./useStartTask";
+import { switchTask, TaskSwitchError, useStartTask } from "./useStartTask";
 
 function mockClient(overrides: Partial<KimaiClient> = {}): KimaiClient {
   return {
@@ -71,5 +76,38 @@ describe("transactional timer switching", () => {
       description: undefined,
       tags: undefined,
     });
+  });
+
+  it("publishes task metadata only after the create request succeeds", async () => {
+    let resolveStart!: (entry: { id: number }) => void;
+    const post = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+    });
+    const onStarted = vi.fn();
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const payload = { projectId: 1, activityId: 2, label: "New task" };
+    const { result } = renderHook(
+      () => useStartTask(client, onStarted),
+      { wrapper },
+    );
+
+    await act(async () => result.current.startTask(payload));
+    expect(onStarted).not.toHaveBeenCalled();
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+
+    await act(async () => resolveStart({ id: 99 }));
+    await waitFor(() =>
+      expect(onStarted).toHaveBeenCalledWith({ id: 99 }, payload),
+    );
+    queryClient.clear();
   });
 });

@@ -19,7 +19,10 @@ import { normalizeCustomStartTime } from "../utils/customStartTime";
 interface NewTaskFormProps {
   client: KimaiClient;
   hasActiveTimer: boolean;
-  onSubmit: (payload: StartTaskPayload) => void;
+  onSubmit: (
+    payload: StartTaskPayload,
+    linkedIssue: ExternalIssue | null,
+  ) => void;
   onCancel: () => void;
   isSubmitting: boolean;
   showNote?: boolean;
@@ -29,7 +32,6 @@ interface NewTaskFormProps {
   showIssuePicker?: boolean;
   issueIntegrationConfig?: IssueIntegrationSettings | null;
   issueToken?: string | null;
-  onIssueLinked?: (issue: ExternalIssue | null) => void;
 }
 
 const selectCls =
@@ -69,7 +71,6 @@ export default function NewTaskForm({
   showIssuePicker = false,
   issueIntegrationConfig,
   issueToken,
-  onIssueLinked,
 }: NewTaskFormProps) {
   const { t } = useTranslation();
   const [customerId, setCustomerId] = useState<number | null>(null);
@@ -216,15 +217,17 @@ export default function NewTaskForm({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onIssueLinked?.(selectedIssue);
-    onSubmit({
-      projectId: projectId!,
-      activityId: activityId!,
-      begin: customBegin ?? undefined,
-      description: description.trim() || undefined,
-      tags: tags.length > 0 ? tags : undefined,
-      label: selectedProject?.name ?? `Project #${projectId}`,
-    });
+    onSubmit(
+      {
+        projectId: projectId!,
+        activityId: activityId!,
+        begin: customBegin ?? undefined,
+        description: description.trim() || undefined,
+        tags: tags.length > 0 ? tags : undefined,
+        label: selectedProject?.name ?? `Project #${projectId}`,
+      },
+      selectedIssue,
+    );
   };
 
   return (
