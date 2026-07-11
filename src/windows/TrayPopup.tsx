@@ -33,7 +33,7 @@ import { useAppearance } from "../hooks/useAppearance";
 import { invalidateTimesheets } from "../hooks/invalidateTimesheets";
 import { useLanguageSync } from "../hooks/useLanguageSync";
 import { useUpdater } from "../hooks/useUpdater";
-import { updateTimesheet, stopTimesheet } from "../api/timesheetApi";
+import { getTimesheet, updateTimesheet, stopTimesheet } from "../api/timesheetApi";
 import type { RecentTask, FavoriteTask } from "../types";
 import type { ExternalIssue } from "../integrations/issues/types";
 import { createIssueProvider } from "../integrations/issues/issueProvider";
@@ -45,6 +45,7 @@ import {
   taskKeyOf,
 } from "../integrations/issues/linkedIssueStore";
 import { logger } from "../utils/logger";
+import { getRecordedDurationSeconds } from "../utils/timesheetDuration";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 
@@ -282,7 +283,6 @@ export default function TrayPopup() {
   const linkedIssueConnectionRef = useRef<string | null>(null);
   const [linkedIssue, setLinkedIssue] = useState<ExternalIssue | null>(null);
   const prevTimerIdRef = useRef<number | null>(null);
-  const prevTimerBeginRef = useRef<number | null>(null);
 
   const { startTask, startingKey, switchError, dismissError, isStarting } =
     useStartTask(
@@ -390,10 +390,8 @@ export default function TrayPopup() {
 
   useEffect(() => {
     const prevId = prevTimerIdRef.current;
-    const prevBegin = prevTimerBeginRef.current;
 
     prevTimerIdRef.current = timer?.id ?? null;
-    prevTimerBeginRef.current = timer?.beginSeconds ?? null;
 
     // Drop the estimate badge once no timer is running.
     if (timer == null) setLinkedIssue(null);
@@ -414,14 +412,19 @@ export default function TrayPopup() {
         issueIntegration.syncTime &&
         issueIntegration.enabled &&
         issueToken &&
-        prevBegin != null
+        client
       ) {
-        const durationSeconds = Math.floor(Date.now() / 1000) - prevBegin;
         const provider = createIssueProvider(issueIntegration, issueToken);
         if (provider.addSpentTime) {
-          provider.addSpentTime(issue.id, durationSeconds).catch(() => {
-            logger.error("Failed to sync spent time to issue provider");
-          });
+          void getTimesheet(client, prevId)
+            .then((entry) => {
+              const durationSeconds = getRecordedDurationSeconds(entry);
+              if (durationSeconds == null || durationSeconds <= 0) return;
+              return provider.addSpentTime?.(issue.id, durationSeconds);
+            })
+            .catch(() => {
+              logger.error("Failed to sync spent time to issue provider");
+            });
         }
       }
     }
@@ -430,6 +433,7 @@ export default function TrayPopup() {
     issueIntegration,
     issueToken,
     activeConnectionId,
+    client,
   ]);
 
   // Global shortcut: toggle timer
