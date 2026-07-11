@@ -1,6 +1,7 @@
 import { safeHttpFetch as fetch } from "../../api/safeHttp";
 import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIntegrationSettings } from "./types";
 import { logger } from "../../utils/logger";
+import { expectArrayOf, expectObject, isRecord } from "./responseValidation";
 
 interface GitHubIssue {
   number: number;
@@ -21,6 +22,50 @@ interface GitHubLabel {
   color: string;
 }
 
+interface GitHubRepo {
+  full_name: string;
+}
+
+function isGitHubIssue(value: unknown): value is GitHubIssue {
+  return (
+    isRecord(value) &&
+    typeof value.number === "number" &&
+    typeof value.title === "string" &&
+    typeof value.state === "string" &&
+    typeof value.html_url === "string" &&
+    Array.isArray(value.labels) &&
+    value.labels.every(
+      (label) => isRecord(label) && typeof label.name === "string",
+    ) &&
+    (value.user === null ||
+      (isRecord(value.user) && typeof value.user.login === "string"))
+  );
+}
+
+function isGitHubSearchResult(value: unknown): value is GitHubSearchResult {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.items) &&
+    value.items.every(isGitHubIssue)
+  );
+}
+
+function isGitHubLabel(value: unknown): value is GitHubLabel {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.color === "string"
+  );
+}
+
+function isGitHubRepo(value: unknown): value is GitHubRepo {
+  return isRecord(value) && typeof value.full_name === "string";
+}
+
+function isGitHubUser(value: unknown): value is { login: string } {
+  return isRecord(value) && typeof value.login === "string";
+}
+
 function normalize(issue: GitHubIssue): ExternalIssue {
   return {
     id: issue.number,
@@ -39,7 +84,7 @@ export function createGitHubProvider(
   const apiBase = (config.apiBaseUrl || "https://api.github.com").replace(/\/+$/, "");
   let cachedUsername: string | null = null;
 
-  async function request<T>(path: string, params?: Record<string, string>): Promise<T> {
+  async function request(path: string, params?: Record<string, string>): Promise<unknown> {
     const url = new URL(`${apiBase}${path}`);
     if (params) {
       for (const [k, v] of Object.entries(params)) {
@@ -60,12 +105,12 @@ export function createGitHubProvider(
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
     }
 
-    return res.json() as Promise<T>;
+    return res.json() as Promise<unknown>;
   }
 
   async function getUsername(): Promise<string> {
     if (cachedUsername) return cachedUsername;
-    const user = await request<{ login: string }>("/user");
+    const user = expectObject(await request("/user"), isGitHubUser, "GitHub user");
     cachedUsername = user.login;
     return cachedUsername;
   }
@@ -73,12 +118,13 @@ export function createGitHubProvider(
   return {
     async testConnection() {
       try {
-        const issues = await request<GitHubIssue[]>(
-          `/repos/${config.projectPathOrRepo}/issues`,
-          {
+        const issues = expectArrayOf(
+          await request(`/repos/${config.projectPathOrRepo}/issues`, {
             per_page: "1",
             state: config.defaultState === "all" ? "all" : "open",
-          },
+          }),
+          isGitHubIssue,
+          "GitHub issues",
         );
         const filtered = issues.filter((i) => !i.pull_request);
         return { success: true, count: filtered.length };
@@ -101,9 +147,13 @@ export function createGitHubProvider(
       if (query.length >= 2) {
         const stateFilter = config.defaultState === "all" ? "" : "+state:open";
         const assigneeFilter = assignee ? `+assignee:${assignee}` : "";
-        const result = await request<GitHubSearchResult>(
-          "/search/issues",
-          { q: `${query}+repo:${config.projectPathOrRepo}+is:issue${stateFilter}${assigneeFilter}${labelFilter}`, per_page: "20" },
+        const result = expectObject(
+          await request("/search/issues", {
+            q: `${query}+repo:${config.projectPathOrRepo}+is:issue${stateFilter}${assigneeFilter}${labelFilter}`,
+            per_page: "20",
+          }),
+          isGitHubSearchResult,
+          "GitHub issue search",
         );
         return result.items.filter((i) => !i.pull_request).map(normalize);
       }
@@ -121,9 +171,10 @@ export function createGitHubProvider(
         params.labels = config.filterLabels.join(",");
       }
 
-      const issues = await request<GitHubIssue[]>(
-        `/repos/${config.projectPathOrRepo}/issues`,
-        params,
+      const issues = expectArrayOf(
+        await request(`/repos/${config.projectPathOrRepo}/issues`, params),
+        isGitHubIssue,
+        "GitHub issues",
       );
       const filtered = issues.filter((i) => !i.pull_request);
       if (isExclude && config.filterLabels?.length) {
@@ -138,17 +189,21 @@ export function createGitHubProvider(
     },
 
     async fetchLabels(): Promise<ExternalLabel[]> {
-      const labels = await request<GitHubLabel[]>(
-        `/repos/${config.projectPathOrRepo}/labels`,
-        { per_page: "100" },
+      const labels = expectArrayOf(
+        await request(`/repos/${config.projectPathOrRepo}/labels`, {
+          per_page: "100",
+        }),
+        isGitHubLabel,
+        "GitHub labels",
       );
       return labels.map((l) => ({ name: l.name, color: `#${l.color}` }));
     },
 
     async fetchRepos(): Promise<ExternalRepo[]> {
-      const repos = await request<Array<{ full_name: string }>>(
-        "/user/repos",
-        { per_page: "100", sort: "updated" },
+      const repos = expectArrayOf(
+        await request("/user/repos", { per_page: "100", sort: "updated" }),
+        isGitHubRepo,
+        "GitHub repositories",
       );
       return repos.map((r) => ({ id: r.full_name, label: r.full_name }));
     },

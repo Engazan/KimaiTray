@@ -1,6 +1,7 @@
 import { safeHttpFetch as fetch } from "../../api/safeHttp";
 import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIntegrationSettings } from "./types";
 import { logger } from "../../utils/logger";
+import { expectArrayOf, expectObject, isRecord, isStringArray } from "./responseValidation";
 
 interface GitLabIssue {
   iid: number;
@@ -8,7 +9,7 @@ interface GitLabIssue {
   state: string;
   web_url: string;
   labels: string[];
-  author: { username: string };
+  author?: { username: string } | null;
   time_stats?: {
     time_estimate: number;
     total_time_spent: number;
@@ -18,6 +19,43 @@ interface GitLabIssue {
 interface GitLabLabel {
   name: string;
   color: string;
+}
+
+interface GitLabProject {
+  path_with_namespace: string;
+}
+
+function isGitLabIssue(value: unknown): value is GitLabIssue {
+  if (!isRecord(value)) return false;
+  const authorValid =
+    value.author == null ||
+    (isRecord(value.author) && typeof value.author.username === "string");
+  const timeStatsValid =
+    value.time_stats == null ||
+    (isRecord(value.time_stats) &&
+      typeof value.time_stats.time_estimate === "number" &&
+      typeof value.time_stats.total_time_spent === "number");
+  return (
+    typeof value.iid === "number" &&
+    typeof value.title === "string" &&
+    typeof value.state === "string" &&
+    typeof value.web_url === "string" &&
+    isStringArray(value.labels) &&
+    authorValid &&
+    timeStatsValid
+  );
+}
+
+function isGitLabLabel(value: unknown): value is GitLabLabel {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.color === "string"
+  );
+}
+
+function isGitLabProject(value: unknown): value is GitLabProject {
+  return isRecord(value) && typeof value.path_with_namespace === "string";
 }
 
 // Case- and diacritic-insensitive normalization so a query like "sik" or
@@ -49,7 +87,7 @@ export function createGitLabProvider(
   const base = config.baseUrl.replace(/\/+$/, "");
   const encodedPath = encodeURIComponent(config.projectPathOrRepo);
 
-  async function request<T>(path: string, params?: Record<string, string>): Promise<T> {
+  async function request(path: string, params?: Record<string, string>): Promise<unknown> {
     const url = new URL(`${base}/api/v4${path}`);
     if (params) {
       for (const [k, v] of Object.entries(params)) {
@@ -70,15 +108,19 @@ export function createGitLabProvider(
       throw new Error(`GitLab API error: ${res.status} ${res.statusText}`);
     }
 
-    return res.json() as Promise<T>;
+    return res.json() as Promise<unknown>;
   }
 
   return {
     async testConnection() {
       try {
-        const issues = await request<GitLabIssue[]>(
-          `/projects/${encodedPath}/issues`,
-          { per_page: "1", state: config.defaultState === "all" ? "" : "opened" },
+        const issues = expectArrayOf(
+          await request(`/projects/${encodedPath}/issues`, {
+            per_page: "1",
+            state: config.defaultState === "all" ? "" : "opened",
+          }),
+          isGitLabIssue,
+          "GitLab issues",
         );
         return { success: true, count: issues.length };
       } catch (err) {
@@ -112,7 +154,11 @@ export function createGitLabProvider(
       const trimmed = query.trim();
 
       if (trimmed.length < 2) {
-        const issues = await request<GitLabIssue[]>(path, baseParams);
+        const issues = expectArrayOf(
+          await request(path, baseParams),
+          isGitLabIssue,
+          "GitLab issues",
+        );
         return issues.map(normalize);
       }
 
@@ -120,10 +166,20 @@ export function createGitLabProvider(
       // like "sik" won't match "siklienka". We fetch a wider recent window and
       // filter client-side for substring matches (diacritic-insensitive), while
       // still running the server search to catch matches outside that window.
-      const [serverMatched, recent] = await Promise.all([
-        request<GitLabIssue[]>(path, { ...baseParams, search: trimmed }),
-        request<GitLabIssue[]>(path, { ...baseParams, per_page: "100" }),
+      const [serverPayload, recentPayload] = await Promise.all([
+        request(path, { ...baseParams, search: trimmed }),
+        request(path, { ...baseParams, per_page: "100" }),
       ]);
+      const serverMatched = expectArrayOf(
+        serverPayload,
+        isGitLabIssue,
+        "GitLab issues",
+      );
+      const recent = expectArrayOf(
+        recentPayload,
+        isGitLabIssue,
+        "GitLab issues",
+      );
 
       const needle = normalizeText(trimmed);
       const localMatched = recent.filter((issue) =>
@@ -154,8 +210,10 @@ export function createGitLabProvider(
       const iid = match[2];
       if (!projectPath) return null;
       try {
-        const issue = await request<GitLabIssue>(
-          `/projects/${encodeURIComponent(projectPath)}/issues/${iid}`,
+        const issue = expectObject(
+          await request(`/projects/${encodeURIComponent(projectPath)}/issues/${iid}`),
+          isGitLabIssue,
+          "GitLab issue",
         );
         return normalize(issue);
       } catch (err) {
@@ -194,23 +252,25 @@ export function createGitLabProvider(
     },
 
     async fetchLabels(): Promise<ExternalLabel[]> {
-      const labels = await request<GitLabLabel[]>(
-        `/projects/${encodedPath}/labels`,
-        { per_page: "100" },
+      const labels = expectArrayOf(
+        await request(`/projects/${encodedPath}/labels`, { per_page: "100" }),
+        isGitLabLabel,
+        "GitLab labels",
       );
       return labels.map((l) => ({ name: l.name, color: l.color }));
     },
 
     async fetchRepos(): Promise<ExternalRepo[]> {
-      const projects = await request<Array<{ path_with_namespace: string }>>(
-        "/projects",
-        {
+      const projects = expectArrayOf(
+        await request("/projects", {
           membership: "true",
           simple: "true",
           per_page: "100",
           order_by: "last_activity_at",
           sort: "desc",
-        },
+        }),
+        isGitLabProject,
+        "GitLab projects",
       );
       return projects.map((p) => ({
         id: p.path_with_namespace,

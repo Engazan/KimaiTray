@@ -1,6 +1,7 @@
 import { safeHttpFetch as fetch } from "../../api/safeHttp";
 import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIntegrationSettings } from "./types";
 import { logger } from "../../utils/logger";
+import { expectArrayOf, expectObject, isRecord } from "./responseValidation";
 
 interface GiteaIssue {
   number: number;
@@ -14,6 +15,45 @@ interface GiteaIssue {
 interface GiteaLabel {
   name: string;
   color: string;
+}
+
+interface GiteaRepo {
+  full_name: string;
+}
+
+function isGiteaIssue(value: unknown): value is GiteaIssue {
+  return (
+    isRecord(value) &&
+    typeof value.number === "number" &&
+    typeof value.title === "string" &&
+    typeof value.state === "string" &&
+    typeof value.html_url === "string" &&
+    Array.isArray(value.labels) &&
+    value.labels.every(
+      (label) =>
+        isRecord(label) &&
+        typeof label.name === "string" &&
+        typeof label.color === "string",
+    ) &&
+    (value.user === null ||
+      (isRecord(value.user) && typeof value.user.login === "string"))
+  );
+}
+
+function isGiteaLabel(value: unknown): value is GiteaLabel {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.color === "string"
+  );
+}
+
+function isGiteaRepo(value: unknown): value is GiteaRepo {
+  return isRecord(value) && typeof value.full_name === "string";
+}
+
+function isGiteaUser(value: unknown): value is { login: string } {
+  return isRecord(value) && typeof value.login === "string";
 }
 
 function normalize(issue: GiteaIssue): ExternalIssue {
@@ -38,7 +78,7 @@ export function createGiteaProvider(
   const base = config.baseUrl.replace(/\/+$/, "");
   let cachedUsername: string | null = null;
 
-  async function request<T>(path: string, params?: Record<string, string>): Promise<T> {
+  async function request(path: string, params?: Record<string, string>): Promise<unknown> {
     const url = new URL(`${base}/api/v1${path}`);
     if (params) {
       for (const [k, v] of Object.entries(params)) {
@@ -59,12 +99,12 @@ export function createGiteaProvider(
       throw new Error(`Gitea API error: ${res.status} ${res.statusText}`);
     }
 
-    return res.json() as Promise<T>;
+    return res.json() as Promise<unknown>;
   }
 
   async function getUsername(): Promise<string> {
     if (cachedUsername) return cachedUsername;
-    const user = await request<{ login: string }>("/user");
+    const user = expectObject(await request("/user"), isGiteaUser, "Gitea user");
     cachedUsername = user.login;
     return cachedUsername;
   }
@@ -72,13 +112,14 @@ export function createGiteaProvider(
   return {
     async testConnection() {
       try {
-        const issues = await request<GiteaIssue[]>(
-          `/repos/${config.projectPathOrRepo}/issues`,
-          {
+        const issues = expectArrayOf(
+          await request(`/repos/${config.projectPathOrRepo}/issues`, {
             limit: "1",
             type: "issues",
             state: config.defaultState === "all" ? "all" : "open",
-          },
+          }),
+          isGiteaIssue,
+          "Gitea issues",
         );
         return { success: true, count: issues.length };
       } catch (err) {
@@ -107,9 +148,10 @@ export function createGiteaProvider(
         params.labels = config.filterLabels.join(",");
       }
 
-      const issues = await request<GiteaIssue[]>(
-        `/repos/${config.projectPathOrRepo}/issues`,
-        params,
+      const issues = expectArrayOf(
+        await request(`/repos/${config.projectPathOrRepo}/issues`, params),
+        isGiteaIssue,
+        "Gitea issues",
       );
 
       if (isExclude && config.filterLabels?.length) {
@@ -150,17 +192,21 @@ export function createGiteaProvider(
     },
 
     async fetchLabels(): Promise<ExternalLabel[]> {
-      const labels = await request<GiteaLabel[]>(
-        `/repos/${config.projectPathOrRepo}/labels`,
-        { limit: "100" },
+      const labels = expectArrayOf(
+        await request(`/repos/${config.projectPathOrRepo}/labels`, {
+          limit: "100",
+        }),
+        isGiteaLabel,
+        "Gitea labels",
       );
       return labels.map((l) => ({ name: l.name, color: normalizeColor(l.color) }));
     },
 
     async fetchRepos(): Promise<ExternalRepo[]> {
-      const repos = await request<Array<{ full_name: string }>>(
-        "/user/repos",
-        { limit: "50" },
+      const repos = expectArrayOf(
+        await request("/user/repos", { limit: "50" }),
+        isGiteaRepo,
+        "Gitea repositories",
       );
       return repos.map((r) => ({ id: r.full_name, label: r.full_name }));
     },
