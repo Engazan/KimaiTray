@@ -1,4 +1,4 @@
-import { fetch } from "@tauri-apps/plugin-http";
+import { safeHttpFetch as fetch } from "../api/safeHttp";
 import type { CategoryConfig } from "./types";
 import { normalizeCategories } from "./categoryNormalize";
 
@@ -10,7 +10,7 @@ export interface RemoteCategoryConfig {
 /**
  * Fetch and validate a category config from a URL. Accepts either a raw
  * categories array or an object `{ categories: [...], continueWindowMinutes? }`.
- * Uses the Tauri HTTP plugin (bypasses webview CORS). Returns null on any
+ * Uses the bounded native HTTP broker (bypasses webview CORS). Returns null on any
  * network/parse/shape failure — the caller keeps its existing config.
  */
 export async function fetchRemoteCategoryConfig(

@@ -1,3 +1,4 @@
+mod http;
 mod idle;
 mod keychain;
 mod shortcuts;
@@ -90,7 +91,6 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -104,6 +104,7 @@ pub fn run() {
             keychain::save_api_token,
             keychain::get_api_token,
             keychain::delete_api_token,
+            http::http_request,
             tray::set_tray_tooltip,
             tray::set_tray_title,
             tray::set_tray_icon,

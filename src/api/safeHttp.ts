@@ -1,7 +1,47 @@
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { invoke } from "@tauri-apps/api/core";
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const MAX_REDIRECTS = 5;
+
+interface NativeHttpResponse {
+  status: number;
+  statusText: string;
+  headers: Array<[string, string]>;
+  body: string;
+}
+
+function serializeBody(body: BodyInit | null | undefined): string | undefined {
+  if (body == null) return undefined;
+  if (typeof body === "string") return body;
+  if (body instanceof URLSearchParams) return body.toString();
+  throw new Error("Unsupported HTTP request body");
+}
+
+async function nativeFetch(
+  url: string,
+  method: string,
+  headers: Headers,
+  body: BodyInit | null | undefined,
+  signal?: AbortSignal | null,
+): Promise<Response> {
+  if (signal?.aborted) {
+    throw signal.reason ?? new DOMException("Request aborted", "AbortError");
+  }
+  const result = await invoke<NativeHttpResponse>("http_request", {
+    request: {
+      url,
+      method,
+      headers: Array.from(headers.entries()),
+      body: serializeBody(body),
+    },
+  });
+  const bodyAllowed = ![204, 205, 304].includes(result.status);
+  return new Response(bodyAllowed ? result.body : null, {
+    status: result.status,
+    statusText: result.statusText,
+    headers: result.headers,
+  });
+}
 
 export function resolveSafeRedirect(
   currentUrl: string,
@@ -34,14 +74,13 @@ export async function safeHttpFetch(
   let headers = new Headers(init.headers);
 
   for (let redirectCount = 0; ; redirectCount += 1) {
-    const response = await tauriFetch(currentUrl, {
-      ...init,
+    const response = await nativeFetch(
+      currentUrl,
       method,
-      body,
       headers,
-      maxRedirections: 0,
-      connectTimeout: 10_000,
-    });
+      body,
+      init.signal,
+    );
 
     if (!REDIRECT_STATUSES.has(response.status)) return response;
     if (redirectCount >= MAX_REDIRECTS) {
