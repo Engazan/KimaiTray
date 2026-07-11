@@ -97,6 +97,13 @@ pub async fn get_api_token(app: AppHandle, base_url: String) -> Result<Option<St
         .await
         .map_err(|e| e.to_string())?;
     if let Ok(Some(token)) = secure {
+        // A previous verified keyring write may have succeeded while the store
+        // cleanup failed. Retry the plaintext cleanup on every secure read.
+        let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
+        if store.get(&account).is_some() {
+            store.delete(&account);
+            store.save().map_err(|e| e.to_string())?;
+        }
         return Ok(Some(token));
     }
 
@@ -136,10 +143,10 @@ pub async fn delete_api_token(app: AppHandle, base_url: String) -> Result<(), St
     let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
     store.delete(&account);
     store.save().map_err(|e| e.to_string())?;
-    if let Err(error) = secure_result {
+    secure_result.map_err(|error| {
         warn!("Failed to remove credential from OS store: {error}");
-    }
-    Ok(())
+        "Failed to remove credential from OS store".to_string()
+    })
 }
 
 #[cfg(test)]

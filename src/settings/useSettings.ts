@@ -7,6 +7,7 @@ import {
   saveConnectionToken,
 } from "../api/connectionTokenStore";
 import { LatestRequest } from "../utils/latestRequest";
+import { deleteIssueToken } from "../integrations/issues/issueTokenStore";
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -138,7 +139,18 @@ export function useSettings() {
     setSettings(next);
     await saveSettings(next);
 
-    await deleteConnectionToken(id);
+    const credentialResults = await Promise.allSettled([
+      deleteConnectionToken(id),
+      deleteIssueToken(id),
+    ]);
+    const credentialFailure = credentialResults.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    if (credentialFailure) {
+      setSettings(prev);
+      await saveSettings(prev).catch(() => {});
+      throw credentialFailure.reason;
+    }
 
     if (wasActive) {
       if (newActive) {

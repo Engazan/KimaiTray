@@ -67,6 +67,9 @@ describe("connection token storage", () => {
       "conn-token:connection-a",
       "legacy-token",
     );
+    expect(secureStore.deleteApiToken).toHaveBeenCalledWith(
+      "https://kimai.example.test",
+    );
   });
 
   it("does not create empty credential keys", async () => {

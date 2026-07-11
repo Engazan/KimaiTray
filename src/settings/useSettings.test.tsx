@@ -12,6 +12,7 @@ const tokenMocks = vi.hoisted(() => ({
   getConnectionToken: vi.fn<() => Promise<string | null>>(),
   saveConnectionToken: vi.fn<() => Promise<void>>(),
   deleteConnectionToken: vi.fn<() => Promise<void>>(),
+  deleteIssueToken: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock("./service", async () => {
@@ -23,6 +24,9 @@ vi.mock("./service", async () => {
   };
 });
 vi.mock("../api/connectionTokenStore", () => tokenMocks);
+vi.mock("../integrations/issues/issueTokenStore", () => ({
+  deleteIssueToken: tokenMocks.deleteIssueToken,
+}));
 
 import { defaultSettings } from "./service";
 import { useSettings } from "./useSettings";
@@ -50,6 +54,7 @@ describe("connection settings transaction", () => {
     tokenMocks.getConnectionToken.mockResolvedValue("existing-token");
     tokenMocks.saveConnectionToken.mockResolvedValue();
     tokenMocks.deleteConnectionToken.mockResolvedValue();
+    tokenMocks.deleteIssueToken.mockResolvedValue();
   });
 
   it("commits settings and the secure credential together", async () => {
@@ -102,6 +107,37 @@ describe("connection settings transaction", () => {
     expect(result.current.settings).toEqual(initialSettings());
     expect(result.current.token).toBe("existing-token");
     expect(serviceMocks.saveSettings).toHaveBeenCalledTimes(2);
+    expect(serviceMocks.saveSettings).toHaveBeenLastCalledWith(initialSettings());
+  });
+
+  it("removes both Kimai and issue credentials with a connection", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => result.current.removeConnection("connection-a"));
+
+    expect(tokenMocks.deleteConnectionToken).toHaveBeenCalledWith("connection-a");
+    expect(tokenMocks.deleteIssueToken).toHaveBeenCalledWith("connection-a");
+    expect(result.current.settings.connections).toEqual([]);
+    expect(result.current.token).toBe("");
+  });
+
+  it("restores connection settings when credential deletion is incomplete", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    tokenMocks.deleteIssueToken.mockRejectedValue(new Error("keyring locked"));
+    let failure: unknown;
+
+    await act(async () => {
+      try {
+        await result.current.removeConnection("connection-a");
+      } catch (error) {
+        failure = error;
+      }
+    });
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(result.current.settings).toEqual(initialSettings());
     expect(serviceMocks.saveSettings).toHaveBeenLastCalledWith(initialSettings());
   });
 });

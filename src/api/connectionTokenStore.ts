@@ -31,7 +31,12 @@ export async function getConnectionToken(
   if (legacyUrl) {
     const legacy = await getApiToken(legacyUrl);
     if (legacy) {
-      if (connectionId) await saveConnectionToken(connectionId, legacy);
+      if (connectionId) {
+        await saveConnectionToken(connectionId, legacy);
+        // Remove the URL alias only after the id-scoped credential has been
+        // verified by the native secure-store command.
+        await deleteApiToken(legacyUrl);
+      }
       return legacy;
     }
   }

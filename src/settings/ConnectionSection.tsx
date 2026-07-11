@@ -170,7 +170,13 @@ export default function ConnectionSection({
     async () => {
       if (!editingId) return;
       const id = editingId;
-      await removeConnection(id);
+      try {
+        await removeConnection(id);
+      } catch {
+        setStatus("error");
+        setStatusMessage(t("connection.unexpectedError"));
+        return;
+      }
       const remaining = settings.connections.filter((c) => c.id !== id);
       const nextId = remaining[0]?.id ?? null;
       onSelectedConnectionChange(nextId);
@@ -182,6 +188,7 @@ export default function ConnectionSection({
       removeConnection,
       onSelectedConnectionChange,
       loadFormForConnection,
+      t,
     ],
   );
 
