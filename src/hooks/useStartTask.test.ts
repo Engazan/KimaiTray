@@ -48,4 +48,28 @@ describe("transactional timer switching", () => {
       switchTask(client, { projectId: 1, activityId: 2, label: "Replacement" }),
     ).rejects.toMatchObject({ stoppedExisting: true });
   });
+
+  it("forwards a custom begin timestamp to the Kimai create request", async () => {
+    const post = vi.fn(async () => ({ id: 99 }));
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+    });
+    const begin = "2026-07-11T07:30:00.000Z";
+
+    await switchTask(client, {
+      projectId: 1,
+      activityId: 2,
+      begin,
+      label: "Backdated task",
+    });
+
+    expect(post).toHaveBeenCalledWith("/api/timesheets", {
+      project: 1,
+      activity: 2,
+      begin,
+      description: undefined,
+      tags: undefined,
+    });
+  });
 });

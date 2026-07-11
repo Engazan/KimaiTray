@@ -14,6 +14,7 @@ import { invalidateTimesheets } from "./invalidateTimesheets";
 export interface StartTaskPayload {
   projectId: number;
   activityId: number;
+  begin?: string;
   description?: string;
   tags?: string[];
   label: string;
@@ -43,6 +44,7 @@ export async function switchTask(
     return await startTimesheet(client, {
       project: payload.projectId,
       activity: payload.activityId,
+      begin: payload.begin,
       description: payload.description,
       tags: payload.tags?.length
         ? serializeKimaiTags(payload.tags)

@@ -74,6 +74,7 @@ export function extractId(val: number | { id: number }): number {
 export interface KimaiTimesheetCreate {
   project: number;
   activity: number;
+  begin?: string;
   description?: string;
   tags?: string;
 }

@@ -14,6 +14,7 @@ import IssueLinkActions from "../integrations/issues/IssueLinkActions";
 import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
 import SearchableSelect from "./SearchableSelect";
+import { normalizeCustomStartTime } from "../utils/customStartTime";
 
 interface NewTaskFormProps {
   client: KimaiClient;
@@ -197,7 +198,15 @@ export default function NewTaskForm({
   };
 
   const selectedProject = filteredProjects.find((p) => p.id === projectId);
-  const canSubmit = projectId != null && activityId != null && !isSubmitting;
+  const customBegin = useMemo(
+    () => (useCustomTime ? normalizeCustomStartTime(beginTime) : undefined),
+    [useCustomTime, beginTime],
+  );
+  const canSubmit =
+    projectId != null &&
+    activityId != null &&
+    !isSubmitting &&
+    (!useCustomTime || customBegin != null);
 
   // "More options" holds the low-frequency fields (tags, custom start time).
   const hasMoreSection = showTags || showCustomStartTime;
@@ -211,6 +220,7 @@ export default function NewTaskForm({
     onSubmit({
       projectId: projectId!,
       activityId: activityId!,
+      begin: customBegin ?? undefined,
       description: description.trim() || undefined,
       tags: tags.length > 0 ? tags : undefined,
       label: selectedProject?.name ?? `Project #${projectId}`,
