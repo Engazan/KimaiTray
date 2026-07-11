@@ -123,6 +123,8 @@ export interface AppSettings {
 
 export interface FavoriteTask {
   key: string;
+  connectionId?: string;
+  /** Legacy scope used before favorites were isolated by connection id. */
   baseUrl?: string;
   projectId: number;
   activityId: number;

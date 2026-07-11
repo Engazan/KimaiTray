@@ -6,33 +6,37 @@ import {
   removeFavorite,
 } from "../api/favoritesStore";
 
-export function useFavorites(baseUrl: string) {
+export function useFavorites(connectionId: string, baseUrl: string) {
   const [favorites, setFavorites] = useState<FavoriteTask[]>([]);
 
   useEffect(() => {
-    if (!baseUrl) {
+    if (!connectionId) {
       setFavorites([]);
       return;
     }
-    loadFavorites(baseUrl).then(setFavorites);
-  }, [baseUrl]);
+    let cancelled = false;
+    loadFavorites(connectionId, baseUrl).then((items) => {
+      if (!cancelled) setFavorites(items);
+    });
+    return () => { cancelled = true; };
+  }, [connectionId, baseUrl]);
 
   const add = useCallback(
     async (task: FavoriteTask) => {
-      if (!baseUrl) return;
-      const updated = await addFavorite({ ...task, baseUrl });
+      if (!connectionId) return;
+      const updated = await addFavorite({ ...task, connectionId, baseUrl });
       setFavorites(updated);
     },
-    [baseUrl],
+    [connectionId, baseUrl],
   );
 
   const remove = useCallback(
     async (key: string) => {
-      if (!baseUrl) return;
-      const updated = await removeFavorite(key, baseUrl);
+      if (!connectionId) return;
+      const updated = await removeFavorite(key, connectionId, baseUrl);
       setFavorites(updated);
     },
-    [baseUrl],
+    [connectionId, baseUrl],
   );
 
   const isFavorite = useCallback(

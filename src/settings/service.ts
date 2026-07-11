@@ -75,6 +75,7 @@ export const defaultSettings: AppSettings = {
 };
 
 let storePromise: ReturnType<typeof load> | null = null;
+let saveQueue: Promise<void> = Promise.resolve();
 
 function getStore() {
   if (!storePromise) {
@@ -83,12 +84,32 @@ function getStore() {
   return storePromise;
 }
 
+function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
+  if (!raw) return {
+    ...defaultSettings,
+    trayColors: { ...defaultSettings.trayColors },
+    features: {},
+    issueIntegrations: {},
+  };
+  return {
+    ...defaultSettings,
+    ...raw,
+    connections: Array.isArray(raw.connections) ? raw.connections : [],
+    trayColors: {
+      ...defaultSettings.trayColors,
+      ...(raw.trayColors ?? {}),
+    },
+    features: { ...(raw.features ?? {}) },
+    issueIntegrations: { ...(raw.issueIntegrations ?? {}) },
+  };
+}
+
 export async function loadSettings(): Promise<AppSettings> {
   try {
     const store = await getStore();
     const raw = await store.get<AppSettings>(SETTINGS_KEY);
-    if (!raw) return { ...defaultSettings };
-    const settings = { ...defaultSettings, ...raw };
+    if (!raw) return mergeSettings();
+    const settings = mergeSettings(raw);
 
     const rawObj = raw as unknown as Record<string, unknown>;
     if (rawObj.useCompactPopup !== undefined && !("uiSize" in rawObj)) {
@@ -154,14 +175,18 @@ export async function loadSettings(): Promise<AppSettings> {
 
     return settings;
   } catch {
-    return { ...defaultSettings };
+    return mergeSettings();
   }
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
-  const store = await getStore();
-  await store.set(SETTINGS_KEY, settings);
-  await store.save();
+  const snapshot = structuredClone(settings);
+  saveQueue = saveQueue.catch(() => undefined).then(async () => {
+    const store = await getStore();
+    await store.set(SETTINGS_KEY, snapshot);
+    await store.save();
+  });
+  return saveQueue;
 }
 
 export async function onSettingsChange(
@@ -169,7 +194,7 @@ export async function onSettingsChange(
 ): Promise<() => void> {
   const store = await getStore();
   const unlisten = await store.onKeyChange<AppSettings>(SETTINGS_KEY, (val) => {
-    cb(val ? { ...defaultSettings, ...val } : { ...defaultSettings });
+    cb(mergeSettings(val));
   });
   return unlisten;
 }

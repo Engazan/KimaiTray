@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, useId } from "react";
+import { useTranslation } from "react-i18next";
 
 type OptionValue = string | number;
 
@@ -44,6 +45,9 @@ export default function SearchableSelect<T extends OptionValue>({
   allowEmpty,
   emptyLabel,
 }: SearchableSelectProps<T>) {
+  const { t } = useTranslation();
+  const id = useId();
+  const listId = `${id}-listbox`;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -109,6 +113,7 @@ export default function SearchableSelect<T extends OptionValue>({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const totalItems = filtered.length + (allowEmpty ? 1 : 0);
+    if (totalItems === 0 && e.key !== "Escape") return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHighlightIndex((i) => (i + 1) % totalItems);
@@ -141,6 +146,9 @@ export default function SearchableSelect<T extends OptionValue>({
           if (!disabled) setOpen(!open);
         }}
         disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         className="w-full rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.08] px-3 py-2 text-[13px] text-left focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none disabled:opacity-40 transition-colors flex items-center justify-between gap-2"
       >
         <span className="flex items-center gap-2 min-w-0">
@@ -179,16 +187,29 @@ export default function SearchableSelect<T extends OptionValue>({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search..."
+              role="combobox"
+              aria-expanded={open}
+              aria-controls={listId}
+              aria-activedescendant={
+                filtered.length || allowEmpty
+                  ? `${id}-option-${highlightIndex}`
+                  : undefined
+              }
+              placeholder={t("common.search")}
               className="w-full rounded-md bg-gray-50 dark:bg-white/[0.06] px-2.5 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none"
             />
           </div>
           <div
             ref={listRef}
+            id={listId}
+            role="listbox"
             className="max-h-[180px] overflow-y-auto overscroll-contain py-0.5"
           >
             {allowEmpty && (
               <button
+                id={`${id}-option-0`}
+                role="option"
+                aria-selected={value === null}
                 type="button"
                 onClick={() => select(null)}
                 className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
@@ -206,6 +227,9 @@ export default function SearchableSelect<T extends OptionValue>({
               return (
                 <button
                   key={opt.value}
+                  id={`${id}-option-${idx}`}
+                  role="option"
+                  aria-selected={opt.value === value}
                   type="button"
                   onClick={() => select(opt.value)}
                   className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
@@ -221,7 +245,7 @@ export default function SearchableSelect<T extends OptionValue>({
             })}
             {filtered.length === 0 && (
               <div className="px-3 py-2 text-[11px] text-gray-400 dark:text-gray-500 text-center">
-                No results
+                {t("common.noResults")}
               </div>
             )}
           </div>

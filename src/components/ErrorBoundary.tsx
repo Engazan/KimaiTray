@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { logger } from "../utils/logger";
+import i18n from "../shared/i18n";
 
 interface Props {
   children: ReactNode;
@@ -32,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
           }}
         >
           <p style={{ fontSize: 14, color: "#ef4444", fontWeight: 600 }}>
-            Something went wrong
+            {i18n.t("common.somethingWentWrong")}
           </p>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
             {this.state.error?.message}
@@ -49,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
               background: "#f9fafb",
             }}
           >
-            Reload
+            {i18n.t("common.reload")}
           </button>
         </div>
       );

@@ -49,18 +49,18 @@ export function useEntityLookup(
   const baseCustomers = customersQ.data ?? [];
 
   const missingProjectIds = useMemo(() => {
-    if (baseProjects.length === 0 && neededProjectIds.length > 0) return [];
+    if (!projectsQ.isSuccess) return [];
     return neededProjectIds.filter(
       (id) => !baseProjects.some((p) => p.id === id),
     );
-  }, [baseProjects, neededProjectIds]);
+  }, [projectsQ.isSuccess, baseProjects, neededProjectIds]);
 
   const missingActivityIds = useMemo(() => {
-    if (baseActivities.length === 0 && neededActivityIds.length > 0) return [];
+    if (!activitiesQ.isSuccess) return [];
     return neededActivityIds.filter(
       (id) => !baseActivities.some((a) => a.id === id),
     );
-  }, [baseActivities, neededActivityIds]);
+  }, [activitiesQ.isSuccess, baseActivities, neededActivityIds]);
 
   const missingProjectQueries = useQueries({
     queries: missingProjectIds.map((id) => ({

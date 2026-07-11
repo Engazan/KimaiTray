@@ -2,6 +2,10 @@
   "name": "kimaitray",
   "private": true,
   "version": "0.16.0",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +14,11 @@
     "build:staging": "tsc && vite build --mode staging",
     "build:prod": "tsc && vite build --mode production",
     "tauri": "tauri",
-    "i18n:check": "node scripts/i18n-check.mjs"
+    "i18n:check": "node scripts/i18n-check.mjs",
+    "version:check": "node scripts/version-check.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run version:check && npm run i18n:check && npm run test && npm run build"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -37,6 +45,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.3.6",
+    "vitest": "^3.2.4"
   }
 }

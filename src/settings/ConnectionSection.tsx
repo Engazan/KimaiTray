@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings, SavedConnection } from "../types";
 import { testConnection, isInsecureUrl, type ConnectionResult } from "../api";
@@ -45,9 +45,11 @@ export default function ConnectionSection({
     "idle" | "testing" | "connected" | "error"
   >("idle");
   const [statusMessage, setStatusMessage] = useState("");
+  const formLoadGenerationRef = useRef(0);
 
   const loadFormForConnection = useCallback(
     async (id: string | null) => {
+      const generation = ++formLoadGenerationRef.current;
       setEditingId(id);
       setStatus("idle");
       setStatusMessage("");
@@ -62,8 +64,10 @@ export default function ConnectionSection({
           setUrl(conn.url);
           try {
             const tok = await getConnectionToken(conn.id, conn.url);
+            if (generation !== formLoadGenerationRef.current) return;
             setEditToken(tok ?? "");
           } catch {
+            if (generation !== formLoadGenerationRef.current) return;
             setEditToken("");
           }
         }

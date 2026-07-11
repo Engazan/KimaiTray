@@ -58,6 +58,7 @@ export function createGitLabProvider(
     }
 
     const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(30_000),
       headers: {
         "PRIVATE-TOKEN": token,
         Accept: "application/json",
@@ -65,8 +66,7 @@ export function createGitLabProvider(
     });
 
     if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      logger.error(`GitLab API ${res.status}: ${body.slice(0, 200)}`);
+      logger.error(`GitLab API request failed with status ${res.status}`);
       throw new Error(`GitLab API error: ${res.status} ${res.statusText}`);
     }
 
@@ -176,6 +176,7 @@ export function createGitLabProvider(
         `${base}/api/v4/projects/${encodedPath}/issues/${issueId}/add_spent_time`,
         {
           method: "POST",
+          signal: AbortSignal.timeout(30_000),
           headers: {
             "PRIVATE-TOKEN": token,
             "Content-Type": "application/json",
@@ -185,8 +186,7 @@ export function createGitLabProvider(
       );
 
       if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        logger.error(`GitLab add_spent_time ${res.status}: ${body.slice(0, 200)}`);
+        logger.error(`GitLab add_spent_time failed with status ${res.status}`);
         throw new Error(`Failed to log time: ${res.status}`);
       }
 

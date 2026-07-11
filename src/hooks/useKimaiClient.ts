@@ -124,8 +124,10 @@ export function useKimaiClient(): UseKimaiClientResult {
 
   const baseUrlRef = useRef("");
   const activeIdRef = useRef("");
+  const settingsGenerationRef = useRef(0);
 
   const applySettings = useCallback(async (s: Awaited<ReturnType<typeof loadSettings>>) => {
+    const generation = ++settingsGenerationRef.current;
     const nextConnId = s.activeConnectionId ?? "";
     const urlChanged = s.kimaiUrl !== baseUrlRef.current;
     const connChanged = nextConnId !== activeIdRef.current;
@@ -182,8 +184,10 @@ export function useKimaiClient(): UseKimaiClientResult {
     if (issueConfig.enabled && connId) {
       try {
         const it = await getIssueToken(connId);
+        if (generation !== settingsGenerationRef.current) return;
         setIssueToken(it);
       } catch {
+        if (generation !== settingsGenerationRef.current) return;
         setIssueToken(null);
       }
     } else {
@@ -192,8 +196,10 @@ export function useKimaiClient(): UseKimaiClientResult {
     if (s.kimaiUrl || connId) {
       try {
         const t = await getConnectionToken(connId, s.kimaiUrl);
+        if (generation !== settingsGenerationRef.current) return;
         setToken(t ?? "");
       } catch {
+        if (generation !== settingsGenerationRef.current) return;
         setToken("");
       }
     } else {
@@ -233,7 +239,9 @@ export function useKimaiClient(): UseKimaiClientResult {
   }, [load]);
 
   const switchConnection = useCallback(async (id: string) => {
+    const generation = ++settingsGenerationRef.current;
     const s = await loadSettings();
+    if (generation !== settingsGenerationRef.current) return;
     const conn = s.connections.find((c) => c.id === id);
     if (!conn) return;
 
@@ -241,6 +249,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     try {
       t = (await getConnectionToken(conn.id, conn.url)) ?? "";
     } catch { /* token load failed */ }
+    if (generation !== settingsGenerationRef.current) return;
 
     baseUrlRef.current = conn.url;
     setBaseUrl(conn.url);

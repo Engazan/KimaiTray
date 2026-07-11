@@ -43,19 +43,24 @@ const isMac = navigator.platform.toUpperCase().includes("MAC");
 
 // localStorage key for the linked issue ↔ active timer association, used to
 // restore the time-estimate badge after a popup reload or app restart.
-const LINKED_ISSUE_KEY = "kimai:linkedIssue";
+const LINKED_ISSUE_KEY_PREFIX = "kimai:linkedIssue";
 
 // localStorage key for a best-effort map of task identity (projectId-activityId)
 // → last linked issue. Recents/favorites carry no issue reference, so this lets
 // the time-estimate badge reappear when such a task is started.
-const LINKED_ISSUE_BY_KEY = "kimai:linkedIssueByKey";
+const LINKED_ISSUE_BY_KEY_PREFIX = "kimai:linkedIssueByKey";
+
+const scopedStorageKey = (prefix: string, connectionId: string) =>
+  `${prefix}:${encodeURIComponent(connectionId)}`;
 
 const taskKeyOf = (projectId: number, activityId: number) =>
   `${projectId}-${activityId}`;
 
-function readLinkedIssueMap(): Record<string, ExternalIssue> {
+function readLinkedIssueMap(connectionId: string): Record<string, ExternalIssue> {
   try {
-    const raw = localStorage.getItem(LINKED_ISSUE_BY_KEY);
+    const raw = localStorage.getItem(
+      scopedStorageKey(LINKED_ISSUE_BY_KEY_PREFIX, connectionId),
+    );
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -64,11 +69,18 @@ function readLinkedIssueMap(): Record<string, ExternalIssue> {
   }
 }
 
-function storeLinkedIssueForTask(key: string, issue: ExternalIssue) {
+function storeLinkedIssueForTask(
+  connectionId: string,
+  key: string,
+  issue: ExternalIssue,
+) {
   try {
-    const map = readLinkedIssueMap();
+    const map = readLinkedIssueMap(connectionId);
     map[key] = issue;
-    localStorage.setItem(LINKED_ISSUE_BY_KEY, JSON.stringify(map));
+    localStorage.setItem(
+      scopedStorageKey(LINKED_ISSUE_BY_KEY_PREFIX, connectionId),
+      JSON.stringify(map),
+    );
   } catch {
     /* storage unavailable — non-fatal */
   }
@@ -290,8 +302,8 @@ export default function TrayPopup() {
     useStartTask(client, () => setShowNewTask(false));
 
   const { editTimer, isSaving, saveError } = useEditTimer(client);
-  const { hiddenKeys, hideTask, clearAll: clearHidden } = useHiddenTasks();
-  const { favorites, addFavorite: addFav, removeFavorite: removeFav, isFavorite } = useFavorites(baseUrl);
+  const { hiddenKeys, hideTask, clearAll: clearHidden } = useHiddenTasks(activeConnectionId);
+  const { favorites, addFavorite: addFav, removeFavorite: removeFav, isFavorite } = useFavorites(activeConnectionId, baseUrl);
   const tagSuggestions = useKimaiTags(client);
   const { deleteEntry, deletingId, deleteError: timesheetDeleteError, dismissError: dismissDeleteError } = useDeleteTimesheet(client);
 
@@ -319,11 +331,23 @@ export default function TrayPopup() {
   }, [idleState]);
 
   const linkedIssueRef = useRef<ExternalIssue | null>(null);
+  const linkedIssueConnectionRef = useRef<string | null>(null);
   // State mirror of the linked issue so the active timer card can show its
   // time estimate. Set when an issue is linked, cleared when the timer stops.
   const [linkedIssue, setLinkedIssue] = useState<ExternalIssue | null>(null);
   const prevTimerIdRef = useRef<number | null>(null);
   const prevTimerBeginRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (
+      linkedIssueConnectionRef.current &&
+      linkedIssueConnectionRef.current !== activeConnectionId
+    ) {
+      linkedIssueRef.current = null;
+      linkedIssueConnectionRef.current = null;
+      setLinkedIssue(null);
+    }
+  }, [activeConnectionId]);
 
   useEffect(() => {
     const prevId = prevTimerIdRef.current;
@@ -335,11 +359,24 @@ export default function TrayPopup() {
     // Drop the estimate badge once no timer is running.
     if (timer == null) setLinkedIssue(null);
 
-    if (prevId != null && (timer == null || timer.id !== prevId) && linkedIssueRef.current) {
+    if (
+      prevId != null &&
+      (timer == null || timer.id !== prevId) &&
+      linkedIssueRef.current
+    ) {
       const issue = linkedIssueRef.current;
+      const belongsToActiveConnection =
+        linkedIssueConnectionRef.current === activeConnectionId;
       linkedIssueRef.current = null;
+      linkedIssueConnectionRef.current = null;
 
-      if (issueIntegration.syncTime && issueIntegration.enabled && issueToken && prevBegin != null) {
+      if (
+        belongsToActiveConnection &&
+        issueIntegration.syncTime &&
+        issueIntegration.enabled &&
+        issueToken &&
+        prevBegin != null
+      ) {
         const durationSeconds = Math.floor(Date.now() / 1000) - prevBegin;
         const provider = createIssueProvider(issueIntegration, issueToken);
         if (provider.addSpentTime) {
@@ -349,7 +386,13 @@ export default function TrayPopup() {
         }
       }
     }
-  }, [timer?.id, timer?.beginSeconds, issueIntegration, issueToken]);
+  }, [
+    timer?.id,
+    timer?.beginSeconds,
+    issueIntegration,
+    issueToken,
+    activeConnectionId,
+  ]);
 
   // Global shortcut: toggle timer
   const timerRef = useRef(timer);
@@ -624,8 +667,9 @@ export default function TrayPopup() {
 
   const handleIssueLinked = useCallback((issue: ExternalIssue | null) => {
     linkedIssueRef.current = issue;
+    linkedIssueConnectionRef.current = issue ? activeConnectionId : null;
     setLinkedIssue(issue);
-  }, []);
+  }, [activeConnectionId]);
 
   const estimateEnabled =
     issueIntegration.enabled &&
@@ -643,7 +687,7 @@ export default function TrayPopup() {
     if (!timer || !linkedIssue) return;
     try {
       localStorage.setItem(
-        LINKED_ISSUE_KEY,
+        scopedStorageKey(LINKED_ISSUE_KEY_PREFIX, activeConnectionId),
         JSON.stringify({ timerId: timer.id, issue: linkedIssue }),
       );
     } catch {
@@ -653,10 +697,11 @@ export default function TrayPopup() {
     // when the same project+activity is later started from recents/favorites,
     // which don't embed the issue URL in their description.
     storeLinkedIssueForTask(
+      activeConnectionId,
       taskKeyOf(timer.projectId, timer.activityId),
       linkedIssue,
     );
-  }, [timer?.id, linkedIssue]);
+  }, [timer?.id, linkedIssue, activeConnectionId]);
 
   // When the in-memory link is gone (after a reload/restart), restore it for
   // the running timer from localStorage and/or the issue URL in the
@@ -671,7 +716,9 @@ export default function TrayPopup() {
 
     let storedIssue: ExternalIssue | null = null;
     try {
-      const raw = localStorage.getItem(LINKED_ISSUE_KEY);
+      const raw = localStorage.getItem(
+        scopedStorageKey(LINKED_ISSUE_KEY_PREFIX, activeConnectionId),
+      );
       if (raw) {
         const parsed = JSON.parse(raw) as { timerId?: number; issue?: ExternalIssue };
         if (parsed?.timerId === timer.id && parsed.issue) storedIssue = parsed.issue;
@@ -684,7 +731,7 @@ export default function TrayPopup() {
     // makes the badge appear for timers started from recents/favorites: they
     // have no stored timerId match and usually no issue URL in the description.
     if (!storedIssue) {
-      const byKey = readLinkedIssueMap()[
+      const byKey = readLinkedIssueMap(activeConnectionId)[
         taskKeyOf(timer.projectId, timer.activityId)
       ];
       if (byKey) storedIssue = byKey;
@@ -694,6 +741,10 @@ export default function TrayPopup() {
     const provider = createIssueProvider(issueIntegration, issueToken);
     if (!url || !provider.fetchIssueByUrl) {
       setFetchedIssue(storedIssue);
+      linkedIssueRef.current = storedIssue;
+      linkedIssueConnectionRef.current = storedIssue
+        ? activeConnectionId
+        : null;
       return;
     }
 
@@ -701,16 +752,36 @@ export default function TrayPopup() {
     provider
       .fetchIssueByUrl(url)
       .then((issue) => {
-        if (!cancelled) setFetchedIssue(issue ?? storedIssue);
+        if (!cancelled) {
+          const restored = issue ?? storedIssue;
+          setFetchedIssue(restored);
+          linkedIssueRef.current = restored;
+          linkedIssueConnectionRef.current = restored
+            ? activeConnectionId
+            : null;
+        }
       })
       .catch(() => {
-        if (!cancelled) setFetchedIssue(storedIssue);
+        if (!cancelled) {
+          setFetchedIssue(storedIssue);
+          linkedIssueRef.current = storedIssue;
+          linkedIssueConnectionRef.current = storedIssue
+            ? activeConnectionId
+            : null;
+        }
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedIssue, estimateEnabled, timer?.id, timerIssueUrl, issueToken]);
+  }, [
+    linkedIssue,
+    estimateEnabled,
+    timer?.id,
+    timerIssueUrl,
+    issueToken,
+    activeConnectionId,
+  ]);
 
   const estimateIssue = linkedIssue ?? fetchedIssue;
   const showIssueEstimate = estimateEnabled && estimateIssue?.timeEstimate != null;

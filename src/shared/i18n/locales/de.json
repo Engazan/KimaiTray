@@ -22,6 +22,12 @@
     "saving": "Wird gespeichert…",
     "more": "+weitere",
     "now": "Jetzt",
+    "previousMonth": "Vorheriger Monat",
+    "nextMonth": "Nächster Monat",
+    "search": "Suchen…",
+    "noResults": "Keine Ergebnisse",
+    "somethingWentWrong": "Etwas ist schiefgelaufen",
+    "reload": "Neu laden",
     "since": "seit {{time}}"
   },
   "detached": {

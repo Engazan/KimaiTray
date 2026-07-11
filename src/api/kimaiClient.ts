@@ -120,7 +120,7 @@ export function isInsecureUrl(url: string): boolean {
     const host = parsed.hostname;
     return host !== "localhost" && host !== "127.0.0.1" && host !== "::1";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -155,6 +155,8 @@ async function request<T>(
   };
 
   let response: Response;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 30_000);
   try {
     response = await fetch(url, {
       method,
@@ -164,11 +166,14 @@ async function request<T>(
         Accept: "application/json",
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
   } catch {
     throw withEndpoint(
       new KimaiApiError(0, "Network Error", null, "network_error"),
     );
+  } finally {
+    window.clearTimeout(timeout);
   }
 
   if (!response.ok) {
@@ -202,6 +207,19 @@ export interface KimaiClient {
   post<T>(path: string, body?: unknown): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
   del(path: string): Promise<void>;
+}
+
+export function expectArrayResponse<T>(value: unknown, path: string): T[] {
+  if (Array.isArray(value)) return value as T[];
+  const error = new KimaiApiError(
+    200,
+    "Parse Error",
+    null,
+    "parse_error",
+  );
+  error.method = "GET";
+  error.path = path;
+  throw error;
 }
 
 export function createKimaiClient(

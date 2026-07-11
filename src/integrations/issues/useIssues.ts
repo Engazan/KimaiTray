@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ExternalIssue, IssueIntegrationSettings } from "./types";
 import { createIssueProvider } from "./issueProvider";
@@ -16,6 +16,7 @@ export function useIssues(
   config: IssueIntegrationSettings | null,
   token: string | null,
   search: string,
+  connectionId: string,
 ) {
   const debouncedSearch = useDebouncedValue(search, 300);
   const enabled = !!config?.enabled && !!token && !!config.baseUrl && !!config.projectPathOrRepo;
@@ -23,15 +24,29 @@ export function useIssues(
   const provider = useMemo(() => {
     if (!enabled || !config || !token) return null;
     return createIssueProvider(config, token);
-  }, [enabled, config?.provider, config?.baseUrl, config?.apiBaseUrl, config?.projectPathOrRepo, config?.assigneeOnly, token]);
+  }, [enabled, config, token]);
+
+  const tokenVersionRef = useRef({ token, version: 0 });
+  if (tokenVersionRef.current.token !== token) {
+    tokenVersionRef.current = {
+      token,
+      version: tokenVersionRef.current.version + 1,
+    };
+  }
 
   const query = useQuery<ExternalIssue[]>({
     queryKey: [
       "issues",
+      connectionId,
+      tokenVersionRef.current.version,
       config?.provider,
+      config?.baseUrl,
+      config?.apiBaseUrl,
       config?.projectPathOrRepo,
       config?.defaultState,
       config?.assigneeOnly,
+      config?.filterLabelsMode,
+      config?.filterLabels,
       debouncedSearch,
     ],
     queryFn: () => provider!.searchIssues(debouncedSearch),

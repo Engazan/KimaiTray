@@ -22,6 +22,12 @@
     "saving": "Ukladá sa…",
     "more": "+ďalšie",
     "now": "Teraz",
+    "previousMonth": "Predchádzajúci mesiac",
+    "nextMonth": "Nasledujúci mesiac",
+    "search": "Hľadať…",
+    "noResults": "Žiadne výsledky",
+    "somethingWentWrong": "Niečo sa pokazilo",
+    "reload": "Načítať znova",
     "since": "od {{time}}"
   },
   "detached": {

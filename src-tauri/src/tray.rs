@@ -1,16 +1,16 @@
-use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 #[cfg(target_os = "macos")]
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+#[cfg(not(target_os = "linux"))]
+use tauri::tray::MouseButtonState;
 use tauri::{
     image::Image,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow,
 };
-#[cfg(not(target_os = "linux"))]
-use tauri::tray::MouseButtonState;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_store::StoreExt;
 
@@ -245,10 +245,10 @@ fn parse_hex_color(s: &str) -> Option<u32> {
 
 fn size_radius(size: u8) -> f64 {
     match size {
-        0 => 8.5,   // small
-        2 => 13.5,  // large
-        3 => 16.5,  // extra large
-        _ => 10.5,  // medium
+        0 => 8.5,  // small
+        2 => 13.5, // large
+        3 => 16.5, // extra large
+        _ => 10.5, // medium
     }
 }
 
@@ -478,10 +478,14 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
         .ok_or("Popup not found")?;
 
     window.set_resizable(detached).map_err(|e| e.to_string())?;
-    window.set_always_on_top(!detached).map_err(|e| e.to_string())?;
+    window
+        .set_always_on_top(!detached)
+        .map_err(|e| e.to_string())?;
 
     #[cfg(not(target_os = "linux"))]
-    window.set_skip_taskbar(!detached).map_err(|e| e.to_string())?;
+    window
+        .set_skip_taskbar(!detached)
+        .map_err(|e| e.to_string())?;
 
     if detached {
         let _ = window.center();
@@ -530,11 +534,17 @@ fn position_on_monitor(window: &WebviewWindow, monitor_index: u8, pos: u8) -> ta
 
     let monitor = monitors
         .get(monitor_index as usize)
-        .or_else(|| monitors.iter().find(|m| {
-            window.primary_monitor().ok().flatten().as_ref()
-                .map(|p| p.name() == m.name())
-                .unwrap_or(false)
-        }))
+        .or_else(|| {
+            monitors.iter().find(|m| {
+                window
+                    .primary_monitor()
+                    .ok()
+                    .flatten()
+                    .as_ref()
+                    .map(|p| p.name() == m.name())
+                    .unwrap_or(false)
+            })
+        })
         .or_else(|| monitors.first());
 
     let monitor = match monitor {
@@ -546,15 +556,15 @@ fn position_on_monitor(window: &WebviewWindow, monitor_index: u8, pos: u8) -> ta
     let mon_size = monitor.size();
 
     let x = match pos {
-        1 | 3 => mon_pos.x + MARGIN,                                                           // left
-        4 => mon_pos.x + (mon_size.width as i32 - win_size.width as i32) / 2,                 // center-x
-        _ => mon_pos.x + mon_size.width as i32 - win_size.width as i32 - MARGIN,              // right (0, 2)
+        1 | 3 => mon_pos.x + MARGIN, // left
+        4 => mon_pos.x + (mon_size.width as i32 - win_size.width as i32) / 2, // center-x
+        _ => mon_pos.x + mon_size.width as i32 - win_size.width as i32 - MARGIN, // right (0, 2)
     };
 
     let y = match pos {
-        2 | 3 => mon_pos.y + MARGIN,                                                           // top
-        4 => mon_pos.y + (mon_size.height as i32 - win_size.height as i32) / 2,               // center-y
-        _ => mon_pos.y + mon_size.height as i32 - win_size.height as i32 - MARGIN,            // bottom (0, 1)
+        2 | 3 => mon_pos.y + MARGIN, // top
+        4 => mon_pos.y + (mon_size.height as i32 - win_size.height as i32) / 2, // center-y
+        _ => mon_pos.y + mon_size.height as i32 - win_size.height as i32 - MARGIN, // bottom (0, 1)
     };
 
     window.set_position(PhysicalPosition::new(x, y))?;
@@ -588,7 +598,11 @@ pub fn list_monitors(app: AppHandle) -> Result<Vec<MonitorInfo>, String> {
                 .map(|n| n.to_string())
                 .unwrap_or_else(|| format!("Monitor {}", i + 1));
             let primary = primary_name.as_deref() == m.name().map(|x| x.as_str());
-            MonitorInfo { index: i, name, primary }
+            MonitorInfo {
+                index: i,
+                name,
+                primary,
+            }
         })
         .collect())
 }
@@ -599,10 +613,10 @@ pub fn set_popup_monitor(mode: String, index: u8, position: String) -> Result<()
     POPUP_MONITOR_INDEX.store(index, Ordering::SeqCst);
     let pos_code: u8 = match position.as_str() {
         "bottom-left" => 1,
-        "top-right"   => 2,
-        "top-left"    => 3,
-        "center"      => 4,
-        _             => 0, // bottom-right default
+        "top-right" => 2,
+        "top-left" => 3,
+        "center" => 4,
+        _ => 0, // bottom-right default
     };
     POPUP_MONITOR_POS.store(pos_code, Ordering::SeqCst);
     Ok(())
@@ -630,6 +644,19 @@ fn position_popup(window: &WebviewWindow, tray_rect: &tauri::Rect) -> tauri::Res
 #[cfg(target_os = "macos")]
 static VIBRANCY_APPLIED: AtomicBool = AtomicBool::new(false);
 
+fn validate_popup_geometry(width: f64, height: f64, zoom: f64) -> Result<(), String> {
+    if !width.is_finite() || !(240.0..=1600.0).contains(&width) {
+        return Err("Popup width must be between 240 and 1600".into());
+    }
+    if !height.is_finite() || !(200.0..=1200.0).contains(&height) {
+        return Err("Popup height must be between 200 and 1200".into());
+    }
+    if !zoom.is_finite() || !(0.5..=2.5).contains(&zoom) {
+        return Err("Popup zoom must be between 0.5 and 2.5".into());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_popup_vibrancy(app: AppHandle, enabled: bool) -> Result<(), String> {
     let window = app
@@ -637,15 +664,24 @@ pub fn set_popup_vibrancy(app: AppHandle, enabled: bool) -> Result<(), String> {
         .ok_or("Popup not found")?;
 
     #[cfg(target_os = "macos")]
-    if enabled && !VIBRANCY_APPLIED.swap(true, Ordering::SeqCst) {
-        use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
-        apply_vibrancy(
-            &window,
-            NSVisualEffectMaterial::Popover,
-            Some(NSVisualEffectState::Active),
-            None,
-        )
-        .map_err(|e| format!("{e}"))?;
+    {
+        use window_vibrancy::{
+            apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial, NSVisualEffectState,
+        };
+        let applied = VIBRANCY_APPLIED.load(Ordering::SeqCst);
+        if enabled && !applied {
+            apply_vibrancy(
+                &window,
+                NSVisualEffectMaterial::Popover,
+                Some(NSVisualEffectState::Active),
+                None,
+            )
+            .map_err(|e| format!("{e}"))?;
+            VIBRANCY_APPLIED.store(true, Ordering::SeqCst);
+        } else if !enabled && applied {
+            clear_vibrancy(&window).map_err(|e| format!("{e}"))?;
+            VIBRANCY_APPLIED.store(false, Ordering::SeqCst);
+        }
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -654,8 +690,26 @@ pub fn set_popup_vibrancy(app: AppHandle, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::validate_popup_geometry;
+
+    #[test]
+    fn popup_geometry_accepts_supported_values() {
+        assert!(validate_popup_geometry(360.0, 640.0, 1.0).is_ok());
+    }
+
+    #[test]
+    fn popup_geometry_rejects_non_finite_and_extreme_values() {
+        assert!(validate_popup_geometry(f64::NAN, 640.0, 1.0).is_err());
+        assert!(validate_popup_geometry(360.0, f64::INFINITY, 1.0).is_err());
+        assert!(validate_popup_geometry(360.0, 640.0, 10.0).is_err());
+    }
+}
+
 #[tauri::command]
 pub fn set_popup_size(app: AppHandle, width: f64, height: f64, zoom: f64) -> Result<(), String> {
+    validate_popup_geometry(width, height, zoom)?;
     let window = app
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
@@ -667,6 +721,9 @@ pub fn set_popup_size(app: AppHandle, width: f64, height: f64, zoom: f64) -> Res
 
 #[tauri::command]
 pub fn set_popup_corner_radius(app: AppHandle, radius: f64) -> Result<(), String> {
+    if !radius.is_finite() || !(0.0..=64.0).contains(&radius) {
+        return Err("Corner radius must be between 0 and 64".into());
+    }
     let window = app
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
@@ -715,8 +772,15 @@ pub fn update_tray_menu(
     quit_label: String,
 ) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
-    let menu = build_tray_menu(&app, &toggle_label, &settings_label, &open_kimai_label, &refresh_label, &quit_label)
-        .map_err(|e| e.to_string())?;
+    let menu = build_tray_menu(
+        &app,
+        &toggle_label,
+        &settings_label,
+        &open_kimai_label,
+        &refresh_label,
+        &quit_label,
+    )
+    .map_err(|e| e.to_string())?;
     tray.set_menu(Some(menu)).map_err(|e| e.to_string())
 }
 
@@ -734,10 +798,18 @@ pub fn set_tray_click_actions(
 
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     if right == 1 {
-        tray.set_menu(None::<Menu<tauri::Wry>>).map_err(|e| e.to_string())?;
-    } else {
-        let menu = build_tray_menu(&app, "Show/Hide", "Settings", "Open Kimai", "Refresh", "Quit")
+        tray.set_menu(None::<Menu<tauri::Wry>>)
             .map_err(|e| e.to_string())?;
+    } else {
+        let menu = build_tray_menu(
+            &app,
+            "Show/Hide",
+            "Settings",
+            "Open Kimai",
+            "Refresh",
+            "Quit",
+        )
+        .map_err(|e| e.to_string())?;
         tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
     }
 
@@ -809,22 +881,28 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     // Read initial settings from store
     let right_action_popup = if let Ok(store) = app.store(STORE_PATH) {
         if let Some(serde_json::Value::Object(s)) = store.get("settings") {
-            let left = s.get("trayLeftClickAction")
+            let left = s
+                .get("trayLeftClickAction")
                 .and_then(|v| v.as_str())
                 .unwrap_or("popup");
-            let right = s.get("trayRightClickAction")
+            let right = s
+                .get("trayRightClickAction")
                 .and_then(|v| v.as_str())
                 .unwrap_or("menu");
-            let display = s.get("displayMode")
+            let display = s
+                .get("displayMode")
                 .and_then(|v| v.as_str())
                 .unwrap_or("tray");
-            let mon_mode = s.get("popupMonitorMode")
+            let mon_mode = s
+                .get("popupMonitorMode")
                 .and_then(|v| v.as_str())
                 .unwrap_or("active");
-            let mon_index = s.get("popupMonitorIndex")
+            let mon_index = s
+                .get("popupMonitorIndex")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0) as u8;
-            let mon_pos = s.get("popupMonitorPosition")
+            let mon_pos = s
+                .get("popupMonitorPosition")
                 .and_then(|v| v.as_str())
                 .unwrap_or("bottom-right");
             TRAY_LEFT_ACTION.store(if left == "nothing" { 1 } else { 0 }, Ordering::SeqCst);
@@ -832,24 +910,33 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
             DISPLAY_MODE.store(if display == "detached" { 1 } else { 0 }, Ordering::SeqCst);
             POPUP_MONITOR_MODE.store(if mon_mode == "specific" { 1 } else { 0 }, Ordering::SeqCst);
             POPUP_MONITOR_INDEX.store(mon_index, Ordering::SeqCst);
-            POPUP_MONITOR_POS.store(match mon_pos {
-                "bottom-left" => 1,
-                "top-right"   => 2,
-                "top-left"    => 3,
-                "center"      => 4,
-                _             => 0,
-            }, Ordering::SeqCst);
-            let icon_size = s.get("trayIconSize")
+            POPUP_MONITOR_POS.store(
+                match mon_pos {
+                    "bottom-left" => 1,
+                    "top-right" => 2,
+                    "top-left" => 3,
+                    "center" => 4,
+                    _ => 0,
+                },
+                Ordering::SeqCst,
+            );
+            let icon_size = s
+                .get("trayIconSize")
                 .and_then(|v| v.as_str())
                 .unwrap_or("medium");
             TRAY_ICON_SIZE.store(size_code(icon_size), Ordering::SeqCst);
-            let icon_shape = s.get("trayIconShape")
+            let icon_shape = s
+                .get("trayIconShape")
                 .and_then(|v| v.as_str())
                 .unwrap_or("dot");
             TRAY_ICON_SHAPE.store(shape_code(icon_shape), Ordering::SeqCst);
             if let Some(colors) = s.get("trayColors").and_then(|v| v.as_object()) {
                 for (idx, key) in ["idle", "running", "paused", "error"].iter().enumerate() {
-                    if let Some(packed) = colors.get(*key).and_then(|v| v.as_str()).and_then(parse_hex_color) {
+                    if let Some(packed) = colors
+                        .get(*key)
+                        .and_then(|v| v.as_str())
+                        .and_then(parse_hex_color)
+                    {
                         TRAY_COLORS[idx].store(packed, Ordering::SeqCst);
                     }
                 }
@@ -907,8 +994,14 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                     if let Ok(store) = handle.store(STORE_PATH) {
                         if let Some(serde_json::Value::Object(s)) = store.get("settings") {
                             if let Some(serde_json::Value::String(url)) = s.get("kimaiUrl") {
-                                if !url.is_empty() {
-                                    let _ = handle.opener().open_url(url, None::<&str>);
+                                if let Ok(parsed) = tauri::Url::parse(url) {
+                                    let allowed = matches!(parsed.scheme(), "http" | "https")
+                                        && parsed.username().is_empty()
+                                        && parsed.password().is_none();
+                                    if allowed {
+                                        let _ =
+                                            handle.opener().open_url(parsed.as_str(), None::<&str>);
+                                    }
                                 }
                             }
                         }
@@ -935,7 +1028,7 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                         _ => false,
                     };
                     if should_toggle {
-                        if now_ms() - LAST_POPUP_HIDE.load(Ordering::SeqCst) < 300 {
+                        if now_ms().saturating_sub(LAST_POPUP_HIDE.load(Ordering::SeqCst)) < 300 {
                             return;
                         }
                         toggle_popup_window(tray.app_handle());
@@ -967,7 +1060,9 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                                     let _ = popup.hide();
                                 }
                             } else {
-                                if now_ms() - LAST_POPUP_HIDE.load(Ordering::SeqCst) < 300 {
+                                if now_ms().saturating_sub(LAST_POPUP_HIDE.load(Ordering::SeqCst))
+                                    < 300
+                                {
                                     return;
                                 }
                                 if is_detached() {

@@ -22,6 +22,12 @@
     "saving": "Saving…",
     "more": "+more",
     "now": "Now",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "search": "Search…",
+    "noResults": "No results",
+    "somethingWentWrong": "Something went wrong",
+    "reload": "Reload",
     "since": "since {{time}}"
   },
   "detached": {

@@ -1,4 +1,4 @@
-import type { KimaiClient } from "./kimaiClient";
+import { expectArrayResponse, type KimaiClient } from "./kimaiClient";
 import type {
   KimaiTimesheetCreate,
   KimaiTimesheetEntry,
@@ -9,23 +9,32 @@ import type {
 export async function getActiveTimesheets(
   client: KimaiClient,
 ): Promise<KimaiTimesheetEntry[]> {
-  return client.get<KimaiTimesheetEntry[]>("/api/timesheets/active");
+  const path = "/api/timesheets/active";
+  return expectArrayResponse<KimaiTimesheetEntry>(
+    await client.get<unknown>(path),
+    path,
+  );
 }
 
 export async function getRecentTimesheets(
   client: KimaiClient,
   size = 10,
 ): Promise<KimaiTimesheetEntry[]> {
-  return client.get<KimaiTimesheetEntry[]>("/api/timesheets/recent", {
+  const path = "/api/timesheets/recent";
+  return expectArrayResponse<KimaiTimesheetEntry>(await client.get<unknown>(path, {
     size,
-  });
+  }), path);
 }
 
 export async function getTimesheets(
   client: KimaiClient,
   params?: TimesheetListParams,
 ): Promise<KimaiTimesheetEntry[]> {
-  return client.get<KimaiTimesheetEntry[]>("/api/timesheets", params);
+  const path = "/api/timesheets";
+  return expectArrayResponse<KimaiTimesheetEntry>(
+    await client.get<unknown>(path, params),
+    path,
+  );
 }
 
 export async function getTimesheet(

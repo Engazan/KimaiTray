@@ -27,11 +27,13 @@ export function useSettings() {
   async function loadToken(connectionId: string, legacyUrl: string) {
     try {
       const t = await getConnectionToken(connectionId, legacyUrl);
+      if (activeIdRef.current !== connectionId) return;
       setToken(t ?? "");
     } catch {
+      if (activeIdRef.current !== connectionId) return;
       setToken("");
     } finally {
-      setLoaded(true);
+      if (activeIdRef.current === connectionId) setLoaded(true);
     }
   }
 
@@ -39,7 +41,10 @@ export function useSettings() {
     <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
       setSettings((prev) => {
         const next = { ...prev, [key]: value };
-        saveSettings(next);
+        void saveSettings(next).catch(() => {
+          // Keep the in-memory setting responsive; a later queued save retries
+          // against the same store and explicit connection saves surface errors.
+        });
         return next;
       });
     },
@@ -80,7 +85,7 @@ export function useSettings() {
         kimaiUrl: conn.url,
       };
       setSettings(next);
-      saveSettings(next);
+      await saveSettings(next);
 
       // Tokens are keyed by connection id, so editing a connection's URL no
       // longer needs to move the token between URL keys.
@@ -110,7 +115,7 @@ export function useSettings() {
       kimaiUrl: wasActive ? (newActive?.url ?? "") : prev.kimaiUrl,
     };
     setSettings(next);
-    saveSettings(next);
+    await saveSettings(next);
 
     await deleteConnectionToken(id);
 
@@ -132,7 +137,7 @@ export function useSettings() {
 
     const next = { ...prev, activeConnectionId: id, kimaiUrl: conn.url };
     setSettings(next);
-    saveSettings(next);
+    await saveSettings(next);
 
     activeIdRef.current = id;
     await loadToken(id, conn.url);

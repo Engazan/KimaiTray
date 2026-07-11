@@ -176,8 +176,8 @@ GitHub Actions workflow at `.github/workflows/build.yml`:
 
 To release:
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.16.0
+git push origin v0.16.0
 ```
 
 Then review and publish the draft release on GitHub.
@@ -210,4 +210,4 @@ sudo apt install xprintidle
 
 ## License
 
-MIT
+[MIT](LICENSE)

@@ -22,6 +22,12 @@
     "saving": "Ukládání…",
     "more": "+další",
     "now": "Nyní",
+    "previousMonth": "Předchozí měsíc",
+    "nextMonth": "Následující měsíc",
+    "search": "Hledat…",
+    "noResults": "Žádné výsledky",
+    "somethingWentWrong": "Něco se pokazilo",
+    "reload": "Načíst znovu",
     "since": "od {{time}}"
   },
   "detached": {

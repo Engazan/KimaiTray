@@ -54,7 +54,6 @@ export function usePauseTimer(
   // Pause the currently active timer → add to paused array
   const pauseMut = useMutation({
     mutationFn: async (activeTimer: ActiveTimer) => {
-      await stopTimesheet(client!, activeTimer.id);
       const data: PausedTimerData = {
         id: crypto.randomUUID(),
         connectionId,
@@ -70,7 +69,16 @@ export function usePauseTimer(
         tags: activeTimer.tags,
         pausedAt: new Date().toISOString(),
       };
-      const updated = await addPausedTimer(data);
+      // Persist recovery data before mutating Kimai. If the store write fails,
+      // the active timer remains untouched.
+      await addPausedTimer(data);
+      try {
+        await stopTimesheet(client!, activeTimer.id);
+      } catch (error) {
+        await removePausedTimer(data.id).catch(() => undefined);
+        throw error;
+      }
+      const updated = await loadPausedTimers();
       return updated.filter((t) => t.connectionId === connectionId);
     },
     onSuccess: (filtered) => {
@@ -91,7 +99,6 @@ export function usePauseTimer(
 
       // Auto-pause the running timer first (swap)
       if (currentTimer) {
-        await stopTimesheet(client!, currentTimer.id);
         const swapData: PausedTimerData = {
           id: crypto.randomUUID(),
           connectionId,
@@ -108,6 +115,12 @@ export function usePauseTimer(
           pausedAt: new Date().toISOString(),
         };
         await addPausedTimer(swapData);
+        try {
+          await stopTimesheet(client!, currentTimer.id);
+        } catch (error) {
+          await removePausedTimer(swapData.id).catch(() => undefined);
+          throw error;
+        }
       }
 
       // Start the target paused timer

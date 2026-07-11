@@ -47,6 +47,7 @@ export function createGiteaProvider(
     }
 
     const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `token ${token}`,
         Accept: "application/json",
@@ -54,8 +55,7 @@ export function createGiteaProvider(
     });
 
     if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      logger.error(`Gitea API ${res.status}: ${body.slice(0, 200)}`);
+      logger.error(`Gitea API request failed with status ${res.status}`);
       throw new Error(`Gitea API error: ${res.status} ${res.statusText}`);
     }
 
@@ -132,6 +132,7 @@ export function createGiteaProvider(
         `${base}/api/v1/repos/${config.projectPathOrRepo}/issues/${issueId}/times`,
         {
           method: "POST",
+          signal: AbortSignal.timeout(30_000),
           headers: {
             Authorization: `token ${token}`,
             "Content-Type": "application/json",
@@ -141,8 +142,7 @@ export function createGiteaProvider(
       );
 
       if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        logger.error(`Gitea add time ${res.status}: ${body.slice(0, 200)}`);
+        logger.error(`Gitea add time failed with status ${res.status}`);
         throw new Error(`Failed to log time: ${res.status}`);
       }
 

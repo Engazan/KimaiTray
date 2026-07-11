@@ -13,8 +13,9 @@ const LEGACY_IDENTIFIER: &str = "eu.engazan.kimaimate";
 
 /// Migrate user data from the pre-rename data directory.
 ///
-/// The store file (`settings.json`) holds everything the user cares about —
-/// connection settings, API tokens, favorites, hidden tasks and paused timers.
+/// The store file (`settings.json`) holds connection settings, favorites,
+/// hidden tasks and paused timers. Legacy versions also kept API tokens here;
+/// the keychain command migrates those values to the OS credential store.
 /// Tauri keys the app data dir by the bundle identifier, so renaming the
 /// identifier would otherwise orphan all existing data. On first launch after
 /// the update we copy the legacy `settings.json` into the new location.

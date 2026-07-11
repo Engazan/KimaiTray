@@ -1,11 +1,26 @@
+use std::collections::HashSet;
+use std::str::FromStr;
+
 use log::{error, info};
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_plugin_store::StoreExt;
 
 use crate::tray;
 
 const STORE_PATH: &str = "settings.json";
+
+fn validate_shortcuts(values: [&str; 3]) -> Result<(), String> {
+    let mut ids = HashSet::new();
+    for value in values.into_iter().filter(|value| !value.is_empty()) {
+        let shortcut =
+            Shortcut::from_str(value).map_err(|e| format!("Invalid shortcut {value}: {e}"))?;
+        if !ids.insert(shortcut.id()) {
+            return Err(format!("Duplicate shortcut: {value}"));
+        }
+    }
+    Ok(())
+}
 
 #[tauri::command]
 pub fn register_shortcuts(
@@ -14,6 +29,7 @@ pub fn register_shortcuts(
     start_stop_timer: String,
     open_settings: String,
 ) -> Result<(), String> {
+    validate_shortcuts([&toggle_popup, &start_stop_timer, &open_settings])?;
     let gs = app.global_shortcut();
     gs.unregister_all().map_err(|e| e.to_string())?;
 
@@ -83,5 +99,17 @@ pub fn register_from_store(app: &AppHandle) {
 
     if let Err(e) = register_shortcuts(app.clone(), toggle, timer, settings) {
         error!("Failed to register shortcuts from store: {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_shortcuts;
+
+    #[test]
+    fn validates_complete_shortcut_set_before_registration() {
+        assert!(validate_shortcuts(["CommandOrControl+Shift+K", "Alt+T", ""]).is_ok());
+        assert!(validate_shortcuts(["not-a-shortcut", "Alt+T", ""]).is_err());
+        assert!(validate_shortcuts(["Alt+T", "Alt+T", ""]).is_err());
     }
 }

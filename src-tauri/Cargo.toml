@@ -4,6 +4,10 @@ version = "0.16.0"
 description = "KimaiTray — Kimai time-tracking tray companion"
 authors = ["engazan"]
 edition = "2021"
+license = "MIT"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
 
 [lib]
 name = "kimaitray_lib"
@@ -26,6 +30,7 @@ tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
+keyring = { version = "3.6", features = ["apple-native", "windows-native", "sync-secret-service", "vendored"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"

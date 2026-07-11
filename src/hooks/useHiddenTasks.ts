@@ -6,27 +6,38 @@ import {
   clearHiddenTasks,
 } from "../api/hiddenTasksStore";
 
-export function useHiddenTasks() {
+export function useHiddenTasks(connectionId: string) {
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    loadHiddenTasks().then((keys) => setHiddenKeys(new Set(keys)));
-  }, []);
+    if (!connectionId) {
+      setHiddenKeys(new Set());
+      return;
+    }
+    let cancelled = false;
+    loadHiddenTasks(connectionId).then((keys) => {
+      if (!cancelled) setHiddenKeys(new Set(keys));
+    });
+    return () => { cancelled = true; };
+  }, [connectionId]);
 
   const hideTask = useCallback(async (key: string) => {
-    const updated = await addHiddenTask(key);
+    if (!connectionId) return;
+    const updated = await addHiddenTask(connectionId, key);
     setHiddenKeys(new Set(updated));
-  }, []);
+  }, [connectionId]);
 
   const unhideTask = useCallback(async (key: string) => {
-    const updated = await removeHiddenTask(key);
+    if (!connectionId) return;
+    const updated = await removeHiddenTask(connectionId, key);
     setHiddenKeys(new Set(updated));
-  }, []);
+  }, [connectionId]);
 
   const clearAll = useCallback(async () => {
-    await clearHiddenTasks();
+    if (!connectionId) return;
+    await clearHiddenTasks(connectionId);
     setHiddenKeys(new Set());
-  }, []);
+  }, [connectionId]);
 
   return { hiddenKeys, hideTask, unhideTask, clearAll };
 }

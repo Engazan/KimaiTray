@@ -55,7 +55,7 @@ export default function TestSection({ settings }: Props) {
       setFromCount(0);
       return;
     }
-    loadFavorites(fromConn.url).then((f) => {
+    loadFavorites(fromConn.id, fromConn.url).then((f) => {
       if (!cancelled) setFromCount(f.length);
     });
     return () => {
@@ -68,7 +68,12 @@ export default function TestSection({ settings }: Props) {
     setMoving(true);
     setResult(null);
     try {
-      const count = await moveFavorites(fromConn.url, toConn.url);
+      const count = await moveFavorites(
+        fromConn.id,
+        toConn.id,
+        fromConn.url,
+        toConn.url,
+      );
       setResult(count > 0 ? { type: "moved", count } : { type: "nothing" });
     } catch {
       setResult({ type: "error" });

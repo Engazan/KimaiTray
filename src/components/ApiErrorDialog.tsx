@@ -1,19 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApiErrorEvent } from "../providers/QueryProvider";
 
 export default function ApiErrorDialog() {
   const { t } = useTranslation();
   const [errors, setErrors] = useState<ApiErrorEvent[]>([]);
+  const dismissRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<ApiErrorEvent>).detail;
-      setErrors((prev) => [...prev, detail]);
+      setErrors((prev) => [...prev.slice(-4), detail]);
     };
     window.addEventListener("kimai-api-error", handler);
     return () => window.removeEventListener("kimai-api-error", handler);
   }, []);
+
+  useEffect(() => {
+    if (errors.length === 0) return;
+    dismissRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setErrors((prev) => prev.slice(1));
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [errors.length]);
 
   if (errors.length === 0) return null;
 
@@ -30,7 +43,12 @@ export default function ApiErrorDialog() {
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="mx-3 w-full max-w-[320px] rounded-xl bg-white dark:bg-[#222] shadow-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="api-error-title"
+        className="mx-3 w-full max-w-[320px] rounded-xl bg-white dark:bg-[#222] shadow-xl border border-gray-200 dark:border-gray-700 p-4"
+      >
         <div className="flex items-center gap-2 mb-3">
           <div className="flex items-center justify-center h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 shrink-0">
             <svg
@@ -48,7 +66,7 @@ export default function ApiErrorDialog() {
             </svg>
           </div>
           <div className="min-w-0">
-            <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">
+            <h3 id="api-error-title" className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">
               {t("errors.apiErrorTitle")}
             </h3>
             <p className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -91,13 +109,14 @@ export default function ApiErrorDialog() {
         </div>
 
         <button
+          ref={dismissRef}
           onClick={dismiss}
           className="w-full rounded-md px-3 py-2 text-[12px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
         >
           {t("errors.dismiss")}
           {errors.length > 1 && (
             <span className="ml-1 text-gray-400 dark:text-gray-500">
-              ({errors.length - 1} more)
+              ({errors.length - 1} {t("common.more")})
             </span>
           )}
         </button>

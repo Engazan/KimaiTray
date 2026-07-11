@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -202,15 +203,25 @@ export default function IssueIntegrationDetail({
   const [availableRepos, setAvailableRepos] = useState<ExternalRepo[]>([]);
   const [reposLoading, setReposLoading] = useState(false);
   const [manualRepo, setManualRepo] = useState(false);
+  const tokenLoadGenerationRef = useRef(0);
 
   useEffect(() => {
+    const generation = ++tokenLoadGenerationRef.current;
     if (!connectionId) {
       setIssueToken("");
       return;
     }
     getIssueToken(connectionId)
-      .then((t) => setIssueToken(t ?? ""))
-      .catch(() => setIssueToken(""));
+      .then((t) => {
+        if (generation === tokenLoadGenerationRef.current) {
+          setIssueToken(t ?? "");
+        }
+      })
+      .catch(() => {
+        if (generation === tokenLoadGenerationRef.current) {
+          setIssueToken("");
+        }
+      });
     setTestStatus("idle");
     setTestMessage("");
     setShowToken(false);

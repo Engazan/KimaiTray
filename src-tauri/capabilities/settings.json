@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Least-privilege capability for the tray popup",
-  "windows": ["tray-popup"],
+  "identifier": "settings",
+  "description": "Least-privilege capability for the settings window",
+  "windows": ["settings"],
   "permissions": [
     "core:default",
     "opener:allow-default-urls",
@@ -19,7 +19,9 @@
     "store:allow-set",
     "store:allow-delete",
     "store:allow-save",
-    "notification:allow-notify",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
     "log:allow-log",
     "updater:allow-check",
     "updater:allow-download-and-install",

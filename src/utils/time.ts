@@ -27,15 +27,12 @@ export function formatDuration(seconds: number): string {
 
 export function getLocalDayRange(): { begin: string; end: string } {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-  );
-  const strip = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "");
-  return { begin: strip(start), end: strip(end) };
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const date = `${year}-${month}-${day}`;
+  return {
+    begin: `${date}T00:00:00`,
+    end: `${date}T23:59:59`,
+  };
 }

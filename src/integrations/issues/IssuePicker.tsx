@@ -6,6 +6,7 @@ import { useIssues } from "./useIssues";
 interface IssuePickerProps {
   config: IssueIntegrationSettings;
   token: string;
+  connectionId: string;
   selectedIssue: ExternalIssue | null;
   onSelectIssue: (issue: ExternalIssue | null) => void;
   disabled?: boolean;
@@ -52,6 +53,7 @@ function TimeEstimateBadge({ issue }: { issue: ExternalIssue }) {
 export default function IssuePicker({
   config,
   token,
+  connectionId,
   selectedIssue,
   onSelectIssue,
   disabled,
@@ -65,7 +67,12 @@ export default function IssuePicker({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { issues, isLoading } = useIssues(config, token, search);
+  const { issues, isLoading } = useIssues(
+    config,
+    token,
+    search,
+    connectionId,
+  );
 
   // Issues whose title contains the selected project name — likely the one the
   // user wants, so we highlight them and pre-select the first match.

@@ -19,6 +19,15 @@ function pad(n: number) {
   return n.toString().padStart(2, "0");
 }
 
+export function parseTimePart(
+  value: string,
+  maximum: number,
+): number | null {
+  if (!/^\d{1,2}$/.test(value)) return null;
+  const parsed = Number(value);
+  return parsed >= 0 && parsed <= maximum ? parsed : null;
+}
+
 function toLocalISO(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -40,7 +49,7 @@ export default function DateTimePicker({
   className,
   compact,
 }: DateTimePickerProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
@@ -142,8 +151,13 @@ export default function DateTimePicker({
   };
 
   const updateTime = (newHour: string, newMinute: string) => {
-    const h = parseInt(newHour) || 0;
-    const m = parseInt(newMinute) || 0;
+    const h = parseTimePart(newHour, 23);
+    const m = parseTimePart(newMinute, 59);
+    if (h === null || m === null) {
+      setHour(pad(parsed?.getHours() ?? 0));
+      setMinute(pad(parsed?.getMinutes() ?? 0));
+      return;
+    }
     setHour(pad(h));
     setMinute(pad(m));
     if (parsed) {
@@ -201,6 +215,8 @@ export default function DateTimePicker({
         type="button"
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={
           className ??
           `w-full rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.08] px-3 ${py} ${textSize} text-left text-gray-700 dark:text-gray-300 disabled:opacity-40 transition-colors focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] flex items-center justify-between gap-2`
@@ -217,6 +233,9 @@ export default function DateTimePicker({
       {open && createPortal((
         <div
           ref={popupRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={monthName}
           className="fixed z-[9999] w-[15rem] max-w-[calc(100vw-1rem)] rounded-xl border border-gray-200 dark:border-white/15 bg-white dark:bg-gray-800 shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden"
           style={{ top: popupPos.top, left: popupPos.left }}
         >
@@ -225,6 +244,7 @@ export default function DateTimePicker({
             <button
               type="button"
               onClick={prevMonth}
+              aria-label={t("common.previousMonth")}
               className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 transition-colors"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -237,6 +257,7 @@ export default function DateTimePicker({
             <button
               type="button"
               onClick={nextMonth}
+              aria-label={t("common.nextMonth")}
               className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 transition-colors"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -318,7 +339,7 @@ export default function DateTimePicker({
               onClick={selectNow}
               className="ml-auto text-[10px] font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
             >
-              Now
+              {t("common.now")}
             </button>
           </div>
         </div>

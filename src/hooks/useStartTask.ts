@@ -4,6 +4,7 @@ import type { KimaiClient } from "../api/kimaiClient";
 import { KimaiApiError } from "../api/kimaiClient";
 import {
   getActiveTimesheets,
+  restartTimesheet,
   startTimesheet,
   stopTimesheet,
 } from "../api/timesheetApi";
@@ -37,14 +38,14 @@ export function useStartTask(
   const mutation = useMutation({
     mutationFn: async (payload: StartTaskPayload) => {
       let stoppedExisting = false;
-
-      const active = await getActiveTimesheets(client!);
-      for (const entry of active) {
-        await stopTimesheet(client!, entry.id);
-        stoppedExisting = true;
-      }
-
+      const stoppedIds: number[] = [];
       try {
+        const active = await getActiveTimesheets(client!);
+        for (const entry of active) {
+          await stopTimesheet(client!, entry.id);
+          stoppedExisting = true;
+          stoppedIds.push(entry.id);
+        }
         return await startTimesheet(client!, {
           project: payload.projectId,
           activity: payload.activityId,
@@ -54,7 +55,15 @@ export function useStartTask(
             : undefined,
         });
       } catch (err) {
-        throw new TaskSwitchError(err, stoppedExisting);
+        let rolledBack = stoppedIds.length > 0;
+        for (const id of [...stoppedIds].reverse()) {
+          try {
+            await restartTimesheet(client!, id);
+          } catch {
+            rolledBack = false;
+          }
+        }
+        throw new TaskSwitchError(err, stoppedExisting && !rolledBack);
       }
     },
     onMutate: () => {

@@ -48,6 +48,7 @@ export function createGitHubProvider(
     }
 
     const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
@@ -55,8 +56,7 @@ export function createGitHubProvider(
     });
 
     if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      logger.error(`GitHub API ${res.status}: ${body.slice(0, 200)}`);
+      logger.error(`GitHub API request failed with status ${res.status}`);
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
     }
 

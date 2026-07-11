@@ -22,6 +22,12 @@
     "saving": "Збереження…",
     "more": "+ще",
     "now": "Зараз",
+    "previousMonth": "Попередній місяць",
+    "nextMonth": "Наступний місяць",
+    "search": "Пошук…",
+    "noResults": "Немає результатів",
+    "somethingWentWrong": "Щось пішло не так",
+    "reload": "Перезавантажити",
     "since": "з {{time}}"
   },
   "detached": {

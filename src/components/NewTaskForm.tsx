@@ -86,6 +86,7 @@ export default function NewTaskForm({
   const { repos: availableRepos } = useRepos(
     showIssuePicker ? issueIntegrationConfig ?? null : null,
     issueToken ?? null,
+    client.connectionId,
   );
   const repoOptions = useMemo(() => {
     const opts = availableRepos.map((r) => ({ value: r.id, label: r.label }));
@@ -327,6 +328,7 @@ export default function NewTaskForm({
               <IssuePicker
                 config={effectiveIssueConfig ?? issueIntegrationConfig}
                 token={issueToken}
+                connectionId={client.connectionId}
                 selectedIssue={selectedIssue}
                 onSelectIssue={handleSelectIssue}
                 disabled={isSubmitting}

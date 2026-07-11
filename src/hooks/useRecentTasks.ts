@@ -17,8 +17,12 @@ function formatRelativeDate(iso: string): string {
     (today.getTime() - target.getTime()) / 86_400_000,
   );
 
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
+  if (diffDays <= 1) {
+    return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
+      -diffDays,
+      "day",
+    );
+  }
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 

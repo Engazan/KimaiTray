@@ -9,6 +9,13 @@ function shouldLog(level: LogLevel): boolean {
 
 let mod: typeof import("@tauri-apps/plugin-log") | null = null;
 
+export function redactLogMessage(message: string): string {
+  return message
+    .replace(/(Bearer\s+)[^\s,;]+/gi, "$1[REDACTED]")
+    .replace(/((?:private-token|authorization|api[_-]?token|token)\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
+    .replace(/(https?:\/\/)[^/@\s:]+(?::[^/@\s]*)?@/gi, "$1[REDACTED]@");
+}
+
 async function getTauriLog() {
   if (!mod) mod = await import("@tauri-apps/plugin-log");
   return mod;
@@ -16,9 +23,10 @@ async function getTauriLog() {
 
 function log(level: LogLevel, msg: string) {
   if (!shouldLog(level)) return;
+  const safeMessage = redactLogMessage(msg);
   getTauriLog()
-    .then((l) => l[level](msg))
-    .catch(() => console[level](msg));
+    .then((l) => l[level](safeMessage))
+    .catch(() => console[level](safeMessage));
 }
 
 export const logger = {
