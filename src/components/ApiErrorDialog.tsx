@@ -6,6 +6,8 @@ export default function ApiErrorDialog() {
   const { t } = useTranslation();
   const [errors, setErrors] = useState<ApiErrorEvent[]>([]);
   const dismissRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -16,17 +18,41 @@ export default function ApiErrorDialog() {
     return () => window.removeEventListener("kimai-api-error", handler);
   }, []);
 
+  const open = errors.length > 0;
+
   useEffect(() => {
-    if (errors.length === 0) return;
+    if (!open) return;
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
     dismissRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         setErrors((prev) => prev.slice(1));
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          "button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex='-1'])",
+        ) ?? [],
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [errors.length]);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.requestAnimationFrame(() => previouslyFocusedRef.current?.focus());
+    };
+  }, [open]);
 
   if (errors.length === 0) return null;
 
@@ -44,6 +70,7 @@ export default function ApiErrorDialog() {
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="api-error-title"

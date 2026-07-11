@@ -4,6 +4,7 @@ import type { ExternalIssue, IssueIntegrationSettings } from "./types";
 import { useIssues } from "./useIssues";
 
 interface IssuePickerProps {
+  id?: string;
   config: IssueIntegrationSettings;
   token: string;
   connectionId: string;
@@ -51,6 +52,7 @@ function TimeEstimateBadge({ issue }: { issue: ExternalIssue }) {
 }
 
 export default function IssuePicker({
+  id: controlId,
   config,
   token,
   connectionId,
@@ -60,7 +62,8 @@ export default function IssuePicker({
   projectName,
 }: IssuePickerProps) {
   const { t } = useTranslation();
-  const id = useId();
+  const generatedId = useId();
+  const id = controlId ?? generatedId;
   const listId = `${id}-listbox`;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -156,6 +159,7 @@ export default function IssuePicker({
     <div ref={containerRef} className="relative">
       <div className="flex items-center gap-1 min-w-0">
         <button
+          id={id}
           type="button"
           onClick={() => {
             if (!disabled) setOpen(!open);

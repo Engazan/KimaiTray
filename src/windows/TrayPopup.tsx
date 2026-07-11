@@ -48,14 +48,15 @@ import { logger } from "../utils/logger";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 
-function TrafficLight({ color, hoverColor, onClick, children }: {
-  color: string; hoverColor: string; onClick: () => void; children: React.ReactNode;
+function TrafficLight({ color, hoverColor, onClick, label, children }: {
+  color: string; hoverColor: string; onClick: () => void; label: string; children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group h-3 w-3 rounded-full flex items-center justify-center transition-colors focus:outline-none"
+      aria-label={label}
+      className="group h-3 w-3 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
       style={{ backgroundColor: color }}
       onMouseEnter={(e) => { (e.currentTarget.style.backgroundColor) = hoverColor; }}
       onMouseLeave={(e) => { (e.currentTarget.style.backgroundColor) = color; }}
@@ -70,6 +71,7 @@ function TrafficLight({ color, hoverColor, onClick, children }: {
 function DetachedTitleBar({ pinned, onTogglePin, pinLabel, transparent }: {
   pinned: boolean; onTogglePin: () => void; pinLabel: string; transparent?: boolean;
 }) {
+  const { t } = useTranslation();
   const win = getCurrentWindow();
   const barBg = transparent
     ? "bg-white/30 dark:bg-black/20 backdrop-blur-sm"
@@ -80,6 +82,7 @@ function DetachedTitleBar({ pinned, onTogglePin, pinLabel, transparent }: {
       type="button"
       onClick={onTogglePin}
       title={pinLabel}
+      aria-label={pinLabel}
       className={`rounded p-1 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]
         ${pinned
           ? "text-[var(--accent)] bg-[var(--accent)]/10"
@@ -103,9 +106,9 @@ function DetachedTitleBar({ pinned, onTogglePin, pinLabel, transparent }: {
         className={`relative flex h-8 shrink-0 items-center border-b border-gray-100 dark:border-gray-800 ${barBg} px-2.5 select-none`}
       >
         <div className="flex items-center gap-1.5">
-          <TrafficLight color="#ff5f57" hoverColor="#ff3b30" onClick={() => win.hide()}>✕</TrafficLight>
-          <TrafficLight color="#febc2e" hoverColor="#f0a000" onClick={() => win.minimize()}>−</TrafficLight>
-          <TrafficLight color="#28c840" hoverColor="#1aab29" onClick={() => win.toggleMaximize()}>+</TrafficLight>
+          <TrafficLight color="#ff5f57" hoverColor="#ff3b30" onClick={() => win.hide()} label={t("common.hide")}>✕</TrafficLight>
+          <TrafficLight color="#febc2e" hoverColor="#f0a000" onClick={() => win.minimize()} label={t("common.minimize")}>−</TrafficLight>
+          <TrafficLight color="#28c840" hoverColor="#1aab29" onClick={() => win.toggleMaximize()} label={t("common.maximize")}>+</TrafficLight>
         </div>
         <span
           data-tauri-drag-region
@@ -134,7 +137,8 @@ function DetachedTitleBar({ pinned, onTogglePin, pinLabel, transparent }: {
         <button
           type="button"
           onClick={() => win.minimize()}
-          className="rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200/60 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-700/60 transition-colors focus:outline-none"
+          aria-label={t("common.minimize")}
+          className="rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200/60 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-700/60 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" d="M5 12h14" />
@@ -143,7 +147,8 @@ function DetachedTitleBar({ pinned, onTogglePin, pinLabel, transparent }: {
         <button
           type="button"
           onClick={() => win.toggleMaximize()}
-          className="rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200/60 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-700/60 transition-colors focus:outline-none"
+          aria-label={t("common.maximize")}
+          className="rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200/60 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-700/60 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <rect x="5" y="5" width="14" height="14" rx="1" />
@@ -152,7 +157,8 @@ function DetachedTitleBar({ pinned, onTogglePin, pinLabel, transparent }: {
         <button
           type="button"
           onClick={() => win.hide()}
-          className="rounded p-1 text-gray-400 hover:text-red-500 hover:bg-red-100/60 dark:text-gray-500 dark:hover:text-red-400 dark:hover:bg-red-900/40 transition-colors focus:outline-none"
+          aria-label={t("common.hide")}
+          className="rounded p-1 text-gray-400 hover:text-red-500 hover:bg-red-100/60 dark:text-gray-500 dark:hover:text-red-400 dark:hover:bg-red-900/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

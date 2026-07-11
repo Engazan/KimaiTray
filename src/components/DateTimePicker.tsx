@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 interface DateTimePickerProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   onClose?: () => void;
@@ -49,6 +50,7 @@ function startOfWeek(year: number, month: number) {
 }
 
 export default function DateTimePicker({
+  id,
   value,
   onChange,
   onClose,
@@ -265,6 +267,7 @@ export default function DateTimePicker({
   return (
     <div ref={ref} className="relative">
       <button
+        id={id}
         ref={buttonRef}
         type="button"
         onClick={() => {

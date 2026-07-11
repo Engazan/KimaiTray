@@ -19,6 +19,8 @@
     "showHide": "Show/Hide",
     "show": "Show",
     "hide": "Hide",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
     "saving": "Saving…",
     "more": "+more",
     "now": "Now",

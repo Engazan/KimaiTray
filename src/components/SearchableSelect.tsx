@@ -27,6 +27,7 @@ function Dot({ color, placeholder }: { color?: string | null; placeholder?: bool
 }
 
 interface SearchableSelectProps<T extends OptionValue> {
+  id?: string;
   options: Option<T>[];
   value: T | null;
   onChange: (value: T | null) => void;
@@ -37,6 +38,7 @@ interface SearchableSelectProps<T extends OptionValue> {
 }
 
 export default function SearchableSelect<T extends OptionValue>({
+  id: controlId,
   options,
   value,
   onChange,
@@ -46,7 +48,8 @@ export default function SearchableSelect<T extends OptionValue>({
   emptyLabel,
 }: SearchableSelectProps<T>) {
   const { t } = useTranslation();
-  const id = useId();
+  const generatedId = useId();
+  const id = controlId ?? generatedId;
   const listId = `${id}-listbox`;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -141,6 +144,7 @@ export default function SearchableSelect<T extends OptionValue>({
   return (
     <div ref={containerRef} className="relative">
       <button
+        id={id}
         type="button"
         onClick={() => {
           if (!disabled) setOpen(!open);

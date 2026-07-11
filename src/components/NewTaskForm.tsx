@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
@@ -41,12 +41,14 @@ const selectCls =
 function FieldLabel({
   children,
   required,
+  htmlFor,
 }: {
   children: React.ReactNode;
   required?: boolean;
+  htmlFor: string;
 }) {
   return (
-    <label className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+    <label htmlFor={htmlFor} className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
       <span>{children}</span>
       {required && (
         <span
@@ -73,6 +75,15 @@ export default function NewTaskForm({
   issueToken,
 }: NewTaskFormProps) {
   const { t } = useTranslation();
+  const formId = useId();
+  const customerControlId = `${formId}-customer`;
+  const projectControlId = `${formId}-project`;
+  const activityControlId = `${formId}-activity`;
+  const repositoryControlId = `${formId}-repository`;
+  const issueControlId = `${formId}-issue`;
+  const descriptionControlId = `${formId}-description`;
+  const tagsControlId = `${formId}-tags`;
+  const startTimeControlId = `${formId}-start-time`;
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<number | null>(null);
   const [activityId, setActivityId] = useState<number | null>(null);
@@ -287,8 +298,9 @@ export default function NewTaskForm({
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-1 space-y-3">
         {showCustomerSelect && (
           <div>
-            <FieldLabel>{t("newTask.customer")}</FieldLabel>
+            <FieldLabel htmlFor={customerControlId}>{t("newTask.customer")}</FieldLabel>
             <SearchableSelect
+              id={customerControlId}
               options={customers.map((c) => ({ value: c.id, label: c.name, color: c.color }))}
               value={customerId}
               onChange={handleCustomerChange}
@@ -301,8 +313,9 @@ export default function NewTaskForm({
         )}
 
         <div>
-          <FieldLabel required>{t("newTask.project")}</FieldLabel>
+          <FieldLabel htmlFor={projectControlId} required>{t("newTask.project")}</FieldLabel>
           <SearchableSelect
+            id={projectControlId}
             options={filteredProjects.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
             value={projectId}
             onChange={handleProjectChange}
@@ -312,8 +325,9 @@ export default function NewTaskForm({
         </div>
 
         <div>
-          <FieldLabel required>{t("newTask.activity")}</FieldLabel>
+          <FieldLabel htmlFor={activityControlId} required>{t("newTask.activity")}</FieldLabel>
           <SearchableSelect
+            id={activityControlId}
             options={filteredActivities.map((a) => ({ value: a.id, label: a.name, color: a.color }))}
             value={activityId}
             onChange={setActivityId}
@@ -326,8 +340,9 @@ export default function NewTaskForm({
           <div className="space-y-2">
             {repoOptions.length > 0 && (
               <div>
-                <FieldLabel>{t("integrations.repository")}</FieldLabel>
+                <FieldLabel htmlFor={repositoryControlId}>{t("integrations.repository")}</FieldLabel>
                 <SearchableSelect
+                  id={repositoryControlId}
                   options={repoOptions}
                   value={selectedRepo || null}
                   onChange={handleSelectRepo}
@@ -337,8 +352,9 @@ export default function NewTaskForm({
               </div>
             )}
             <div>
-              <FieldLabel>{t("integrations.issuePicker")}</FieldLabel>
+              <FieldLabel htmlFor={issueControlId}>{t("integrations.issuePicker")}</FieldLabel>
               <IssuePicker
+                id={issueControlId}
                 config={effectiveIssueConfig ?? issueIntegrationConfig}
                 token={issueToken}
                 connectionId={client.connectionId}
@@ -360,8 +376,9 @@ export default function NewTaskForm({
 
         {showNote && (
           <div>
-            <FieldLabel>{t("newTask.description")}</FieldLabel>
+            <FieldLabel htmlFor={descriptionControlId}>{t("newTask.description")}</FieldLabel>
             <textarea
+              id={descriptionControlId}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isSubmitting}
@@ -399,8 +416,9 @@ export default function NewTaskForm({
               <div className="mt-2 space-y-3">
                 {showTags && (
                   <div>
-                    <FieldLabel>{t("tags.label")}</FieldLabel>
+                    <FieldLabel htmlFor={tagsControlId}>{t("tags.label")}</FieldLabel>
                     <TagsInput
+                      id={tagsControlId}
                       tags={tags}
                       onChange={setTags}
                       disabled={isSubmitting}
@@ -413,9 +431,9 @@ export default function NewTaskForm({
                 {showCustomStartTime && (
                   <div>
                     <div className="mb-1 flex items-center gap-2">
-                      <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                      <label htmlFor={startTimeControlId} className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
                         {t("newTask.startTime")}
-                      </span>
+                      </label>
                       <button
                         type="button"
                         onClick={() => setUseCustomTime(!useCustomTime)}
@@ -426,6 +444,7 @@ export default function NewTaskForm({
                     </div>
                     {useCustomTime ? (
                       <DateTimePicker
+                        id={startTimeControlId}
                         value={beginTime}
                         onChange={setBeginTime}
                         disabled={isSubmitting}

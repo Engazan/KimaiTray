@@ -4,6 +4,7 @@ import type { KimaiTag } from "../api/tagApi";
 import TagPill from "./TagPill";
 
 interface TagsInputProps {
+  id?: string;
   tags: string[];
   onChange: (tags: string[]) => void;
   onCommit?: () => void;
@@ -15,6 +16,7 @@ interface TagsInputProps {
 }
 
 export default function TagsInput({
+  id: controlId,
   tags,
   onChange,
   onCommit,
@@ -23,7 +25,8 @@ export default function TagsInput({
   size = "sm",
 }: TagsInputProps) {
   const { t } = useTranslation();
-  const id = useId();
+  const generatedId = useId();
+  const id = controlId ?? generatedId;
   const listId = `${id}-listbox`;
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
@@ -137,6 +140,7 @@ export default function TagsInput({
           />
         ))}
         <input
+          id={id}
           ref={inputRef}
           type="text"
           value={input}

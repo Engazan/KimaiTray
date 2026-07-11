@@ -228,10 +228,12 @@ export default function ActiveTimerCard({
           </span>
           {onPause && (
             <button
+              type="button"
               onClick={onPause}
               disabled={!!isPausing || !!isStopping}
               title={t("pause.pause")}
-              className="p-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 transition-colors focus:outline-none"
+              aria-label={t("pause.pause")}
+              className="p-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
             >
               {isPausing ? (
                 <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-500" />
@@ -241,10 +243,12 @@ export default function ActiveTimerCard({
             </button>
           )}
           <button
+            type="button"
             onClick={onStop}
             disabled={!!isStopping || !!isPausing}
             title={t("timer.stopTimer")}
-            className="p-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors focus:outline-none"
+            aria-label={t("timer.stopTimer")}
+            className="p-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
           >
             {isStopping ? (
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-red-400/30 border-t-red-500" />
@@ -326,9 +330,11 @@ export default function ActiveTimerCard({
                   className="w-full text-[11px] bg-white dark:bg-gray-800 border border-emerald-300 dark:border-emerald-700 rounded px-1.5 py-0.5 text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
               ) : (
-                <p
+                <button
+                  type="button"
                   onClick={startEditDesc}
-                  className={`text-[11px] truncate ${
+                  disabled={!onEdit}
+                  className={`block w-full text-left text-[11px] truncate focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${
                     onEdit
                       ? "cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors"
                       : ""
@@ -339,7 +345,7 @@ export default function ActiveTimerCard({
                   }`}
                 >
                   {timer.description || t("timer.addNote")}
-                </p>
+                </button>
               )}
             </div>
             {issueUrl && !editingDesc && (
@@ -372,19 +378,22 @@ export default function ActiveTimerCard({
                 <TagsInput tags={tagsValue} onChange={saveTags} onCommit={commitTags} suggestions={tagSuggestions} />
               </div>
             ) : timer.tags.length > 0 ? (
-              <div
+              <button
+                type="button"
                 onClick={startEditTags}
-                className={onEdit ? "cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 py-0.5 transition-colors" : ""}
+                disabled={!onEdit}
+                className={`block w-full text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${onEdit ? "cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 py-0.5 transition-colors" : ""}`}
               >
                 <TagsList tags={timer.tags} maxVisible={3} />
-              </div>
+              </button>
             ) : onEdit ? (
-              <p
+              <button
+                type="button"
                 onClick={startEditTags}
-                className="text-[10px] text-gray-400 dark:text-gray-500 italic cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors"
+                className="block w-full text-left text-[10px] text-gray-400 dark:text-gray-500 italic cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
               >
                 {t("tags.addTags")}
-              </p>
+              </button>
             ) : null}
           </div>
         )}
@@ -415,6 +424,7 @@ export default function ActiveTimerCard({
               </div>
             ) : (
               <button
+                type="button"
                 onClick={startEditBegin}
                 disabled={!onEdit}
                 className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors disabled:hover:text-gray-400 dark:disabled:hover:text-gray-500 shrink-0"
@@ -426,9 +436,11 @@ export default function ActiveTimerCard({
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
             {onPause && (
               <button
+                type="button"
                 onClick={onPause}
                 disabled={!!isPausing || !!isStopping}
                 title={t("pause.pause")}
+                aria-label={t("pause.pause")}
                 className="p-1.5 rounded-md
                   bg-amber-500/10 text-amber-600 dark:text-amber-400
                   hover:bg-amber-500/20 active:bg-amber-500/30
@@ -443,9 +455,11 @@ export default function ActiveTimerCard({
               </button>
             )}
             <button
+              type="button"
               onClick={onStop}
               disabled={!!isStopping || !!isPausing}
               title={t("timer.stopTimer")}
+              aria-label={t("timer.stopTimer")}
               className="p-1.5 rounded-md
                 bg-red-500/10 text-red-600 dark:text-red-400
                 hover:bg-red-500/20 active:bg-red-500/30
@@ -463,7 +477,7 @@ export default function ActiveTimerCard({
 
         {/* Save error */}
         {saveError && (
-          <p className="pl-4 mt-1.5 text-[10px] text-red-500 dark:text-red-400 truncate">
+          <p role="alert" className="pl-4 mt-1.5 text-[10px] text-red-500 dark:text-red-400 truncate">
             {saveError}
           </p>
         )}

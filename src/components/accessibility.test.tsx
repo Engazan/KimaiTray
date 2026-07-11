@@ -50,8 +50,34 @@ describe("accessible custom controls", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("associates custom select triggers with their field labels", () => {
+    renderLocalized(
+      <div>
+        <label htmlFor="project-select">Project</label>
+        <SearchableSelect
+          id="project-select"
+          options={[{ value: 1, label: "Alpha" }]}
+          value={null}
+          onChange={vi.fn()}
+          placeholder="Choose project"
+        />
+      </div>,
+    );
+
+    expect(screen.getByLabelText("Project")).toBe(
+      screen.getByRole("button", { name: "Project" }),
+    );
+  });
+
   it("exposes API errors as an escapable modal dialog", async () => {
-    renderLocalized(<ApiErrorDialog />);
+    renderLocalized(
+      <>
+        <button type="button">Return target</button>
+        <ApiErrorDialog />
+      </>,
+    );
+    const returnTarget = screen.getByRole("button", { name: "Return target" });
+    returnTarget.focus();
     fireEvent(
       window,
       new CustomEvent("kimai-api-error", {
@@ -72,6 +98,8 @@ describe("accessible custom controls", () => {
     );
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(document.activeElement).toBe(returnTarget);
   });
 
   it("traps keyboard focus inside the idle decision dialog", async () => {
