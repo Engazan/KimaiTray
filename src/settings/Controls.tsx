@@ -29,7 +29,9 @@ export function FieldGroup({
             </div>
           )}
         </div>
-        <div className="shrink-0">{children}</div>
+        <div className="shrink-0" role="group" aria-label={label}>
+          {children}
+        </div>
       </div>
     );
   }
@@ -43,7 +45,9 @@ export function FieldGroup({
           {description}
         </div>
       )}
-      {children}
+      <div role="group" aria-label={label}>
+        {children}
+      </div>
     </div>
   );
 }

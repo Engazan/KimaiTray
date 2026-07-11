@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { KimaiTag } from "../api/tagApi";
 import TagPill from "./TagPill";
@@ -23,6 +23,8 @@ export default function TagsInput({
   size = "sm",
 }: TagsInputProps) {
   const { t } = useTranslation();
+  const id = useId();
+  const listId = `${id}-listbox`;
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -145,6 +147,12 @@ export default function TagsInput({
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
+          role="combobox"
+          aria-expanded={open && !disabled}
+          aria-controls={listId}
+          aria-activedescendant={
+            available[highlight] ? `${id}-option-${highlight}` : undefined
+          }
           placeholder={tags.length === 0 ? t("tags.placeholder") : ""}
           className={`flex-1 min-w-[60px] bg-transparent text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none disabled:opacity-40 ${
             size === "md" ? "text-[13px]" : "text-xs"
@@ -156,11 +164,16 @@ export default function TagsInput({
         <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 dark:border-white/15 bg-white dark:bg-[#2a2a2e] shadow-lg overflow-hidden">
           <div
             ref={listRef}
+            id={listId}
+            role="listbox"
             className="max-h-[160px] overflow-y-auto overscroll-contain py-0.5"
           >
             {available.map((tag, i) => (
               <button
                 key={tag.name}
+                id={`${id}-option-${i}`}
+                role="option"
+                aria-selected={false}
                 type="button"
                 // Keep input focused so the click registers before blur.
                 onMouseDown={(e) => e.preventDefault()}

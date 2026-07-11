@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { ExternalIssue, IssueIntegrationSettings } from "./types";
 import { useIssues } from "./useIssues";
@@ -60,6 +60,8 @@ export default function IssuePicker({
   projectName,
 }: IssuePickerProps) {
   const { t } = useTranslation();
+  const id = useId();
+  const listId = `${id}-listbox`;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -159,6 +161,9 @@ export default function IssuePicker({
             if (!disabled) setOpen(!open);
           }}
           disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={open ? listId : undefined}
           className="min-w-0 flex-1 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.08] px-3 py-2 text-[13px] text-left focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none disabled:opacity-40 transition-colors flex items-center justify-between gap-1"
         >
           <span
@@ -194,6 +199,7 @@ export default function IssuePicker({
           <button
             type="button"
             onClick={() => onSelectIssue(null)}
+            aria-label={t("common.delete")}
             className="shrink-0 rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none"
           >
             <svg
@@ -222,12 +228,23 @@ export default function IssuePicker({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
+              role="combobox"
+              aria-expanded={open}
+              aria-controls={listId}
+              aria-activedescendant={
+                issues[highlightIndex]
+                  ? `${id}-option-${highlightIndex}`
+                  : undefined
+              }
               placeholder={t("integrations.issuePickerPlaceholder")}
               className="w-full rounded-md bg-gray-50 dark:bg-white/[0.06] px-2.5 py-1.5 text-[12px] text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none"
             />
           </div>
           <div
             ref={listRef}
+            id={listId}
+            role="listbox"
+            aria-busy={isLoading}
             className="max-h-[180px] overflow-y-auto overscroll-contain py-0.5"
           >
             {isLoading ? (
@@ -247,6 +264,9 @@ export default function IssuePicker({
                 return (
                 <button
                   key={issue.id}
+                  id={`${id}-option-${i}`}
+                  role="option"
+                  aria-selected={selectedIssue?.id === issue.id}
                   type="button"
                   onClick={() => select(issue)}
                   title={suggested ? t("integrations.issueSuggestedForProject") : undefined}
