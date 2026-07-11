@@ -47,7 +47,9 @@ fn format_elapsed(secs: u64, show_seconds: bool) -> String {
 
 fn tick_tray(app: &AppHandle) {
     let snapshot = {
-        let state = TRAY_TICKER_STATE.lock().unwrap();
+        let state = TRAY_TICKER_STATE
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         match &*state {
             TrayTickerState::Running(c) => Some((
                 c.begin_seconds,
@@ -88,6 +90,14 @@ pub fn start_tray_ticker(
     label_style: String,
     show_seconds: bool,
 ) -> Result<(), String> {
+    validate_text(&project, 256, "Project")?;
+    validate_text(&activity, 256, "Activity")?;
+    if !matches!(
+        label_style.as_str(),
+        "timer" | "project" | "activity" | "hidden"
+    ) {
+        return Err("Invalid tray label style".into());
+    }
     {
         let mut state = TRAY_TICKER_STATE.lock().map_err(|e| e.to_string())?;
         *state = TrayTickerState::Running(TrayTickerRunning {
@@ -117,12 +127,14 @@ pub fn stop_tray_ticker(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn set_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
+    validate_text(&text, 768, "Tray tooltip")?;
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn set_tray_title(app: AppHandle, title: String) -> Result<(), String> {
+    validate_text(&title, 256, "Tray title")?;
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     // Always pass Some — tray-icon's macOS impl ignores None instead of clearing
     tray.set_title(Some(&title)).map_err(|e| e.to_string())
@@ -160,6 +172,13 @@ fn state_code(state: &str) -> u8 {
     }
 }
 
+fn validate_text(value: &str, maximum: usize, name: &str) -> Result<(), String> {
+    if value.chars().count() > maximum {
+        return Err(format!("{name} exceeds {maximum} characters"));
+    }
+    Ok(())
+}
+
 fn size_code(size: &str) -> u8 {
     match size {
         "small" => 0,
@@ -191,18 +210,27 @@ fn render_current_icon(app: &AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn set_tray_icon(app: AppHandle, state: String) -> Result<(), String> {
+    if !matches!(state.as_str(), "idle" | "running" | "paused" | "error") {
+        return Err("Invalid tray icon state".into());
+    }
     TRAY_ICON_STATE.store(state_code(&state), Ordering::SeqCst);
     render_current_icon(&app)
 }
 
 #[tauri::command]
 pub fn set_tray_icon_size(app: AppHandle, size: String) -> Result<(), String> {
+    if !matches!(size.as_str(), "small" | "medium" | "large" | "xlarge") {
+        return Err("Invalid tray icon size".into());
+    }
     TRAY_ICON_SIZE.store(size_code(&size), Ordering::SeqCst);
     render_current_icon(&app)
 }
 
 #[tauri::command]
 pub fn set_tray_icon_shape(app: AppHandle, shape: String) -> Result<(), String> {
+    if !matches!(shape.as_str(), "dot" | "ring" | "square" | "clock") {
+        return Err("Invalid tray icon shape".into());
+    }
     TRAY_ICON_SHAPE.store(shape_code(&shape), Ordering::SeqCst);
     render_current_icon(&app)
 }
@@ -215,10 +243,12 @@ pub fn set_tray_colors(
     paused: String,
     error: String,
 ) -> Result<(), String> {
-    for (idx, hex) in [idle, running, paused, error].iter().enumerate() {
-        if let Some(packed) = parse_hex_color(hex) {
-            TRAY_COLORS[idx].store(packed, Ordering::SeqCst);
-        }
+    let parsed = [idle, running, paused, error]
+        .iter()
+        .map(|hex| parse_hex_color(hex).ok_or_else(|| format!("Invalid tray color: {hex}")))
+        .collect::<Result<Vec<_>, _>>()?;
+    for (idx, packed) in parsed.into_iter().enumerate() {
+        TRAY_COLORS[idx].store(packed, Ordering::SeqCst);
     }
     render_current_icon(&app)
 }
@@ -692,7 +722,7 @@ pub fn set_popup_vibrancy(app: AppHandle, enabled: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_popup_geometry;
+    use super::{parse_hex_color, validate_popup_geometry, validate_text};
 
     #[test]
     fn popup_geometry_accepts_supported_values() {
@@ -704,6 +734,14 @@ mod tests {
         assert!(validate_popup_geometry(f64::NAN, 640.0, 1.0).is_err());
         assert!(validate_popup_geometry(360.0, f64::INFINITY, 1.0).is_err());
         assert!(validate_popup_geometry(360.0, 640.0, 10.0).is_err());
+    }
+
+    #[test]
+    fn native_text_and_color_inputs_are_bounded() {
+        assert!(validate_text("Kimai", 5, "label").is_ok());
+        assert!(validate_text("KimaiTray", 5, "label").is_err());
+        assert_eq!(parse_hex_color("#10b981"), Some(0x10_b9_81));
+        assert_eq!(parse_hex_color("not-a-color"), None);
     }
 }
 
@@ -771,6 +809,15 @@ pub fn update_tray_menu(
     refresh_label: String,
     quit_label: String,
 ) -> Result<(), String> {
+    for (name, label) in [
+        ("Toggle label", &toggle_label),
+        ("Settings label", &settings_label),
+        ("Open Kimai label", &open_kimai_label),
+        ("Refresh label", &refresh_label),
+        ("Quit label", &quit_label),
+    ] {
+        validate_text(label, 128, name)?;
+    }
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     let menu = build_tray_menu(
         &app,
@@ -790,6 +837,12 @@ pub fn set_tray_click_actions(
     left_action: String,
     right_action: String,
 ) -> Result<(), String> {
+    if !matches!(left_action.as_str(), "popup" | "nothing") {
+        return Err("Invalid left-click action".into());
+    }
+    if !matches!(right_action.as_str(), "menu" | "popup") {
+        return Err("Invalid right-click action".into());
+    }
     let left = if left_action == "nothing" { 1u8 } else { 0u8 };
     let right = if right_action == "popup" { 1u8 } else { 0u8 };
 
