@@ -73,21 +73,15 @@ pub async fn save_api_token(app: AppHandle, base_url: String, token: String) -> 
     let account = token_key(&base_url);
     let keyring_account = account.clone();
     let keyring_token = token.clone();
-    let secure_result = tauri::async_runtime::spawn_blocking(move || {
-        save_to_keyring(&keyring_account, &keyring_token)
-    })
-    .await
-    .map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || save_to_keyring(&keyring_account, &keyring_token))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|_| "OS credential store is unavailable".to_string())?;
 
     let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
-    if secure_result.is_ok() {
-        store.delete(&account);
-    } else {
-        // Compatibility fallback for Linux desktops without Secret Service.
-        // The secure backend is retried on every subsequent read.
-        warn!("OS credential store unavailable; using compatibility fallback");
-        store.set(account, serde_json::Value::String(token));
-    }
+    // Remove any value created by versions that used the settings store as a
+    // compatibility fallback. New credentials are never written there.
+    store.delete(&account);
     store.save().map_err(|e| e.to_string())
 }
 
@@ -119,10 +113,9 @@ pub async fn get_api_token(app: AppHandle, base_url: String) -> Result<Option<St
         })
         .await
         .map_err(|e| e.to_string())?;
-        if migrated.is_ok() {
-            store.delete(&account);
-            store.save().map_err(|e| e.to_string())?;
-        }
+        migrated.map_err(|_| "OS credential store is unavailable".to_string())?;
+        store.delete(&account);
+        store.save().map_err(|e| e.to_string())?;
         return Ok(Some(token));
     }
     secure.map(|_| None)

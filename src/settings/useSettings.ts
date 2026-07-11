@@ -97,14 +97,23 @@ export function useSettings() {
         kimaiUrl: conn.url,
       };
       setSettings(next);
-      await saveSettings(next);
+      try {
+        await saveSettings(next);
 
-      // Tokens are keyed by connection id, so editing a connection's URL no
-      // longer needs to move the token between URL keys.
-      if (newToken) {
-        await saveConnectionToken(conn.id, newToken);
-      } else {
-        await deleteConnectionToken(conn.id);
+        // Tokens are keyed by connection id, so editing a connection's URL no
+        // longer needs to move the token between URL keys.
+        if (newToken) {
+          await saveConnectionToken(conn.id, newToken);
+        } else {
+          await deleteConnectionToken(conn.id);
+        }
+      } catch (error) {
+        // Do not leave a connection selected when its credential could not be
+        // persisted securely. Restore the previous settings best-effort and
+        // surface the original failure to the form.
+        setSettings(prev);
+        await saveSettings(prev).catch(() => {});
+        throw error;
       }
       setToken(newToken);
       activeIdRef.current = conn.id;

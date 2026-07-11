@@ -137,7 +137,13 @@ export default function ConnectionSection({
       }
       const id = editingId || crypto.randomUUID();
 
-      await saveConnection({ id, name: connName, url }, editToken);
+      try {
+        await saveConnection({ id, name: connName, url }, editToken);
+      } catch {
+        setStatus("error");
+        setStatusMessage(t("connection.unexpectedError"));
+        return;
+      }
       setEditingId(id);
       onSelectedConnectionChange(id);
       if (!name) setName(connName);
