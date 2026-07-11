@@ -328,7 +328,13 @@ export default function TrayPopup() {
         body: t("notifications.idleWhileTracking", { minutes: mins, project: timer?.project ?? "timer" }),
       });
     }).catch(() => {});
-  }, [idleState]);
+  }, [
+    idleState,
+    idleSettings.showIdleNotification,
+    idleDurationSeconds,
+    timer?.project,
+    t,
+  ]);
 
   const linkedIssueRef = useRef<ExternalIssue | null>(null);
   const linkedIssueConnectionRef = useRef<string | null>(null);
@@ -387,8 +393,7 @@ export default function TrayPopup() {
       }
     }
   }, [
-    timer?.id,
-    timer?.beginSeconds,
+    timer,
     issueIntegration,
     issueToken,
     activeConnectionId,
@@ -426,9 +431,13 @@ export default function TrayPopup() {
   ]);
 
   // Auto-handle idle for non-"ask" actions
+  const handledIdleStartRef = useRef<number | null>(null);
   useEffect(() => {
     if (idleState !== "returned" || idleSettings.idleAction === "ask") return;
     if (!client || !timer) return;
+    const idleKey = idleStartedAt?.getTime() ?? 0;
+    if (handledIdleStartRef.current === idleKey) return;
+    handledIdleStartRef.current = idleKey;
 
     const handle = async () => {
       setIdleProcessing(true);
@@ -452,7 +461,15 @@ export default function TrayPopup() {
       }
     };
     handle();
-  }, [idleState, idleSettings.idleAction]);
+  }, [
+    idleState,
+    idleSettings.idleAction,
+    client,
+    timer,
+    idleStartedAt,
+    dismissIdle,
+    qc,
+  ]);
 
   const handleIdleContinue = useCallback(() => {
     dismissIdle();
@@ -471,7 +488,9 @@ export default function TrayPopup() {
       try {
         await stopTimesheet(client, timer.id);
         invalidateTimesheets(qc);
-      } catch {}
+      } catch {
+        // Both corrections failed; keep the dialog dismissal behavior.
+      }
     } finally {
       setIdleProcessing(false);
       dismissIdle();
@@ -504,7 +523,9 @@ export default function TrayPopup() {
       try {
         await stopTimesheet(client, timer.id);
         invalidateTimesheets(qc);
-      } catch {}
+      } catch {
+        // Both corrections failed; the normal query refresh can recover later.
+      }
     } finally {
       setIdleProcessing(false);
       dismissIdle();
@@ -527,6 +548,7 @@ export default function TrayPopup() {
   }, [showNewTask, isDetached]);
 
   // Update tray icon state
+  const hasTimer = !!timer;
   useEffect(() => {
     if (status === "error" || status === "offline") {
       setTrayIcon("error");
@@ -537,7 +559,7 @@ export default function TrayPopup() {
     } else {
       setTrayIcon("idle");
     }
-  }, [status, !!timer, hasPausedTimers]);
+  }, [status, hasTimer, hasPausedTimers, timer]);
 
   // Update tray tooltip and menu bar title.
   // The per-second tick runs in a native Rust thread (start/stopTrayTicker)
@@ -572,7 +594,7 @@ export default function TrayPopup() {
     return () => {
       stopTrayTicker();
     };
-  }, [timer?.id, timer?.beginSeconds, timer?.project, timer?.activity, hasPausedTimers, pausedTimers, traySettings, t]);
+  }, [timer, hasPausedTimers, pausedTimers, traySettings, t]);
 
   const visibleFavorites = useMemo(
     () => (activeKey ? favorites.filter((f) => f.key !== activeKey) : favorites),
@@ -701,7 +723,7 @@ export default function TrayPopup() {
       taskKeyOf(timer.projectId, timer.activityId),
       linkedIssue,
     );
-  }, [timer?.id, linkedIssue, activeConnectionId]);
+  }, [timer, linkedIssue, activeConnectionId]);
 
   // When the in-memory link is gone (after a reload/restart), restore it for
   // the running timer from localStorage and/or the issue URL in the

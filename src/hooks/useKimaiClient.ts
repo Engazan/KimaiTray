@@ -6,6 +6,7 @@ import { loadSettings, onSettingsChange, saveSettings, defaultFeatureSettings } 
 import type { SavedConnection, ColorMode } from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
 import { getIssueToken } from "../integrations/issues/issueTokenStore";
+import { LatestRequest } from "../utils/latestRequest";
 
 interface IdleSettings {
   enableIdleDetection: boolean;
@@ -124,10 +125,10 @@ export function useKimaiClient(): UseKimaiClientResult {
 
   const baseUrlRef = useRef("");
   const activeIdRef = useRef("");
-  const settingsGenerationRef = useRef(0);
+  const settingsRequestsRef = useRef(new LatestRequest());
 
   const applySettings = useCallback(async (s: Awaited<ReturnType<typeof loadSettings>>) => {
-    const generation = ++settingsGenerationRef.current;
+    const generation = settingsRequestsRef.current.begin();
     const nextConnId = s.activeConnectionId ?? "";
     const urlChanged = s.kimaiUrl !== baseUrlRef.current;
     const connChanged = nextConnId !== activeIdRef.current;
@@ -184,10 +185,10 @@ export function useKimaiClient(): UseKimaiClientResult {
     if (issueConfig.enabled && connId) {
       try {
         const it = await getIssueToken(connId);
-        if (generation !== settingsGenerationRef.current) return;
+        if (!settingsRequestsRef.current.isCurrent(generation)) return;
         setIssueToken(it);
       } catch {
-        if (generation !== settingsGenerationRef.current) return;
+        if (!settingsRequestsRef.current.isCurrent(generation)) return;
         setIssueToken(null);
       }
     } else {
@@ -196,10 +197,10 @@ export function useKimaiClient(): UseKimaiClientResult {
     if (s.kimaiUrl || connId) {
       try {
         const t = await getConnectionToken(connId, s.kimaiUrl);
-        if (generation !== settingsGenerationRef.current) return;
+        if (!settingsRequestsRef.current.isCurrent(generation)) return;
         setToken(t ?? "");
       } catch {
-        if (generation !== settingsGenerationRef.current) return;
+        if (!settingsRequestsRef.current.isCurrent(generation)) return;
         setToken("");
       }
     } else {
@@ -239,9 +240,9 @@ export function useKimaiClient(): UseKimaiClientResult {
   }, [load]);
 
   const switchConnection = useCallback(async (id: string) => {
-    const generation = ++settingsGenerationRef.current;
+    const generation = settingsRequestsRef.current.begin();
     const s = await loadSettings();
-    if (generation !== settingsGenerationRef.current) return;
+    if (!settingsRequestsRef.current.isCurrent(generation)) return;
     const conn = s.connections.find((c) => c.id === id);
     if (!conn) return;
 
@@ -249,7 +250,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     try {
       t = (await getConnectionToken(conn.id, conn.url)) ?? "";
     } catch { /* token load failed */ }
-    if (generation !== settingsGenerationRef.current) return;
+    if (!settingsRequestsRef.current.isCurrent(generation)) return;
 
     baseUrlRef.current = conn.url;
     setBaseUrl(conn.url);

@@ -44,9 +44,15 @@ export function useEntityLookup(
     staleTime: 5 * 60 * 1000,
   });
 
-  const baseProjects = projectsQ.data ?? [];
-  const baseActivities = activitiesQ.data ?? [];
-  const baseCustomers = customersQ.data ?? [];
+  const baseProjects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
+  const baseActivities = useMemo(
+    () => activitiesQ.data ?? [],
+    [activitiesQ.data],
+  );
+  const baseCustomers = useMemo(
+    () => customersQ.data ?? [],
+    [customersQ.data],
+  );
 
   const missingProjectIds = useMemo(() => {
     if (!projectsQ.isSuccess) return [];

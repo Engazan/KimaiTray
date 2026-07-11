@@ -56,7 +56,7 @@ export default function DateTimePicker({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  const parsed = value ? new Date(value) : null;
+  const parsed = useMemo(() => (value ? new Date(value) : null), [value]);
   const [viewYear, setViewYear] = useState(parsed?.getFullYear() ?? new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(parsed?.getMonth() ?? new Date().getMonth());
   const [hour, setHour] = useState(parsed ? pad(parsed.getHours()) : pad(new Date().getHours()));
@@ -81,7 +81,7 @@ export default function DateTimePicker({
       setHour(pad(parsed.getHours()));
       setMinute(pad(parsed.getMinutes()));
     }
-  }, [open]);
+  }, [open, parsed]);
 
   useLayoutEffect(() => {
     if (!open) return;

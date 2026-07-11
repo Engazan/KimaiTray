@@ -1,3 +1,5 @@
+import { safeHttpFetch } from "./safeHttp";
+
 // ── Error types ────────────────────────────────────────────────
 
 export type KimaiErrorCode =
@@ -158,7 +160,7 @@ async function request<T>(
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 30_000);
   try {
-    response = await fetch(url, {
+    response = await safeHttpFetch(url, {
       method,
       headers: {
         Authorization: `Bearer ${token}`,

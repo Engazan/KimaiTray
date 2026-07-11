@@ -27,6 +27,7 @@ import {
   Toggle,
 } from "../Controls";
 import { ChevronLeft } from "../icons";
+import { LatestRequest } from "../../utils/latestRequest";
 
 const PROVIDER_API_VERSION: Record<
   IssueIntegrationSettings["provider"],
@@ -203,22 +204,22 @@ export default function IssueIntegrationDetail({
   const [availableRepos, setAvailableRepos] = useState<ExternalRepo[]>([]);
   const [reposLoading, setReposLoading] = useState(false);
   const [manualRepo, setManualRepo] = useState(false);
-  const tokenLoadGenerationRef = useRef(0);
+  const tokenLoadRequestsRef = useRef(new LatestRequest());
 
   useEffect(() => {
-    const generation = ++tokenLoadGenerationRef.current;
+    const generation = tokenLoadRequestsRef.current.begin();
     if (!connectionId) {
       setIssueToken("");
       return;
     }
     getIssueToken(connectionId)
       .then((t) => {
-        if (generation === tokenLoadGenerationRef.current) {
+        if (tokenLoadRequestsRef.current.isCurrent(generation)) {
           setIssueToken(t ?? "");
         }
       })
       .catch(() => {
-        if (generation === tokenLoadGenerationRef.current) {
+        if (tokenLoadRequestsRef.current.isCurrent(generation)) {
           setIssueToken("");
         }
       });

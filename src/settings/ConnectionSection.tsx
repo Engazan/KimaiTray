@@ -12,6 +12,7 @@ import {
   SettingsRowStacked,
 } from "./SettingsLayout";
 import { LockClosed } from "./icons";
+import { LatestRequest } from "../utils/latestRequest";
 
 interface Props {
   settings: AppSettings;
@@ -45,11 +46,11 @@ export default function ConnectionSection({
     "idle" | "testing" | "connected" | "error"
   >("idle");
   const [statusMessage, setStatusMessage] = useState("");
-  const formLoadGenerationRef = useRef(0);
+  const formLoadRequestsRef = useRef(new LatestRequest());
 
   const loadFormForConnection = useCallback(
     async (id: string | null) => {
-      const generation = ++formLoadGenerationRef.current;
+      const generation = formLoadRequestsRef.current.begin();
       setEditingId(id);
       setStatus("idle");
       setStatusMessage("");
@@ -64,10 +65,10 @@ export default function ConnectionSection({
           setUrl(conn.url);
           try {
             const tok = await getConnectionToken(conn.id, conn.url);
-            if (generation !== formLoadGenerationRef.current) return;
+            if (!formLoadRequestsRef.current.isCurrent(generation)) return;
             setEditToken(tok ?? "");
           } catch {
-            if (generation !== formLoadGenerationRef.current) return;
+            if (!formLoadRequestsRef.current.isCurrent(generation)) return;
             setEditToken("");
           }
         }

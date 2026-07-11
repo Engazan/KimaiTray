@@ -6,6 +6,7 @@ import {
   getConnectionToken,
   saveConnectionToken,
 } from "../api/connectionTokenStore";
+import { LatestRequest } from "../utils/latestRequest";
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -14,6 +15,7 @@ export function useSettings() {
   // Id of the connection whose token is currently loaded into `token`.
   const activeIdRef = useRef("");
   const settingsRef = useRef(settings);
+  const tokenLoadRequestsRef = useRef(new LatestRequest());
   settingsRef.current = settings;
 
   useEffect(() => {
@@ -25,15 +27,25 @@ export function useSettings() {
   }, []);
 
   async function loadToken(connectionId: string, legacyUrl: string) {
+    const generation = tokenLoadRequestsRef.current.begin();
     try {
       const t = await getConnectionToken(connectionId, legacyUrl);
-      if (activeIdRef.current !== connectionId) return;
+      if (
+        activeIdRef.current !== connectionId ||
+        !tokenLoadRequestsRef.current.isCurrent(generation)
+      ) return;
       setToken(t ?? "");
     } catch {
-      if (activeIdRef.current !== connectionId) return;
+      if (
+        activeIdRef.current !== connectionId ||
+        !tokenLoadRequestsRef.current.isCurrent(generation)
+      ) return;
       setToken("");
     } finally {
-      if (activeIdRef.current === connectionId) setLoaded(true);
+      if (
+        activeIdRef.current === connectionId &&
+        tokenLoadRequestsRef.current.isCurrent(generation)
+      ) setLoaded(true);
     }
   }
 

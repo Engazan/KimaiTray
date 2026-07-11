@@ -43,7 +43,7 @@ export function useActiveTimer(
     refetchInterval: refreshIntervalSec * 1000,
   });
 
-  const entries = activeQ.data ?? [];
+  const entries = useMemo(() => activeQ.data ?? [], [activeQ.data]);
 
   const neededIds = useMemo(() => {
     const projectIds = [...new Set(entries.map((e) => extractId(e.project)))];

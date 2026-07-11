@@ -1,4 +1,4 @@
-import { fetch } from "@tauri-apps/plugin-http";
+import { safeHttpFetch as fetch } from "../../api/safeHttp";
 import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIntegrationSettings } from "./types";
 import { logger } from "../../utils/logger";
 
