@@ -32,7 +32,17 @@ if (mismatches.length > 0) {
   process.exit(1);
 }
 
+const changelog = readFileSync("CHANGELOG.md", "utf8");
+if (!changelog.includes(`## [${packageVersion}]`)) {
+  console.error(`CHANGELOG.md has no section for ${packageVersion}`);
+  process.exit(1);
+}
+
 const tag = process.env.GITHUB_REF_TYPE === "tag" ? process.env.GITHUB_REF_NAME : "";
+if (tag && !/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(tag)) {
+  console.error(`Release tag ${tag} is not a supported semantic version`);
+  process.exit(1);
+}
 if (tag && tag !== `v${packageVersion}`) {
   console.error(`Release tag ${tag} does not match v${packageVersion}`);
   process.exit(1);
