@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { check, type Update } from "@tauri-apps/plugin-updater";
 import { logger } from "../utils/logger";
+import { checkForUpdate, installUpdate } from "../api/updater";
 
 interface UpdaterState {
   available: boolean;
@@ -11,7 +11,7 @@ interface UpdaterState {
   error: string | null;
   upToDate: boolean;
   install: (() => Promise<void>) | null;
-  checkNow: () => void;
+  checkNow: () => Promise<void>;
 }
 
 export function useUpdater(autoUpdate = true): UpdaterState {
@@ -27,56 +27,76 @@ export function useUpdater(autoUpdate = true): UpdaterState {
   });
 
   const autoUpdateRef = useRef(autoUpdate);
+  const checkInFlightRef = useRef<Promise<void> | null>(null);
   autoUpdateRef.current = autoUpdate;
 
-  const doCheck = useCallback(async () => {
-    setState((s) => ({ ...s, checking: true, error: null, upToDate: false }));
+  const doCheck = useCallback(() => {
+    if (checkInFlightRef.current) return checkInFlightRef.current;
 
-    async function installUpdate(update: Update) {
+    const run = async () => {
+      setState((s) => ({
+        ...s,
+        available: false,
+        version: null,
+        body: null,
+        downloading: false,
+        checking: true,
+        error: null,
+        upToDate: false,
+        install: null,
+      }));
+
+      const runInstall = async (update: Awaited<ReturnType<typeof checkForUpdate>>) => {
+        if (!update) return;
       setState((s) => ({ ...s, downloading: true, error: null }));
       try {
-        await update.downloadAndInstall();
-        const { relaunch } = await import("@tauri-apps/plugin-process");
-        await relaunch();
+          await installUpdate(update);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         logger.error(`Update install failed: ${msg}`);
         setState((s) => ({ ...s, downloading: false, error: msg }));
       }
-    }
+      };
 
-    try {
-      const update: Update | null = await check();
+      try {
+        const update = await checkForUpdate();
 
-      if (update) {
-        logger.info(`Update available: ${update.version}`);
-        setState({
-          available: true,
-          version: update.version,
-          body: update.body ?? null,
-          downloading: autoUpdateRef.current,
-          checking: false,
-          error: null,
-          upToDate: false,
-          install: () => installUpdate(update),
-        });
+        if (update) {
+          logger.info(`Update available: ${update.version}`);
+          setState({
+            available: true,
+            version: update.version,
+            body: update.body ?? null,
+            downloading: autoUpdateRef.current,
+            checking: false,
+            error: null,
+            upToDate: false,
+            install: () => runInstall(update),
+          });
 
-        if (autoUpdateRef.current) {
-          installUpdate(update);
+          if (autoUpdateRef.current) {
+            void runInstall(update);
+          }
+        } else {
+          logger.debug("App is up to date");
+          setState((s) => ({ ...s, checking: false, upToDate: true }));
         }
-      } else {
-        logger.debug("App is up to date");
-        setState((s) => ({ ...s, checking: false, upToDate: true }));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.debug(`Update check skipped: ${msg}`);
+        setState((s) => ({ ...s, checking: false, error: msg }));
       }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      logger.debug(`Update check skipped: ${msg}`);
-      setState((s) => ({ ...s, checking: false, error: msg }));
-    }
+    };
+
+    const promise = run().finally(() => {
+      checkInFlightRef.current = null;
+    });
+    checkInFlightRef.current = promise;
+    return promise;
   }, []);
 
   useEffect(() => {
-    doCheck();
+    void doCheck();
   }, [doCheck]);
 
   return { ...state, checkNow: doCheck };

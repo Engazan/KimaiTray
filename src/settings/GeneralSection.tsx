@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { check } from "@tauri-apps/plugin-updater";
 import type { AppSettings } from "../types";
+import { checkForUpdate, installUpdate } from "../api/updater";
 import i18n from "../shared/i18n";
 import { resolveLanguage, type LanguageSetting } from "../shared/i18n";
 import { Select, Toggle } from "./Controls";
@@ -65,13 +65,11 @@ export default function GeneralSection({ settings, update }: Props) {
     setChecking(true);
     setUpdateResult(null);
     try {
-      const upd = await check();
+      const upd = await checkForUpdate();
       if (upd) {
         setUpdateResult("available");
         setUpdateVersion(upd.version);
-        await upd.downloadAndInstall();
-        const { relaunch } = await import("@tauri-apps/plugin-process");
-        await relaunch();
+        await installUpdate(upd);
       } else {
         setUpdateResult("upToDate");
       }
