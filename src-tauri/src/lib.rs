@@ -5,12 +5,64 @@ mod shortcuts;
 mod tray;
 
 use log::{error, info};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tauri_plugin_log::{Target, TargetKind};
 
 /// Bundle identifier used before the KimaiMate → KimaiTray rename.
 /// Old installs stored their data under this identifier.
 const LEGACY_IDENTIFIER: &str = "eu.engazan.kimaimate";
+
+fn legacy_settings_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    let new_dir = app.path().app_data_dir().ok()?;
+    let base = new_dir.parent()?;
+    Some(base.join(LEGACY_IDENTIFIER).join("settings.json"))
+}
+
+fn persist_bytes_atomically(path: &Path, bytes: &[u8], overwrite: bool) -> Result<(), String> {
+    let parent = path.parent().ok_or("Settings path has no parent")?;
+    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
+    temporary.write_all(bytes).map_err(|e| e.to_string())?;
+    temporary
+        .as_file_mut()
+        .sync_all()
+        .map_err(|e| e.to_string())?;
+
+    if let Ok(metadata) = std::fs::metadata(path) {
+        temporary
+            .as_file()
+            .set_permissions(metadata.permissions())
+            .map_err(|e| e.to_string())?;
+    }
+
+    if overwrite {
+        temporary.persist(path).map_err(|e| e.error.to_string())?;
+    } else {
+        temporary
+            .persist_noclobber(path)
+            .map_err(|e| e.error.to_string())?;
+    }
+    Ok(())
+}
+
+pub(crate) fn scrub_legacy_store_key(path: &Path, key: &str) -> Result<bool, String> {
+    if !path.exists() {
+        return Ok(false);
+    }
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let Some(object) = value.as_object_mut() else {
+        return Err("Legacy settings root is not an object".into());
+    };
+    if object.remove(key).is_none() {
+        return Ok(false);
+    }
+    let sanitized = serde_json::to_vec(&value).map_err(|e| e.to_string())?;
+    persist_bytes_atomically(path, &sanitized, true)?;
+    Ok(true)
+}
 
 /// Migrate user data from the pre-rename data directory.
 ///
@@ -29,17 +81,18 @@ fn migrate_legacy_data(app: &tauri::AppHandle) {
     let Ok(new_dir) = app.path().app_data_dir() else {
         return;
     };
-    let Some(base) = new_dir.parent() else {
+    let Some(old_settings) = legacy_settings_path(app) else {
         return;
     };
-    let old_dir = base.join(LEGACY_IDENTIFIER);
+    let Some(old_dir) = old_settings.parent() else {
+        return;
+    };
     // Nothing to do for fresh installs, or if the identifier was never renamed.
     if old_dir == new_dir || !old_dir.exists() {
         return;
     }
 
     let new_settings = new_dir.join("settings.json");
-    let old_settings = old_dir.join("settings.json");
     if new_settings.exists() || !old_settings.exists() {
         return;
     }
@@ -48,8 +101,14 @@ fn migrate_legacy_data(app: &tauri::AppHandle) {
         error!("data migration: failed to create {new_dir:?}: {e}");
         return;
     }
-    match std::fs::copy(&old_settings, &new_settings) {
-        Ok(_) => info!("Migrated settings.json from legacy data dir {old_dir:?}"),
+    let migrated = std::fs::read(&old_settings)
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| {
+            serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|e| e.to_string())?;
+            persist_bytes_atomically(&new_settings, &bytes, false)
+        });
+    match migrated {
+        Ok(()) => info!("Migrated settings.json from legacy data directory"),
         Err(e) => error!("data migration: failed to copy settings.json: {e}"),
     }
 }
@@ -170,4 +229,27 @@ pub fn run() {
             eprintln!("Fatal: failed to start KimaiTray: {e}");
             std::process::exit(1);
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{persist_bytes_atomically, scrub_legacy_store_key};
+
+    #[test]
+    fn atomically_scrubs_only_the_requested_legacy_credential() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("settings.json");
+        persist_bytes_atomically(
+            &path,
+            br#"{"api-token:legacy":"secret","settings":{"theme":"dark"}}"#,
+            false,
+        )
+        .unwrap();
+
+        assert!(scrub_legacy_store_key(&path, "api-token:legacy").unwrap());
+        let stored: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert!(stored.get("api-token:legacy").is_none());
+        assert_eq!(stored["settings"]["theme"], "dark");
+    }
 }

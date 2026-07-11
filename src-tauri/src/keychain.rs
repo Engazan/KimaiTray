@@ -2,6 +2,8 @@ use log::warn;
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
+use crate::{legacy_settings_path, scrub_legacy_store_key};
+
 const STORE_PATH: &str = "settings.json";
 const TOKEN_PREFIX: &str = "api-token:";
 const KEYRING_SERVICE: &str = "eu.engazan.kimaitray";
@@ -66,6 +68,20 @@ fn delete_from_keyring(account: &str) -> Result<(), String> {
     }
 }
 
+async fn scrub_legacy_credential(app: &AppHandle, account: &str) {
+    let Some(path) = legacy_settings_path(app) else {
+        return;
+    };
+    let account = account.to_string();
+    match tauri::async_runtime::spawn_blocking(move || scrub_legacy_store_key(&path, &account))
+        .await
+    {
+        Ok(Ok(_)) => {}
+        Ok(Err(error)) => warn!("Failed to scrub legacy credential: {error}"),
+        Err(error) => warn!("Legacy credential cleanup task failed: {error}"),
+    }
+}
+
 #[tauri::command]
 pub async fn save_api_token(app: AppHandle, base_url: String, token: String) -> Result<(), String> {
     validate_credential_key(&base_url)?;
@@ -82,7 +98,9 @@ pub async fn save_api_token(app: AppHandle, base_url: String, token: String) -> 
     // Remove any value created by versions that used the settings store as a
     // compatibility fallback. New credentials are never written there.
     store.delete(&account);
-    store.save().map_err(|e| e.to_string())
+    store.save().map_err(|e| e.to_string())?;
+    scrub_legacy_credential(&app, &account).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -104,6 +122,7 @@ pub async fn get_api_token(app: AppHandle, base_url: String) -> Result<Option<St
             store.delete(&account);
             store.save().map_err(|e| e.to_string())?;
         }
+        scrub_legacy_credential(&app, &account).await;
         return Ok(Some(token));
     }
 
@@ -123,6 +142,7 @@ pub async fn get_api_token(app: AppHandle, base_url: String) -> Result<Option<St
         migrated.map_err(|_| "OS credential store is unavailable".to_string())?;
         store.delete(&account);
         store.save().map_err(|e| e.to_string())?;
+        scrub_legacy_credential(&app, &account).await;
         return Ok(Some(token));
     }
     secure.map(|_| None)
