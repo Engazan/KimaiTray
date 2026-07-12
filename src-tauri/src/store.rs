@@ -2,8 +2,8 @@ use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tauri::AppHandle;
-use tauri_plugin_store::StoreExt;
+use tauri::{AppHandle, Runtime};
+use tauri_plugin_store::{Store, StoreExt};
 
 const STORE_PATH: &str = "settings.json";
 const MAX_ENTRY_KEY_BYTES: usize = 256;
@@ -11,6 +11,61 @@ const MAX_VALUE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STRING_ITEMS: usize = 10_000;
 const MAX_STRING_BYTES: usize = 4 * 1024;
 static STORE_MUTATION: Mutex<()> = Mutex::new(());
+
+trait StoreBackend {
+    fn get_value(&self, key: &str) -> Option<Value>;
+    fn set_value(&self, key: &str, value: Value);
+    fn delete_value(&self, key: &str);
+    fn save_value(&self) -> Result<(), String>;
+}
+
+impl<R: Runtime> StoreBackend for Store<R> {
+    fn get_value(&self, key: &str) -> Option<Value> {
+        self.get(key)
+    }
+
+    fn set_value(&self, key: &str, value: Value) {
+        self.set(key, value);
+    }
+
+    fn delete_value(&self, key: &str) {
+        self.delete(key);
+    }
+
+    fn save_value(&self) -> Result<(), String> {
+        self.save().map_err(|error| error.to_string())
+    }
+}
+
+fn persist_value_with_rollback(
+    store: &impl StoreBackend,
+    key: &str,
+    value: Option<Value>,
+) -> Result<(), String> {
+    let previous = store.get_value(key);
+    match value {
+        Some(value) => store.set_value(key, value),
+        None => store.delete_value(key),
+    }
+
+    if let Err(error) = store.save_value() {
+        match previous {
+            Some(previous) => store.set_value(key, previous),
+            None => store.delete_value(key),
+        }
+        let _ = store.save_value();
+        return Err(error);
+    }
+    Ok(())
+}
+
+pub(crate) fn persist_store_value<R: Runtime>(
+    store: &Store<R>,
+    key: &str,
+    value: Option<Value>,
+) -> Result<(), String> {
+    persist_value_with_rollback(store, key, value)
+}
 
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -333,8 +388,7 @@ pub fn mutate_scoped_store(
         Some(_) => return Err("Scoped store value is not an object".into()),
     };
     let value = apply_mutation(&mut map, &request.entry_key, request.mutation)?;
-    store.set(request.key, Value::Object(map));
-    store.save().map_err(|e| e.to_string())?;
+    persist_store_value(store.as_ref(), &request.key, Some(Value::Object(map)))?;
     Ok(ScopedStoreResponse { value })
 }
 
@@ -364,8 +418,7 @@ pub fn mutate_array_store(
     };
     apply_array_mutation(&mut items, request.mutation)?;
     let value = Value::Array(items);
-    store.set(request.key, value.clone());
-    store.save().map_err(|e| e.to_string())?;
+    persist_store_value(store.as_ref(), &request.key, Some(value.clone()))?;
     Ok(ScopedStoreResponse { value })
 }
 
@@ -401,8 +454,7 @@ pub fn patch_settings(
     };
     apply_settings_patch(&mut settings, request.values, request.expected.as_ref())?;
     let value = Value::Object(settings);
-    store.set("settings", value.clone());
-    store.save().map_err(|e| e.to_string())?;
+    persist_store_value(store.as_ref(), "settings", Some(value.clone()))?;
     Ok(ScopedStoreResponse { value })
 }
 
@@ -428,8 +480,7 @@ pub fn claim_legacy_favorites_store(
     };
     claim_legacy_favorites(&mut items, &request.connection_id, base_url);
     let value = Value::Array(items);
-    store.set("favoriteTasks", value.clone());
-    store.save().map_err(|e| e.to_string())?;
+    persist_store_value(store.as_ref(), "favoriteTasks", Some(value.clone()))?;
     Ok(ScopedStoreResponse { value })
 }
 
@@ -454,8 +505,7 @@ pub fn move_favorites_store(
         Some(_) => return Err("Favorite store value is not an array".into()),
     };
     let count = move_favorites(&mut items, &request);
-    store.set("favoriteTasks", Value::Array(items));
-    store.save().map_err(|e| e.to_string())?;
+    persist_store_value(store.as_ref(), "favoriteTasks", Some(Value::Array(items)))?;
     Ok(MoveFavoritesResponse { count })
 }
 
@@ -463,9 +513,74 @@ pub fn move_favorites_store(
 mod tests {
     use super::{
         apply_array_mutation, apply_mutation, apply_settings_patch, claim_legacy_favorites,
-        move_favorites, ArrayStoreMutation, MoveFavoritesRequest, ScopedStoreMutation,
+        move_favorites, persist_value_with_rollback, ArrayStoreMutation, MoveFavoritesRequest,
+        ScopedStoreMutation, StoreBackend,
     };
-    use serde_json::{json, Map};
+    use serde_json::{json, Map, Value};
+    use std::{collections::HashMap, sync::Mutex};
+
+    struct FailingStore {
+        values: Mutex<HashMap<String, Value>>,
+        save_results: Mutex<Vec<Result<(), String>>>,
+    }
+
+    impl StoreBackend for FailingStore {
+        fn get_value(&self, key: &str) -> Option<Value> {
+            self.values.lock().unwrap().get(key).cloned()
+        }
+
+        fn set_value(&self, key: &str, value: Value) {
+            self.values.lock().unwrap().insert(key.into(), value);
+        }
+
+        fn delete_value(&self, key: &str) {
+            self.values.lock().unwrap().remove(key);
+        }
+
+        fn save_value(&self) -> Result<(), String> {
+            let mut results = self.save_results.lock().unwrap();
+            if results.is_empty() {
+                Ok(())
+            } else {
+                results.remove(0)
+            }
+        }
+    }
+
+    #[test]
+    fn persistence_failure_restores_existing_in_memory_value() {
+        let store = FailingStore {
+            values: Mutex::new(HashMap::from([("settings".into(), json!({"old": true}))])),
+            save_results: Mutex::new(vec![Err("disk unavailable".into()), Ok(())]),
+        };
+
+        assert!(
+            persist_value_with_rollback(&store, "settings", Some(json!({"new": true}))).is_err()
+        );
+        assert_eq!(store.get_value("settings"), Some(json!({"old": true})));
+    }
+
+    #[test]
+    fn persistence_failure_removes_new_in_memory_value() {
+        let store = FailingStore {
+            values: Mutex::new(HashMap::new()),
+            save_results: Mutex::new(vec![Err("disk unavailable".into()), Ok(())]),
+        };
+
+        assert!(persist_value_with_rollback(&store, "new-key", Some(json!([1, 2, 3]))).is_err());
+        assert_eq!(store.get_value("new-key"), None);
+    }
+
+    #[test]
+    fn persistence_failure_restores_deleted_in_memory_value() {
+        let store = FailingStore {
+            values: Mutex::new(HashMap::from([("credential".into(), json!("secret"))])),
+            save_results: Mutex::new(vec![Err("disk unavailable".into()), Ok(())]),
+        };
+
+        assert!(persist_value_with_rollback(&store, "credential", None).is_err());
+        assert_eq!(store.get_value("credential"), Some(json!("secret")));
+    }
 
     #[test]
     fn scoped_mutations_preserve_other_connections() {

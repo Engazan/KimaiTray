@@ -2,6 +2,8 @@ use log::warn;
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
+use crate::store::persist_store_value;
+
 use crate::{legacy_settings_path, scrub_legacy_store_key};
 
 const STORE_PATH: &str = "settings.json";
@@ -97,8 +99,7 @@ pub async fn save_api_token(app: AppHandle, base_url: String, token: String) -> 
     let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
     // Remove any value created by versions that used the settings store as a
     // compatibility fallback. New credentials are never written there.
-    store.delete(&account);
-    store.save().map_err(|e| e.to_string())?;
+    persist_store_value(store.as_ref(), &account, None)?;
     scrub_legacy_credential(&app, &account).await;
     Ok(())
 }
@@ -119,8 +120,7 @@ pub async fn get_api_token(app: AppHandle, base_url: String) -> Result<Option<St
         // cleanup failed. Retry the plaintext cleanup on every secure read.
         let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
         if store.get(&account).is_some() {
-            store.delete(&account);
-            store.save().map_err(|e| e.to_string())?;
+            persist_store_value(store.as_ref(), &account, None)?;
         }
         scrub_legacy_credential(&app, &account).await;
         return Ok(Some(token));
@@ -140,8 +140,7 @@ pub async fn get_api_token(app: AppHandle, base_url: String) -> Result<Option<St
         .await
         .map_err(|e| e.to_string())?;
         migrated.map_err(|_| "OS credential store is unavailable".to_string())?;
-        store.delete(&account);
-        store.save().map_err(|e| e.to_string())?;
+        persist_store_value(store.as_ref(), &account, None)?;
         scrub_legacy_credential(&app, &account).await;
         return Ok(Some(token));
     }
@@ -161,8 +160,7 @@ pub async fn delete_api_token(app: AppHandle, base_url: String) -> Result<(), St
             .await
             .map_err(|e| e.to_string())?;
     let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
-    store.delete(&account);
-    store.save().map_err(|e| e.to_string())?;
+    persist_store_value(store.as_ref(), &account, None)?;
     secure_result.map_err(|error| {
         warn!("Failed to remove credential from OS store: {error}");
         "Failed to remove credential from OS store".to_string()
