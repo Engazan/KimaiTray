@@ -9,6 +9,33 @@ import {
 import { LatestRequest } from "../utils/latestRequest";
 import { deleteIssueToken } from "../integrations/issues/issueTokenStore";
 
+const pendingCredentialCleanup = new Set<string>();
+const credentialCleanupInFlight = new Set<string>();
+
+async function cleanupConnectionCredentials(id: string): Promise<boolean> {
+  const results = await Promise.allSettled([
+    deleteConnectionToken(id),
+    deleteIssueToken(id),
+  ]);
+  const cleanupPending = results.some((result) => result.status === "rejected");
+  if (cleanupPending) {
+    pendingCredentialCleanup.add(id);
+  } else {
+    pendingCredentialCleanup.delete(id);
+  }
+  return cleanupPending;
+}
+
+function retryPendingCredentialCleanup(): void {
+  for (const id of pendingCredentialCleanup) {
+    if (credentialCleanupInFlight.has(id)) continue;
+    credentialCleanupInFlight.add(id);
+    void cleanupConnectionCredentials(id).finally(() => {
+      credentialCleanupInFlight.delete(id);
+    });
+  }
+}
+
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [token, setToken] = useState("");
@@ -20,6 +47,7 @@ export function useSettings() {
   settingsRef.current = settings;
 
   useEffect(() => {
+    retryPendingCredentialCleanup();
     loadSettings().then((s) => {
       setSettings(s);
       activeIdRef.current = s.activeConnectionId ?? "";
@@ -155,30 +183,6 @@ export function useSettings() {
       kimaiUrl: next.kimaiUrl,
     });
 
-    const credentialResults = await Promise.allSettled([
-      deleteConnectionToken(id),
-      deleteIssueToken(id),
-    ]);
-    const credentialFailure = credentialResults.find(
-      (result): result is PromiseRejectedResult => result.status === "rejected",
-    );
-    if (credentialFailure) {
-      setSettings(prev);
-      await patchSettings(
-        {
-          connections: prev.connections,
-          activeConnectionId: prev.activeConnectionId,
-          kimaiUrl: prev.kimaiUrl,
-        },
-        {
-          connections: remaining,
-          activeConnectionId: next.activeConnectionId,
-          kimaiUrl: next.kimaiUrl,
-        },
-      ).catch(() => {});
-      throw credentialFailure.reason;
-    }
-
     if (wasActive) {
       if (newActive) {
         activeIdRef.current = newActive.id;
@@ -188,6 +192,9 @@ export function useSettings() {
         activeIdRef.current = "";
       }
     }
+
+    const credentialCleanupPending = await cleanupConnectionCredentials(id);
+    return { credentialCleanupPending };
   }, []);
 
   const activateConnection = useCallback(async (id: string) => {

@@ -157,33 +157,27 @@ describe("connection settings transaction", () => {
     expect(result.current.token).toBe("");
   });
 
-  it("restores connection settings when credential deletion is incomplete", async () => {
-    const { result } = renderHook(() => useSettings());
+  it("keeps a connection removed when credential cleanup is incomplete", async () => {
+    const { result, unmount } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.loaded).toBe(true));
     tokenMocks.deleteIssueToken.mockRejectedValue(new Error("keyring locked"));
-    let failure: unknown;
+    let resultValue: { credentialCleanupPending: boolean } | undefined;
 
     await act(async () => {
-      try {
-        await result.current.removeConnection("connection-a");
-      } catch (error) {
-        failure = error;
-      }
+      resultValue = await result.current.removeConnection("connection-a");
     });
 
-    expect(failure).toBeInstanceOf(Error);
-    expect(result.current.settings).toEqual(initialSettings());
-    expect(serviceMocks.patchSettings).toHaveBeenLastCalledWith(
-      {
-        connections: initialSettings().connections,
-        activeConnectionId: initialSettings().activeConnectionId,
-        kimaiUrl: initialSettings().kimaiUrl,
-      },
-      {
-        connections: [],
-        activeConnectionId: "",
-        kimaiUrl: "",
-      },
+    expect(resultValue).toEqual({ credentialCleanupPending: true });
+    expect(result.current.settings.connections).toEqual([]);
+    expect(result.current.settings.activeConnectionId).toBe("");
+    expect(result.current.token).toBe("");
+    expect(serviceMocks.patchSettings).toHaveBeenCalledTimes(1);
+
+    unmount();
+    tokenMocks.deleteIssueToken.mockResolvedValue();
+    renderHook(() => useSettings());
+    await waitFor(() =>
+      expect(tokenMocks.deleteIssueToken).toHaveBeenCalledTimes(2),
     );
   });
 });

@@ -20,7 +20,9 @@ interface Props {
   selectedConnectionId: string | null;
   onSelectedConnectionChange: (id: string | null) => void;
   saveConnection: (conn: SavedConnection, token: string) => Promise<void>;
-  removeConnection: (id: string) => Promise<void>;
+  removeConnection: (
+    id: string,
+  ) => Promise<{ credentialCleanupPending: boolean }>;
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }
 
@@ -170,8 +172,9 @@ export default function ConnectionSection({
     async () => {
       if (!editingId) return;
       const id = editingId;
+      let credentialCleanupPending = false;
       try {
-        await removeConnection(id);
+        ({ credentialCleanupPending } = await removeConnection(id));
       } catch {
         setStatus("error");
         setStatusMessage(t("connection.unexpectedError"));
@@ -181,6 +184,10 @@ export default function ConnectionSection({
       const nextId = remaining[0]?.id ?? null;
       onSelectedConnectionChange(nextId);
       loadFormForConnection(nextId);
+      if (credentialCleanupPending) {
+        setStatus("error");
+        setStatusMessage(t("connection.unexpectedError"));
+      }
     },
     [
       editingId,
