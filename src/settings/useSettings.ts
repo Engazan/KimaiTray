@@ -43,8 +43,12 @@ export function useSettings() {
   // Id of the connection whose token is currently loaded into `token`.
   const activeIdRef = useRef("");
   const settingsRef = useRef(settings);
+  const tokenRef = useRef(token);
   const tokenLoadRequestsRef = useRef(new LatestRequest());
+  const tokenWriteRequestsRef = useRef(new LatestRequest());
+  const activationRequestsRef = useRef(new LatestRequest());
   settingsRef.current = settings;
+  tokenRef.current = token;
 
   useEffect(() => {
     retryPendingCredentialCleanup();
@@ -63,12 +67,14 @@ export function useSettings() {
         activeIdRef.current !== connectionId ||
         !tokenLoadRequestsRef.current.isCurrent(generation)
       ) return;
-      setToken(t ?? "");
+      tokenRef.current = t ?? "";
+      setToken(tokenRef.current);
     } catch {
       if (
         activeIdRef.current !== connectionId ||
         !tokenLoadRequestsRef.current.isCurrent(generation)
       ) return;
+      tokenRef.current = "";
       setToken("");
     } finally {
       if (
@@ -80,16 +86,23 @@ export function useSettings() {
 
   const update = useCallback(
     <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+      const previous = settingsRef.current[key];
       setSettings((prev) => ({ ...prev, [key]: value }));
       void patchSettings({ [key]: value }).catch(() => {
-        // Keep the in-memory setting responsive; explicit connection
-        // transactions surface persistence failures to their forms.
+        setSettings((current) =>
+          Object.is(current[key], value)
+            ? { ...current, [key]: previous }
+            : current,
+        );
       });
     },
     [],
   );
 
   const updateToken = useCallback(async (value: string) => {
+    const generation = tokenWriteRequestsRef.current.begin();
+    const previous = tokenRef.current;
+    tokenRef.current = value;
     setToken(value);
     const id = activeIdRef.current;
     if (id) {
@@ -100,7 +113,13 @@ export function useSettings() {
           await deleteConnectionToken(id);
         }
       } catch {
-        // Store unavailable
+        if (
+          tokenWriteRequestsRef.current.isCurrent(generation) &&
+          activeIdRef.current === id
+        ) {
+          tokenRef.current = previous;
+          setToken(previous);
+        }
       }
     }
   }, []);
@@ -156,6 +175,7 @@ export function useSettings() {
         ).catch(() => {});
         throw error;
       }
+      tokenRef.current = newToken;
       setToken(newToken);
       activeIdRef.current = conn.id;
     },
@@ -188,6 +208,7 @@ export function useSettings() {
         activeIdRef.current = newActive.id;
         await loadToken(newActive.id, newActive.url);
       } else {
+        tokenRef.current = "";
         setToken("");
         activeIdRef.current = "";
       }
@@ -198,15 +219,21 @@ export function useSettings() {
   }, []);
 
   const activateConnection = useCallback(async (id: string) => {
+    const generation = activationRequestsRef.current.begin();
     const prev = settingsRef.current;
     const conn = prev.connections.find((c) => c.id === id);
     if (!conn || prev.activeConnectionId === id) return;
 
-    const next = { ...prev, activeConnectionId: id, kimaiUrl: conn.url };
-    setSettings(next);
-    await patchSettings({ activeConnectionId: id, kimaiUrl: conn.url });
+    const persisted = await patchSettings({
+      activeConnectionId: id,
+      kimaiUrl: conn.url,
+    });
+    if (!activationRequestsRef.current.isCurrent(generation)) return;
 
+    setSettings(persisted);
     activeIdRef.current = id;
+    tokenRef.current = "";
+    setToken("");
     await loadToken(id, conn.url);
   }, []);
 

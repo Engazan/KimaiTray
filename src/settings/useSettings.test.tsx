@@ -51,6 +51,14 @@ function initialSettings(): AppSettings {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe("connection settings transaction", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -97,6 +105,67 @@ describe("connection settings transaction", () => {
       expect(serviceMocks.patchSettings).toHaveBeenCalledWith({ theme: "dark" }),
     );
     expect(result.current.settings.theme).toBe("dark");
+  });
+
+  it("rolls back only the preference whose latest persistence failed", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    serviceMocks.patchSettings.mockRejectedValueOnce(new Error("disk unavailable"));
+
+    act(() => result.current.update("theme", "dark"));
+
+    await waitFor(() => expect(result.current.settings.theme).toBe("light"));
+  });
+
+  it("restores the previous token when secure persistence fails", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    tokenMocks.saveConnectionToken.mockRejectedValueOnce(
+      new Error("keyring unavailable"),
+    );
+
+    await act(async () => result.current.updateToken("replacement-token"));
+
+    expect(result.current.token).toBe("existing-token");
+  });
+
+  it("publishes an activated connection only after persistence succeeds", async () => {
+    const secondary: SavedConnection = {
+      id: "connection-b",
+      name: "Secondary",
+      url: "https://kimai-b.example.test",
+    };
+    const initial = {
+      ...initialSettings(),
+      connections: [existingConnection, secondary],
+    };
+    serviceMocks.loadSettings.mockResolvedValue(initial);
+    tokenMocks.getConnectionToken.mockImplementation(
+      async (id?: string) => `token-${id}`,
+    );
+    const persistence = deferred<AppSettings>();
+    serviceMocks.patchSettings.mockReturnValueOnce(persistence.promise);
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    let activation!: Promise<void>;
+    act(() => {
+      activation = result.current.activateConnection("connection-b");
+    });
+    expect(result.current.settings.activeConnectionId).toBe("connection-a");
+    expect(result.current.token).toBe("token-connection-a");
+
+    await act(async () => {
+      persistence.resolve({
+        ...initial,
+        activeConnectionId: "connection-b",
+        kimaiUrl: secondary.url,
+      });
+      await activation;
+    });
+
+    expect(result.current.settings.activeConnectionId).toBe("connection-b");
+    expect(result.current.token).toBe("token-connection-b");
   });
 
   it("rolls settings back when secure credential storage fails", async () => {
