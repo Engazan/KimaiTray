@@ -7,6 +7,9 @@ import type { AppSettings } from "../types";
 const serviceMocks = vi.hoisted(() => ({
   loadSettings: vi.fn<() => Promise<AppSettings>>(),
   saveSettings: vi.fn<() => Promise<void>>(),
+  patchSettings: vi.fn<
+    (values: Partial<AppSettings>) => Promise<AppSettings>
+  >(),
   onSettingsChange: vi.fn(),
   listener: null as ((settings: AppSettings) => void) | null,
 }));
@@ -23,6 +26,7 @@ vi.mock("../settings/service", async () => {
     ...actual,
     loadSettings: serviceMocks.loadSettings,
     saveSettings: serviceMocks.saveSettings,
+    patchSettings: serviceMocks.patchSettings,
     onSettingsChange: serviceMocks.onSettingsChange,
   };
 });
@@ -74,6 +78,10 @@ describe("Kimai connection session isolation", () => {
     serviceMocks.listener = null;
     serviceMocks.loadSettings.mockResolvedValue(settingsFor("connection-a"));
     serviceMocks.saveSettings.mockResolvedValue();
+    serviceMocks.patchSettings.mockImplementation(async (values) => ({
+      ...(await serviceMocks.loadSettings()),
+      ...values,
+    }));
     serviceMocks.onSettingsChange.mockImplementation(
       (listener: (settings: AppSettings) => void) => {
         serviceMocks.listener = listener;
@@ -83,7 +91,9 @@ describe("Kimai connection session isolation", () => {
     credentialMocks.getConnectionToken.mockImplementation(
       async (id: string) => `kimai-token-${id}`,
     );
-    credentialMocks.getIssueToken.mockResolvedValue("issue-token-a");
+    credentialMocks.getIssueToken.mockImplementation(
+      async (id: string) => `issue-token-${id.replace("connection-", "")}`,
+    );
   });
 
   it("clears the previous issue token while the next token is loading", async () => {
@@ -122,5 +132,59 @@ describe("Kimai connection session isolation", () => {
     );
     expect(result.current.client?.connectionId).toBe("connection-a");
     expect(result.current.client?.cacheScope).not.toContain("rotated-token");
+  });
+
+  it("keeps the previous session active until a switch is persisted", async () => {
+    const connectionA = settingsFor("connection-a");
+    const connectionB = settingsFor("connection-b");
+    const settings = {
+      ...connectionA,
+      connections: [
+        ...connectionA.connections,
+        ...connectionB.connections,
+      ],
+      issueIntegrations: {
+        ...connectionA.issueIntegrations,
+        ...connectionB.issueIntegrations,
+      },
+    };
+    serviceMocks.loadSettings.mockResolvedValue(settings);
+
+    let persistSwitch!: (settings: AppSettings) => void;
+    serviceMocks.patchSettings.mockImplementationOnce(
+      () =>
+        new Promise<AppSettings>((resolve) => {
+          persistSwitch = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() =>
+      expect(result.current.client?.connectionId).toBe("connection-a"),
+    );
+
+    let switchPromise!: Promise<void>;
+    act(() => {
+      switchPromise = result.current.switchConnection("connection-b");
+    });
+    await waitFor(() => expect(serviceMocks.patchSettings).toHaveBeenCalled());
+
+    expect(result.current.activeConnectionId).toBe("connection-a");
+    expect(result.current.client?.connectionId).toBe("connection-a");
+    expect(result.current.issueToken).toBe("issue-token-a");
+
+    await act(async () => {
+      persistSwitch({
+        ...settings,
+        activeConnectionId: "connection-b",
+        kimaiUrl: connectionB.kimaiUrl,
+      });
+      await switchPromise;
+    });
+
+    await waitFor(() =>
+      expect(result.current.client?.connectionId).toBe("connection-b"),
+    );
+    expect(result.current.issueToken).toBe("issue-token-b");
   });
 });

@@ -8,7 +8,7 @@ interface HeaderStatusProps {
   errorMessage?: string;
   connections: SavedConnection[];
   activeConnectionId: string;
-  onSwitchConnection: (id: string) => void;
+  onSwitchConnection: (id: string) => Promise<void>;
 }
 
 const DOT_STYLES: Record<ConnectionStatus, string> = {
@@ -80,7 +80,7 @@ function ConnectionSwitcher({
 }: {
   connections: SavedConnection[];
   activeId: string;
-  onSwitch: (id: string) => void;
+  onSwitch: (id: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -126,7 +126,7 @@ function ConnectionSwitcher({
               key={conn.id}
               type="button"
               onClick={() => {
-                onSwitch(conn.id);
+                void onSwitch(conn.id);
                 setOpen(false);
               }}
               className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] transition-colors

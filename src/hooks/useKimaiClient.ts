@@ -55,7 +55,7 @@ interface UseKimaiClientResult {
   displayMode: "tray" | "detached";
   connections: SavedConnection[];
   activeConnectionId: string;
-  switchConnection: (id: string) => void;
+  switchConnection: (id: string) => Promise<void>;
   issueIntegration: IssueIntegrationSettings;
   issueToken: string | null;
 }
@@ -245,25 +245,23 @@ export function useKimaiClient(): UseKimaiClientResult {
 
   const switchConnection = useCallback(async (id: string) => {
     const generation = settingsRequestsRef.current.begin();
-    const s = await loadSettings();
-    if (!settingsRequestsRef.current.isCurrent(generation)) return;
-    const conn = s.connections.find((c) => c.id === id);
-    if (!conn) return;
-
-    let t = "";
     try {
-      t = (await getConnectionToken(conn.id, conn.url)) ?? "";
-    } catch { /* token load failed */ }
-    if (!settingsRequestsRef.current.isCurrent(generation)) return;
+      const s = await loadSettings();
+      if (!settingsRequestsRef.current.isCurrent(generation)) return;
+      const conn = s.connections.find((c) => c.id === id);
+      if (!conn || id === s.activeConnectionId) return;
 
-    baseUrlRef.current = conn.url;
-    activeIdRef.current = id;
-    setBaseUrl(conn.url);
-    setToken(t);
-    setActiveConnectionId(id);
+      const persisted = await patchSettings({
+        activeConnectionId: id,
+        kimaiUrl: conn.url,
+      });
+      if (!settingsRequestsRef.current.isCurrent(generation)) return;
 
-    await patchSettings({ activeConnectionId: id, kimaiUrl: conn.url });
-  }, []);
+      await applySettings(persisted);
+    } catch {
+      // Keep the previously persisted session active when switching fails.
+    }
+  }, [applySettings]);
 
   const client = useMemo(() => {
     if (!baseUrl || !token) return null;
