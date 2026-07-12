@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.17.0] - 2026-07-12
+
+### New Features
+
+- **Category pictograms & accent colors** — each Category Mode button can now carry a pictogram (18 built-in icons) and an accent color, set from a small visual editor next to the category. The chosen pictogram and color show up on the buttons in the menu bar, making the category tree quicker to scan. Translated across all five languages
+- **Idle detection on Linux/Wayland** — automatic idle-time detection now works on Wayland sessions (via the idle-notify protocol), not just X11, so the idle prompt fires correctly on modern Linux desktops
+
+### Improvements
+
+- **Security & reliability hardening** — a broad pass over how the app stores data and talks to the network. All requests to your Kimai server and issue trackers are now brokered through the native layer with validated, pinned DNS targets and authorized origins; credentials live only in the OS secure store (with legacy tokens migrated and scrubbed atomically); and each connection's cached data, paused timers and issue-integration credentials are fully isolated, so switching or removing a connection can no longer leak state between them. Store writes are serialized and applied atomically across windows, with rollback if a save fails
+- **Reorganized Category Mode settings** — the settings screen is split into clear **Behavior**, **Category source**, **Category tree** and **Data tools** sections, with an inline editor for building the tree and mapping each subcategory to a Kimai activity
+- **Configurable tray label styles** — the menu-bar label now honors the configured label style
+
+### Bug Fixes
+
+- **Correct timer times sent to Kimai** — timer start/stop times are now sent in local wall-clock format so entries land at the time you actually tracked them, and a custom start time set on the New Task form is applied correctly
+- **Recorded duration synced to linked issues** — stopping a timer now writes the recorded duration back to its linked issue
+- **Relative dates across DST** — "today"/"yesterday" grouping of recent tasks is now computed correctly across daylight-saving changes
+- **Category Mode layout stability** — fixed drilldown sizing and popup layout jumps when navigating the category tree
+- **Accessibility** — focus is now trapped in the idle and date-picker dialogs, and keyboard navigation and form semantics were improved throughout
+- **Shortcuts restored after a failed registration** — global shortcuts are re-registered correctly if a registration attempt fails
+
 ## [0.16.0] - 2026-07-09
 
 ### New Features
