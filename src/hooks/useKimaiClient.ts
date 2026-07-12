@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createKimaiClient, type KimaiClient } from "../api/kimaiClient";
 import { getConnectionToken } from "../api/connectionTokenStore";
-import { loadSettings, onSettingsChange, saveSettings, defaultFeatureSettings } from "../settings/service";
+import { loadSettings, onSettingsChange, patchSettings, defaultFeatureSettings } from "../settings/service";
 import type { SavedConnection, ColorMode } from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
 import { getIssueToken } from "../integrations/issues/issueTokenStore";
@@ -261,7 +261,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     setToken(t);
     setActiveConnectionId(id);
 
-    await saveSettings({ ...s, activeConnectionId: id, kimaiUrl: conn.url });
+    await patchSettings({ activeConnectionId: id, kimaiUrl: conn.url });
   }, []);
 
   const client = useMemo(() => {

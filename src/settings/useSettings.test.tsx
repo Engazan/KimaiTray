@@ -6,7 +6,12 @@ import type { AppSettings, SavedConnection } from "../types";
 
 const serviceMocks = vi.hoisted(() => ({
   loadSettings: vi.fn<() => Promise<AppSettings>>(),
-  saveSettings: vi.fn<(settings: AppSettings) => Promise<void>>(),
+  patchSettings: vi.fn<
+    (
+      settings: Partial<AppSettings>,
+      expected?: Partial<AppSettings>,
+    ) => Promise<AppSettings>
+  >(),
 }));
 const tokenMocks = vi.hoisted(() => ({
   getConnectionToken: vi.fn<() => Promise<string | null>>(),
@@ -20,7 +25,7 @@ vi.mock("./service", async () => {
   return {
     ...actual,
     loadSettings: serviceMocks.loadSettings,
-    saveSettings: serviceMocks.saveSettings,
+    patchSettings: serviceMocks.patchSettings,
   };
 });
 vi.mock("../api/connectionTokenStore", () => tokenMocks);
@@ -50,7 +55,7 @@ describe("connection settings transaction", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     serviceMocks.loadSettings.mockResolvedValue(initialSettings());
-    serviceMocks.saveSettings.mockResolvedValue();
+    serviceMocks.patchSettings.mockResolvedValue(initialSettings());
     tokenMocks.getConnectionToken.mockResolvedValue("existing-token");
     tokenMocks.saveConnectionToken.mockResolvedValue();
     tokenMocks.deleteConnectionToken.mockResolvedValue();
@@ -82,6 +87,18 @@ describe("connection settings transaction", () => {
     expect(result.current.token).toBe("new-token");
   });
 
+  it("persists an individual preference as an atomic field patch", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    act(() => result.current.update("theme", "dark"));
+
+    await waitFor(() =>
+      expect(serviceMocks.patchSettings).toHaveBeenCalledWith({ theme: "dark" }),
+    );
+    expect(result.current.settings.theme).toBe("dark");
+  });
+
   it("rolls settings back when secure credential storage fails", async () => {
     const { result } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.loaded).toBe(true));
@@ -106,8 +123,26 @@ describe("connection settings transaction", () => {
     expect(failure).toBeInstanceOf(Error);
     expect(result.current.settings).toEqual(initialSettings());
     expect(result.current.token).toBe("existing-token");
-    expect(serviceMocks.saveSettings).toHaveBeenCalledTimes(2);
-    expect(serviceMocks.saveSettings).toHaveBeenLastCalledWith(initialSettings());
+    expect(serviceMocks.patchSettings).toHaveBeenCalledTimes(2);
+    expect(serviceMocks.patchSettings).toHaveBeenLastCalledWith(
+      {
+        connections: initialSettings().connections,
+        activeConnectionId: initialSettings().activeConnectionId,
+        kimaiUrl: initialSettings().kimaiUrl,
+      },
+      {
+        connections: [
+          existingConnection,
+          {
+            id: "connection-b",
+            name: "Secondary",
+            url: "https://kimai-b.example.test",
+          },
+        ],
+        activeConnectionId: "connection-b",
+        kimaiUrl: "https://kimai-b.example.test",
+      },
+    );
   });
 
   it("removes both Kimai and issue credentials with a connection", async () => {
@@ -138,6 +173,17 @@ describe("connection settings transaction", () => {
 
     expect(failure).toBeInstanceOf(Error);
     expect(result.current.settings).toEqual(initialSettings());
-    expect(serviceMocks.saveSettings).toHaveBeenLastCalledWith(initialSettings());
+    expect(serviceMocks.patchSettings).toHaveBeenLastCalledWith(
+      {
+        connections: initialSettings().connections,
+        activeConnectionId: initialSettings().activeConnectionId,
+        kimaiUrl: initialSettings().kimaiUrl,
+      },
+      {
+        connections: [],
+        activeConnectionId: "",
+        kimaiUrl: "",
+      },
+    );
   });
 });

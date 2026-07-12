@@ -1,4 +1,5 @@
 import { load } from "@tauri-apps/plugin-store";
+import { invoke } from "@tauri-apps/api/core";
 import type { AppSettings, FeatureSettings, TrayStateColors } from "../types";
 
 const STORE_PATH = "settings.json";
@@ -75,7 +76,6 @@ export const defaultSettings: AppSettings = {
 };
 
 let storePromise: ReturnType<typeof load> | null = null;
-let saveQueue: Promise<void> = Promise.resolve();
 
 function getStore() {
   if (!storePromise) {
@@ -179,14 +179,15 @@ export async function loadSettings(): Promise<AppSettings> {
   }
 }
 
-export async function saveSettings(settings: AppSettings): Promise<void> {
-  const snapshot = structuredClone(settings);
-  saveQueue = saveQueue.catch(() => undefined).then(async () => {
-    const store = await getStore();
-    await store.set(SETTINGS_KEY, snapshot);
-    await store.save();
-  });
-  return saveQueue;
+export async function patchSettings(
+  values: Partial<AppSettings>,
+  expected?: Partial<AppSettings>,
+): Promise<AppSettings> {
+  const response = await invoke<{ value: Partial<AppSettings> }>(
+    "patch_settings",
+    { request: { values, expected } },
+  );
+  return mergeSettings(response.value);
 }
 
 export async function onSettingsChange(

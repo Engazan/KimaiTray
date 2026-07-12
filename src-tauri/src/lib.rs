@@ -187,6 +187,7 @@ pub fn run() {
             shortcuts::register_shortcuts,
             store::mutate_scoped_store,
             store::mutate_array_store,
+            store::patch_settings,
         ])
         .setup(|app| {
             info!(

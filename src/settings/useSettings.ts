@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppSettings, SavedConnection } from "../types";
-import { defaultSettings, loadSettings, saveSettings } from "./service";
+import { defaultSettings, loadSettings, patchSettings } from "./service";
 import {
   deleteConnectionToken,
   getConnectionToken,
@@ -52,13 +52,10 @@ export function useSettings() {
 
   const update = useCallback(
     <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-      setSettings((prev) => {
-        const next = { ...prev, [key]: value };
-        void saveSettings(next).catch(() => {
-          // Keep the in-memory setting responsive; a later queued save retries
-          // against the same store and explicit connection saves surface errors.
-        });
-        return next;
+      setSettings((prev) => ({ ...prev, [key]: value }));
+      void patchSettings({ [key]: value }).catch(() => {
+        // Keep the in-memory setting responsive; explicit connection
+        // transactions surface persistence failures to their forms.
       });
     },
     [],
@@ -99,7 +96,11 @@ export function useSettings() {
       };
       setSettings(next);
       try {
-        await saveSettings(next);
+        await patchSettings({
+          connections,
+          activeConnectionId: conn.id,
+          kimaiUrl: conn.url,
+        });
 
         // Tokens are keyed by connection id, so editing a connection's URL no
         // longer needs to move the token between URL keys.
@@ -113,7 +114,18 @@ export function useSettings() {
         // persisted securely. Restore the previous settings best-effort and
         // surface the original failure to the form.
         setSettings(prev);
-        await saveSettings(prev).catch(() => {});
+        await patchSettings(
+          {
+            connections: prev.connections,
+            activeConnectionId: prev.activeConnectionId,
+            kimaiUrl: prev.kimaiUrl,
+          },
+          {
+            connections,
+            activeConnectionId: conn.id,
+            kimaiUrl: conn.url,
+          },
+        ).catch(() => {});
         throw error;
       }
       setToken(newToken);
@@ -137,7 +149,11 @@ export function useSettings() {
       kimaiUrl: wasActive ? (newActive?.url ?? "") : prev.kimaiUrl,
     };
     setSettings(next);
-    await saveSettings(next);
+    await patchSettings({
+      connections: remaining,
+      activeConnectionId: next.activeConnectionId,
+      kimaiUrl: next.kimaiUrl,
+    });
 
     const credentialResults = await Promise.allSettled([
       deleteConnectionToken(id),
@@ -148,7 +164,18 @@ export function useSettings() {
     );
     if (credentialFailure) {
       setSettings(prev);
-      await saveSettings(prev).catch(() => {});
+      await patchSettings(
+        {
+          connections: prev.connections,
+          activeConnectionId: prev.activeConnectionId,
+          kimaiUrl: prev.kimaiUrl,
+        },
+        {
+          connections: remaining,
+          activeConnectionId: next.activeConnectionId,
+          kimaiUrl: next.kimaiUrl,
+        },
+      ).catch(() => {});
       throw credentialFailure.reason;
     }
 
@@ -170,7 +197,7 @@ export function useSettings() {
 
     const next = { ...prev, activeConnectionId: id, kimaiUrl: conn.url };
     setSettings(next);
-    await saveSettings(next);
+    await patchSettings({ activeConnectionId: id, kimaiUrl: conn.url });
 
     activeIdRef.current = id;
     await loadToken(id, conn.url);

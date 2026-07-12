@@ -57,6 +57,13 @@ pub struct ArrayStoreRequest {
     mutation: ArrayStoreMutation,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsPatchRequest {
+    values: Map<String, Value>,
+    expected: Option<Map<String, Value>>,
+}
+
 fn validate_request(request: &ScopedStoreRequest) -> Result<(), String> {
     if !matches!(
         request.key.as_str(),
@@ -185,6 +192,22 @@ fn apply_array_mutation(
     Ok(())
 }
 
+fn apply_settings_patch(
+    settings: &mut Map<String, Value>,
+    values: Map<String, Value>,
+    expected: Option<&Map<String, Value>>,
+) -> Result<(), String> {
+    if expected.is_some_and(|expected| {
+        expected
+            .iter()
+            .any(|(key, value)| settings.get(key) != Some(value))
+    }) {
+        return Err("Settings changed before the patch could be applied".into());
+    }
+    settings.extend(values);
+    Ok(())
+}
+
 #[tauri::command]
 pub fn mutate_scoped_store(
     app: AppHandle,
@@ -237,9 +260,49 @@ pub fn mutate_array_store(
     Ok(ScopedStoreResponse { value })
 }
 
+#[tauri::command]
+pub fn patch_settings(
+    app: AppHandle,
+    request: SettingsPatchRequest,
+) -> Result<ScopedStoreResponse, String> {
+    if request.values.is_empty()
+        || serde_json::to_vec(&request.values)
+            .map_err(|_| "Invalid settings patch".to_string())?
+            .len()
+            > MAX_VALUE_BYTES
+    {
+        return Err("Invalid settings patch".into());
+    }
+    if request
+        .values
+        .keys()
+        .any(|key| key.is_empty() || key.len() > MAX_ENTRY_KEY_BYTES)
+    {
+        return Err("Invalid settings key".into());
+    }
+
+    let _transaction = STORE_MUTATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
+    let mut settings = match store.get("settings") {
+        Some(Value::Object(settings)) => settings,
+        None => Map::new(),
+        Some(_) => return Err("Settings value is not an object".into()),
+    };
+    apply_settings_patch(&mut settings, request.values, request.expected.as_ref())?;
+    let value = Value::Object(settings);
+    store.set("settings", value.clone());
+    store.save().map_err(|e| e.to_string())?;
+    Ok(ScopedStoreResponse { value })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{apply_array_mutation, apply_mutation, ArrayStoreMutation, ScopedStoreMutation};
+    use super::{
+        apply_array_mutation, apply_mutation, apply_settings_patch, ArrayStoreMutation,
+        ScopedStoreMutation,
+    };
     use serde_json::{json, Map};
 
     #[test]
@@ -295,5 +358,27 @@ mod tests {
             items,
             vec![json!({ "id": "new", "pausedAt": "2026-01-02" })]
         );
+    }
+
+    #[test]
+    fn settings_patches_merge_independent_fields() {
+        let mut settings = Map::from_iter([("theme".into(), json!("light"))]);
+        apply_settings_patch(
+            &mut settings,
+            Map::from_iter([("language".into(), json!("sk"))]),
+            None,
+        )
+        .unwrap();
+        assert_eq!(settings["theme"], json!("light"));
+        assert_eq!(settings["language"], json!("sk"));
+
+        let expected = Map::from_iter([("theme".into(), json!("dark"))]);
+        assert!(apply_settings_patch(
+            &mut settings,
+            Map::from_iter([("language".into(), json!("en"))]),
+            Some(&expected),
+        )
+        .is_err());
+        assert_eq!(settings["language"], json!("sk"));
     }
 }
