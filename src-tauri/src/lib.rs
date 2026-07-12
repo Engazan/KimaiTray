@@ -190,6 +190,7 @@ pub fn run() {
             store::patch_settings,
             store::claim_legacy_favorites_store,
             store::move_favorites_store,
+            store::migrate_legacy_store,
         ])
         .setup(|app| {
             info!(

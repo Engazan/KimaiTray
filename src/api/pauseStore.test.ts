@@ -2,17 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PausedTimerData } from "./pauseStore";
 
 const storeMocks = vi.hoisted(() => ({
-  get: vi.fn(),
-  set: vi.fn(),
-  delete: vi.fn(),
-  save: vi.fn(),
-  load: vi.fn(),
   mutateArrayStore: vi.fn(),
+  migrateLegacyStore: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-store", () => ({ load: storeMocks.load }));
 vi.mock("./arrayStore", () => ({
   mutateArrayStore: storeMocks.mutateArrayStore,
+}));
+vi.mock("./storeMigrations", () => ({
+  migrateLegacyStore: storeMocks.migrateLegacyStore,
 }));
 
 import { removeResumedTimer } from "./pauseStore";
@@ -35,13 +33,7 @@ const paused: PausedTimerData = {
 describe("paused timer resume reconciliation", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    storeMocks.load.mockResolvedValue({
-      get: storeMocks.get,
-      set: storeMocks.set,
-      delete: storeMocks.delete,
-      save: storeMocks.save,
-    });
-    storeMocks.get.mockResolvedValue([paused]);
+    storeMocks.migrateLegacyStore.mockResolvedValue([paused]);
   });
 
   it("hides a resumed timer and retries a failed local removal", async () => {

@@ -1,9 +1,7 @@
-import { load } from "@tauri-apps/plugin-store";
 import { mutateArrayStore } from "./arrayStore";
+import { migrateLegacyStore } from "./storeMigrations";
 
-const STORE_PATH = "settings.json";
 const PAUSE_KEY = "pausedTimers";
-const LEGACY_PAUSE_KEY = "pausedTimer";
 const MAX_PAUSED_TIMERS = 10;
 
 export interface PausedTimerData {
@@ -24,37 +22,16 @@ export interface PausedTimerData {
   pausedAt: string;
 }
 
-let storePromise: ReturnType<typeof load> | null = null;
 const pendingRemovalIds = new Set<string>();
 const pendingRemovalRetries = new Set<string>();
 
-function getStore() {
-  if (!storePromise) {
-    storePromise = load(STORE_PATH, { defaults: {}, autoSave: true });
-  }
-  return storePromise;
-}
-
 export async function loadPausedTimers(): Promise<PausedTimerData[]> {
   try {
-    const store = await getStore();
-    const arr = await store.get<PausedTimerData[]>(PAUSE_KEY);
-    if (arr) {
-      return visiblePausedTimers(arr);
-    }
-
-    // Migrate legacy single-timer key
-    const legacy = await store.get<Omit<PausedTimerData, "id"> & { id?: string }>(LEGACY_PAUSE_KEY);
-    if (legacy) {
-      const migrated: PausedTimerData = { ...legacy, id: legacy.id ?? crypto.randomUUID() };
-      await store.set(PAUSE_KEY, [migrated]);
-      await store.delete(LEGACY_PAUSE_KEY);
-      await store.save();
-      return visiblePausedTimers([migrated]);
-    }
-
-    retryPendingRemovals();
-    return [];
+    const timers = await migrateLegacyStore<PausedTimerData[]>({
+      type: "pausedTimer",
+      generatedId: crypto.randomUUID(),
+    });
+    return visiblePausedTimers(timers);
   } catch {
     return [];
   }

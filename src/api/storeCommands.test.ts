@@ -5,6 +5,7 @@ vi.mock("@tauri-apps/api/core", () => core);
 
 import { mutateArrayStore } from "./arrayStore";
 import { mutateScopedStore } from "./scopedStore";
+import { migrateLegacyStore } from "./storeMigrations";
 
 describe("atomic native store command adapters", () => {
   beforeEach(() => vi.resetAllMocks());
@@ -47,6 +48,25 @@ describe("atomic native store command adapters", () => {
           identity: { id: timer.id },
           limit: 10,
           sortField: "pausedAt",
+        },
+      },
+    });
+  });
+
+  it("passes allowlisted legacy migrations through the native broker", async () => {
+    core.invoke.mockResolvedValueOnce({ value: ["task-a"] });
+
+    await expect(
+      migrateLegacyStore<string[]>({
+        type: "hiddenTasks",
+        connectionId: "connection-a",
+      }),
+    ).resolves.toEqual(["task-a"]);
+    expect(core.invoke).toHaveBeenCalledWith("migrate_legacy_store", {
+      request: {
+        migration: {
+          type: "hiddenTasks",
+          connectionId: "connection-a",
         },
       },
     });

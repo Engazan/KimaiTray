@@ -59,6 +59,33 @@ fn persist_value_with_rollback(
     Ok(())
 }
 
+fn persist_changes_with_rollback(
+    store: &impl StoreBackend,
+    changes: &[(String, Option<Value>)],
+) -> Result<(), String> {
+    let previous = changes
+        .iter()
+        .map(|(key, _)| (key.clone(), store.get_value(key)))
+        .collect::<Vec<_>>();
+    for (key, value) in changes {
+        match value {
+            Some(value) => store.set_value(key, value.clone()),
+            None => store.delete_value(key),
+        }
+    }
+    if let Err(error) = store.save_value() {
+        for (key, value) in previous {
+            match value {
+                Some(value) => store.set_value(&key, value),
+                None => store.delete_value(&key),
+            }
+        }
+        let _ = store.save_value();
+        return Err(error);
+    }
+    Ok(())
+}
+
 pub(crate) fn persist_store_value<R: Runtime>(
     store: &Store<R>,
     key: &str,
@@ -139,6 +166,21 @@ pub struct MoveFavoritesRequest {
 #[serde(rename_all = "camelCase")]
 pub struct MoveFavoritesResponse {
     count: usize,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum LegacyStoreMigration {
+    CategoryConfig,
+    CategoryLastActivity,
+    HiddenTasks { connection_id: String },
+    PausedTimer { generated_id: String },
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LegacyStoreMigrationRequest {
+    migration: LegacyStoreMigration,
 }
 
 fn validate_request(request: &ScopedStoreRequest) -> Result<(), String> {
@@ -372,6 +414,108 @@ fn move_favorites(items: &mut Vec<Value>, request: &MoveFavoritesRequest) -> usi
     moving_count
 }
 
+fn migrate_legacy_store_backend(
+    store: &impl StoreBackend,
+    migration: LegacyStoreMigration,
+) -> Result<Value, String> {
+    let (target_key, legacy_key) = match &migration {
+        LegacyStoreMigration::CategoryConfig => ("categoryConfig", "csConfig"),
+        LegacyStoreMigration::CategoryLastActivity => ("categoryLastActivity", "csLastActivity"),
+        LegacyStoreMigration::HiddenTasks { .. } => {
+            ("hiddenRecentTasksByConnection", "hiddenRecentTasks")
+        }
+        LegacyStoreMigration::PausedTimer { .. } => ("pausedTimers", "pausedTimer"),
+    };
+    let current = store.get_value(target_key);
+    let legacy = store.get_value(legacy_key);
+    let mut changes = Vec::new();
+
+    let response = match migration {
+        LegacyStoreMigration::CategoryConfig | LegacyStoreMigration::CategoryLastActivity => {
+            match current {
+                Some(value) if value.is_object() => value,
+                Some(_) => return Err("Migrated store value is not an object".into()),
+                None => match legacy.clone() {
+                    Some(value) if value.is_object() => {
+                        changes.push((target_key.into(), Some(value.clone())));
+                        value
+                    }
+                    Some(_) => return Err("Legacy store value is not an object".into()),
+                    None => Value::Object(Map::new()),
+                },
+            }
+        }
+        LegacyStoreMigration::HiddenTasks { connection_id } => {
+            if connection_id.is_empty() || connection_id.len() > MAX_ENTRY_KEY_BYTES {
+                return Err("Invalid hidden task connection id".into());
+            }
+            let mut map = match current {
+                Some(Value::Object(map)) => map,
+                None => Map::new(),
+                Some(_) => return Err("Hidden task store value is not an object".into()),
+            };
+            if !map.contains_key(&connection_id) {
+                if let Some(legacy_value) = legacy.as_ref() {
+                    let items = string_items(Some(legacy_value))?;
+                    map.insert(
+                        connection_id.clone(),
+                        serde_json::to_value(items).map_err(|error| error.to_string())?,
+                    );
+                    changes.push((target_key.into(), Some(Value::Object(map.clone()))));
+                }
+            }
+            let value = map
+                .get(&connection_id)
+                .cloned()
+                .unwrap_or_else(|| Value::Array(Vec::new()));
+            string_items(Some(&value))?;
+            value
+        }
+        LegacyStoreMigration::PausedTimer { generated_id } => {
+            if generated_id.is_empty() || generated_id.len() > MAX_ENTRY_KEY_BYTES {
+                return Err("Invalid paused timer id".into());
+            }
+            match current {
+                Some(Value::Array(items)) => Value::Array(items),
+                Some(_) => return Err("Paused timer store value is not an array".into()),
+                None => match legacy.clone() {
+                    Some(Value::Object(mut timer)) => {
+                        timer
+                            .entry("id")
+                            .or_insert_with(|| Value::String(generated_id));
+                        let value = Value::Array(vec![Value::Object(timer)]);
+                        changes.push((target_key.into(), Some(value.clone())));
+                        value
+                    }
+                    Some(_) => return Err("Legacy paused timer is not an object".into()),
+                    None => Value::Array(Vec::new()),
+                },
+            }
+        }
+    };
+
+    if legacy.is_some() {
+        changes.push((legacy_key.into(), None));
+    }
+    if !changes.is_empty() {
+        persist_changes_with_rollback(store, &changes)?;
+    }
+    Ok(response)
+}
+
+#[tauri::command]
+pub fn migrate_legacy_store(
+    app: AppHandle,
+    request: LegacyStoreMigrationRequest,
+) -> Result<ScopedStoreResponse, String> {
+    let _transaction = STORE_MUTATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let store = app.store(STORE_PATH).map_err(|error| error.to_string())?;
+    let value = migrate_legacy_store_backend(store.as_ref(), request.migration)?;
+    Ok(ScopedStoreResponse { value })
+}
+
 #[tauri::command]
 pub fn mutate_scoped_store(
     app: AppHandle,
@@ -513,8 +657,9 @@ pub fn move_favorites_store(
 mod tests {
     use super::{
         apply_array_mutation, apply_mutation, apply_settings_patch, claim_legacy_favorites,
-        move_favorites, persist_value_with_rollback, ArrayStoreMutation, MoveFavoritesRequest,
-        ScopedStoreMutation, StoreBackend,
+        migrate_legacy_store_backend, move_favorites, persist_value_with_rollback,
+        ArrayStoreMutation, LegacyStoreMigration, MoveFavoritesRequest, ScopedStoreMutation,
+        StoreBackend,
     };
     use serde_json::{json, Map, Value};
     use std::{collections::HashMap, sync::Mutex};
@@ -580,6 +725,63 @@ mod tests {
 
         assert!(persist_value_with_rollback(&store, "credential", None).is_err());
         assert_eq!(store.get_value("credential"), Some(json!("secret")));
+    }
+
+    #[test]
+    fn legacy_map_migration_moves_and_removes_keys_atomically() {
+        let store = FailingStore {
+            values: Mutex::new(HashMap::from([(
+                "csConfig".into(),
+                json!({"connection-a": {"categories": []}}),
+            )])),
+            save_results: Mutex::new(Vec::new()),
+        };
+
+        let value =
+            migrate_legacy_store_backend(&store, LegacyStoreMigration::CategoryConfig).unwrap();
+        assert_eq!(value, json!({"connection-a": {"categories": []}}));
+        assert_eq!(store.get_value("categoryConfig"), Some(value));
+        assert_eq!(store.get_value("csConfig"), None);
+    }
+
+    #[test]
+    fn hidden_task_migration_preserves_existing_connection_scope() {
+        let store = FailingStore {
+            values: Mutex::new(HashMap::from([
+                (
+                    "hiddenRecentTasksByConnection".into(),
+                    json!({"connection-a": ["current"]}),
+                ),
+                ("hiddenRecentTasks".into(), json!(["legacy"])),
+            ])),
+            save_results: Mutex::new(Vec::new()),
+        };
+
+        let value = migrate_legacy_store_backend(
+            &store,
+            LegacyStoreMigration::HiddenTasks {
+                connection_id: "connection-a".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(value, json!(["current"]));
+        assert_eq!(store.get_value("hiddenRecentTasks"), None);
+    }
+
+    #[test]
+    fn multi_key_migration_failure_restores_every_original_value() {
+        let legacy = json!({"connection-a": {"leaf": true}});
+        let store = FailingStore {
+            values: Mutex::new(HashMap::from([("csLastActivity".into(), legacy.clone())])),
+            save_results: Mutex::new(vec![Err("disk unavailable".into()), Ok(())]),
+        };
+
+        assert!(
+            migrate_legacy_store_backend(&store, LegacyStoreMigration::CategoryLastActivity,)
+                .is_err()
+        );
+        assert_eq!(store.get_value("categoryLastActivity"), None);
+        assert_eq!(store.get_value("csLastActivity"), Some(legacy));
     }
 
     #[test]

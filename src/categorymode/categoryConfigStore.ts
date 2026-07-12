@@ -2,13 +2,13 @@ import { load } from "@tauri-apps/plugin-store";
 import type { CategoryConfig } from "./types";
 import { cloneDefaultCategoryConfig } from "./defaultCategoryConfig";
 import { mutateScopedStore } from "../api/scopedStore";
+import { migrateLegacyStore } from "../api/storeMigrations";
 
 // Persists the Category Mode category tree per connection, as a sibling key inside the
 // shared settings.json plugin-store (same idiom as favoritesStore/hiddenTasksStore).
 const STORE_PATH = "settings.json";
 const KEY = "categoryConfig";
 // Legacy key from before the "CS Mode" → "Category Mode" rename.
-const LEGACY_KEY = "csConfig";
 
 type CategoryConfigMap = Record<string, CategoryConfig>;
 
@@ -34,21 +34,10 @@ function getStore() {
   return storePromise;
 }
 
-type Store = Awaited<ReturnType<typeof getStore>>;
-
 /** Return the config map, migrating the whole legacy-key map to the new key
  *  once (so reads and writes never diverge across the two keys). */
-async function readMap(store: Store): Promise<CategoryConfigMap> {
-  const existing = await store.get<CategoryConfigMap>(KEY);
-  if (existing !== undefined) return existing;
-  const legacy = await store.get<CategoryConfigMap>(LEGACY_KEY);
-  if (legacy !== undefined) {
-    await store.set(KEY, legacy);
-    await store.delete(LEGACY_KEY);
-    await store.save();
-    return legacy;
-  }
-  return {};
+async function readMap(): Promise<CategoryConfigMap> {
+  return migrateLegacyStore<CategoryConfigMap>({ type: "categoryConfig" });
 }
 
 /** Load the config for a connection, falling back to a fresh default clone when
@@ -56,8 +45,7 @@ async function readMap(store: Store): Promise<CategoryConfigMap> {
 export async function loadCategoryConfig(connectionId: string): Promise<CategoryConfig> {
   if (!connectionId) return cloneDefaultCategoryConfig();
   try {
-    const store = await getStore();
-    const all = await readMap(store);
+    const all = await readMap();
     const cfg = all[connectionId];
     return cfg ? withDefaults(cfg) : cloneDefaultCategoryConfig();
   } catch {
