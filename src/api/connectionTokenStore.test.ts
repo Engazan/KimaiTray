@@ -34,6 +34,22 @@ describe("connection token storage", () => {
     );
   });
 
+  it("removes the legacy URL alias when it is no longer shared", async () => {
+    await deleteConnectionToken(
+      "connection-a",
+      "https://kimai.example.test",
+    );
+
+    expect(secureStore.deleteApiToken).toHaveBeenNthCalledWith(
+      1,
+      "conn-token:connection-a",
+    );
+    expect(secureStore.deleteApiToken).toHaveBeenNthCalledWith(
+      2,
+      "https://kimai.example.test",
+    );
+  });
+
   it("returns an id-scoped token without reading the legacy URL", async () => {
     secureStore.getApiToken.mockResolvedValueOnce("current-token");
 

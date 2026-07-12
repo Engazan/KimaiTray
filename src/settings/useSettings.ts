@@ -9,17 +9,20 @@ import {
 import { LatestRequest } from "../utils/latestRequest";
 import { deleteIssueToken } from "../integrations/issues/issueTokenStore";
 
-const pendingCredentialCleanup = new Set<string>();
+const pendingCredentialCleanup = new Map<string, string | undefined>();
 const credentialCleanupInFlight = new Set<string>();
 
-async function cleanupConnectionCredentials(id: string): Promise<boolean> {
+async function cleanupConnectionCredentials(
+  id: string,
+  legacyUrl?: string,
+): Promise<boolean> {
   const results = await Promise.allSettled([
-    deleteConnectionToken(id),
+    deleteConnectionToken(id, legacyUrl),
     deleteIssueToken(id),
   ]);
   const cleanupPending = results.some((result) => result.status === "rejected");
   if (cleanupPending) {
-    pendingCredentialCleanup.add(id);
+    pendingCredentialCleanup.set(id, legacyUrl);
   } else {
     pendingCredentialCleanup.delete(id);
   }
@@ -27,10 +30,10 @@ async function cleanupConnectionCredentials(id: string): Promise<boolean> {
 }
 
 function retryPendingCredentialCleanup(): void {
-  for (const id of pendingCredentialCleanup) {
+  for (const [id, legacyUrl] of pendingCredentialCleanup) {
     if (credentialCleanupInFlight.has(id)) continue;
     credentialCleanupInFlight.add(id);
-    void cleanupConnectionCredentials(id).finally(() => {
+    void cleanupConnectionCredentials(id, legacyUrl).finally(() => {
       credentialCleanupInFlight.delete(id);
     });
   }
@@ -184,6 +187,7 @@ export function useSettings() {
 
   const removeConnection = useCallback(async (id: string) => {
     const prev = settingsRef.current;
+    const removed = prev.connections.find((connection) => connection.id === id);
     const wasActive = prev.activeConnectionId === id;
     const remaining = prev.connections.filter((c) => c.id !== id);
     const newActive = wasActive ? remaining[0] : null;
@@ -214,7 +218,14 @@ export function useSettings() {
       }
     }
 
-    const credentialCleanupPending = await cleanupConnectionCredentials(id);
+    const legacyUrl =
+      removed && !remaining.some((connection) => connection.url === removed.url)
+        ? removed.url
+        : undefined;
+    const credentialCleanupPending = await cleanupConnectionCredentials(
+      id,
+      legacyUrl,
+    );
     return { credentialCleanupPending };
   }, []);
 

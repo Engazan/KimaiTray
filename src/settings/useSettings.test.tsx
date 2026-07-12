@@ -220,7 +220,10 @@ describe("connection settings transaction", () => {
 
     await act(async () => result.current.removeConnection("connection-a"));
 
-    expect(tokenMocks.deleteConnectionToken).toHaveBeenCalledWith("connection-a");
+    expect(tokenMocks.deleteConnectionToken).toHaveBeenCalledWith(
+      "connection-a",
+      "https://kimai-a.example.test",
+    );
     expect(tokenMocks.deleteIssueToken).toHaveBeenCalledWith("connection-a");
     expect(result.current.settings.connections).toEqual([]);
     expect(result.current.token).toBe("");

@@ -45,7 +45,9 @@ export async function getConnectionToken(
 
 export async function deleteConnectionToken(
   connectionId: string,
+  legacyUrl?: string,
 ): Promise<void> {
   if (!connectionId) return;
-  return deleteApiToken(connectionTokenKey(connectionId));
+  await deleteApiToken(connectionTokenKey(connectionId));
+  if (legacyUrl) await deleteApiToken(legacyUrl);
 }

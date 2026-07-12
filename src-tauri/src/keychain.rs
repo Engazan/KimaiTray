@@ -1,4 +1,6 @@
 use log::warn;
+use std::path::Path;
+use std::sync::Mutex;
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
@@ -11,6 +13,7 @@ const TOKEN_PREFIX: &str = "api-token:";
 const KEYRING_SERVICE: &str = "eu.engazan.kimaitray";
 const MAX_CREDENTIAL_KEY_BYTES: usize = 4 * 1024;
 const MAX_TOKEN_BYTES: usize = 64 * 1024;
+static LEGACY_CREDENTIAL_SCRUB: Mutex<()> = Mutex::new(());
 
 fn validate_credential_key(value: &str) -> Result<(), String> {
     if value.is_empty() {
@@ -75,13 +78,22 @@ async fn scrub_legacy_credential(app: &AppHandle, account: &str) {
         return;
     };
     let account = account.to_string();
-    match tauri::async_runtime::spawn_blocking(move || scrub_legacy_store_key(&path, &account))
-        .await
+    match tauri::async_runtime::spawn_blocking(move || {
+        scrub_legacy_credential_file(&path, &account)
+    })
+    .await
     {
         Ok(Ok(_)) => {}
         Ok(Err(error)) => warn!("Failed to scrub legacy credential: {error}"),
         Err(error) => warn!("Legacy credential cleanup task failed: {error}"),
     }
+}
+
+fn scrub_legacy_credential_file(path: &Path, account: &str) -> Result<bool, String> {
+    let _guard = LEGACY_CREDENTIAL_SCRUB
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    scrub_legacy_store_key(path, account)
 }
 
 #[tauri::command]
@@ -161,6 +173,7 @@ pub async fn delete_api_token(app: AppHandle, base_url: String) -> Result<(), St
             .map_err(|e| e.to_string())?;
     let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
     persist_store_value(store.as_ref(), &account, None)?;
+    scrub_legacy_credential(&app, &account).await;
     secure_result.map_err(|error| {
         warn!("Failed to remove credential from OS store: {error}");
         "Failed to remove credential from OS store".to_string()
@@ -169,7 +182,12 @@ pub async fn delete_api_token(app: AppHandle, base_url: String) -> Result<(), St
 
 #[cfg(test)]
 mod tests {
-    use super::{token_key, validate_credential_key, validate_token, MAX_TOKEN_BYTES};
+    use super::{
+        scrub_legacy_credential_file, token_key, validate_credential_key, validate_token,
+        MAX_TOKEN_BYTES,
+    };
+    use serde_json::json;
+    use std::sync::Arc;
 
     #[test]
     fn token_keys_are_stable_across_trailing_slashes() {
@@ -194,5 +212,28 @@ mod tests {
         assert!(validate_token("").is_err());
         assert!(validate_token(&"x".repeat(MAX_TOKEN_BYTES)).is_ok());
         assert!(validate_token(&"x".repeat(MAX_TOKEN_BYTES + 1)).is_err());
+    }
+
+    #[test]
+    fn concurrent_legacy_scrubs_do_not_restore_another_secret() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("settings.json");
+        std::fs::write(
+            &path,
+            serde_json::to_vec(&json!({"token-a": "a", "token-b": "b"})).unwrap(),
+        )
+        .unwrap();
+        let path = Arc::new(path);
+        let handles = ["token-a", "token-b"].map(|key| {
+            let path = path.clone();
+            std::thread::spawn(move || scrub_legacy_credential_file(&path, key).unwrap())
+        });
+        for handle in handles {
+            assert!(handle.join().unwrap());
+        }
+
+        let remaining: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(path.as_ref()).unwrap()).unwrap();
+        assert_eq!(remaining, json!({}));
     }
 }
