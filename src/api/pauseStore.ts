@@ -25,6 +25,8 @@ export interface PausedTimerData {
 }
 
 let storePromise: ReturnType<typeof load> | null = null;
+const pendingRemovalIds = new Set<string>();
+const pendingRemovalRetries = new Set<string>();
 
 function getStore() {
   if (!storePromise) {
@@ -37,7 +39,9 @@ export async function loadPausedTimers(): Promise<PausedTimerData[]> {
   try {
     const store = await getStore();
     const arr = await store.get<PausedTimerData[]>(PAUSE_KEY);
-    if (arr && arr.length > 0) return arr;
+    if (arr) {
+      return visiblePausedTimers(arr);
+    }
 
     // Migrate legacy single-timer key
     const legacy = await store.get<Omit<PausedTimerData, "id"> & { id?: string }>(LEGACY_PAUSE_KEY);
@@ -46,9 +50,10 @@ export async function loadPausedTimers(): Promise<PausedTimerData[]> {
       await store.set(PAUSE_KEY, [migrated]);
       await store.delete(LEGACY_PAUSE_KEY);
       await store.save();
-      return [migrated];
+      return visiblePausedTimers([migrated]);
     }
 
+    retryPendingRemovals();
     return [];
   } catch {
     return [];
@@ -70,6 +75,36 @@ export async function removePausedTimer(id: string): Promise<PausedTimerData[]> 
     type: "removeMatching",
     identity: { id },
   });
+}
+
+function retryPendingRemovals(): void {
+  for (const id of pendingRemovalIds) {
+    if (pendingRemovalRetries.has(id)) continue;
+    pendingRemovalRetries.add(id);
+    void removePausedTimer(id)
+      .then(() => pendingRemovalIds.delete(id))
+      .catch(() => undefined)
+      .finally(() => pendingRemovalRetries.delete(id));
+  }
+}
+
+function visiblePausedTimers(timers: PausedTimerData[]): PausedTimerData[] {
+  retryPendingRemovals();
+  return timers.filter((timer) => !pendingRemovalIds.has(timer.id));
+}
+
+export async function removeResumedTimer(
+  id: string,
+): Promise<PausedTimerData[]> {
+  pendingRemovalIds.add(id);
+  try {
+    const updated = await removePausedTimer(id);
+    pendingRemovalIds.delete(id);
+    return updated;
+  } catch {
+    const visible = await loadPausedTimers();
+    return visible.filter((timer) => timer.id !== id);
+  }
 }
 
 export async function clearAllPausedTimers(): Promise<void> {
