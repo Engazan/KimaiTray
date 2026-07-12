@@ -33,6 +33,7 @@ enum TrayTickerState {
 }
 
 static TRAY_TICKER_STATE: Mutex<TrayTickerState> = Mutex::new(TrayTickerState::Idle);
+static TRAY_CONFIGURATION: Mutex<()> = Mutex::new(());
 
 fn format_elapsed(secs: u64, show_seconds: bool) -> String {
     let h = secs / 3600;
@@ -197,13 +198,9 @@ fn shape_code(shape: &str) -> u8 {
     }
 }
 
-fn render_current_icon(app: &AppHandle) -> Result<(), String> {
+fn render_icon(app: &AppHandle, size: u8, shape: u8, color: Rgb) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
-    let rgba = generate_state_icon(
-        TRAY_ICON_STATE.load(Ordering::SeqCst),
-        TRAY_ICON_SIZE.load(Ordering::SeqCst),
-        TRAY_ICON_SHAPE.load(Ordering::SeqCst),
-    );
+    let rgba = generate_state_icon_with_color(size, shape, color);
     let icon = Image::new_owned(rgba, ICON_CANVAS as u32, ICON_CANVAS as u32);
     tray.set_icon(Some(icon)).map_err(|e| e.to_string())
 }
@@ -213,8 +210,18 @@ pub fn set_tray_icon(app: AppHandle, state: String) -> Result<(), String> {
     if !matches!(state.as_str(), "idle" | "running" | "paused" | "error") {
         return Err("Invalid tray icon state".into());
     }
-    TRAY_ICON_STATE.store(state_code(&state), Ordering::SeqCst);
-    render_current_icon(&app)
+    let _transaction = TRAY_CONFIGURATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let next = state_code(&state);
+    render_icon(
+        &app,
+        TRAY_ICON_SIZE.load(Ordering::SeqCst),
+        TRAY_ICON_SHAPE.load(Ordering::SeqCst),
+        state_color(next),
+    )?;
+    TRAY_ICON_STATE.store(next, Ordering::SeqCst);
+    Ok(())
 }
 
 #[tauri::command]
@@ -222,8 +229,19 @@ pub fn set_tray_icon_size(app: AppHandle, size: String) -> Result<(), String> {
     if !matches!(size.as_str(), "small" | "medium" | "large" | "xlarge") {
         return Err("Invalid tray icon size".into());
     }
-    TRAY_ICON_SIZE.store(size_code(&size), Ordering::SeqCst);
-    render_current_icon(&app)
+    let _transaction = TRAY_CONFIGURATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let next = size_code(&size);
+    let state = TRAY_ICON_STATE.load(Ordering::SeqCst);
+    render_icon(
+        &app,
+        next,
+        TRAY_ICON_SHAPE.load(Ordering::SeqCst),
+        state_color(state),
+    )?;
+    TRAY_ICON_SIZE.store(next, Ordering::SeqCst);
+    Ok(())
 }
 
 #[tauri::command]
@@ -231,8 +249,19 @@ pub fn set_tray_icon_shape(app: AppHandle, shape: String) -> Result<(), String> 
     if !matches!(shape.as_str(), "dot" | "ring" | "square" | "clock") {
         return Err("Invalid tray icon shape".into());
     }
-    TRAY_ICON_SHAPE.store(shape_code(&shape), Ordering::SeqCst);
-    render_current_icon(&app)
+    let _transaction = TRAY_CONFIGURATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let next = shape_code(&shape);
+    let state = TRAY_ICON_STATE.load(Ordering::SeqCst);
+    render_icon(
+        &app,
+        TRAY_ICON_SIZE.load(Ordering::SeqCst),
+        next,
+        state_color(state),
+    )?;
+    TRAY_ICON_SHAPE.store(next, Ordering::SeqCst);
+    Ok(())
 }
 
 #[tauri::command]
@@ -247,16 +276,30 @@ pub fn set_tray_colors(
         .iter()
         .map(|hex| parse_hex_color(hex).ok_or_else(|| format!("Invalid tray color: {hex}")))
         .collect::<Result<Vec<_>, _>>()?;
+    let _transaction = TRAY_CONFIGURATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let state = TRAY_ICON_STATE.load(Ordering::SeqCst);
+    render_icon(
+        &app,
+        TRAY_ICON_SIZE.load(Ordering::SeqCst),
+        TRAY_ICON_SHAPE.load(Ordering::SeqCst),
+        unpack_color(parsed[state.min(3) as usize]),
+    )?;
     for (idx, packed) in parsed.into_iter().enumerate() {
         TRAY_COLORS[idx].store(packed, Ordering::SeqCst);
     }
-    render_current_icon(&app)
+    Ok(())
 }
 
 type Rgb = (f64, f64, f64);
 
 fn state_color(state: u8) -> Rgb {
     let packed = TRAY_COLORS[state.min(3) as usize].load(Ordering::SeqCst);
+    unpack_color(packed)
+}
+
+fn unpack_color(packed: u32) -> Rgb {
     (
         ((packed >> 16) & 0xff) as f64,
         ((packed >> 8) & 0xff) as f64,
@@ -312,7 +355,10 @@ fn blend_pixel(pixels: &mut [u8], idx: usize, color: Rgb, coverage: f64) {
 }
 
 fn generate_state_icon(state: u8, size: u8, shape: u8) -> Vec<u8> {
-    let color = state_color(state);
+    generate_state_icon_with_color(size, shape, state_color(state))
+}
+
+fn generate_state_icon_with_color(size: u8, shape: u8, color: Rgb) -> Vec<u8> {
     let radius = size_radius(size);
     match shape {
         1 => draw_ring(color, radius),
@@ -818,6 +864,9 @@ pub fn update_tray_menu(
     ] {
         validate_text(label, 128, name)?;
     }
+    let _transaction = TRAY_CONFIGURATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     let menu = build_tray_menu(
         &app,
@@ -845,9 +894,9 @@ pub fn set_tray_click_actions(
     }
     let left = if left_action == "nothing" { 1u8 } else { 0u8 };
     let right = if right_action == "popup" { 1u8 } else { 0u8 };
-
-    TRAY_LEFT_ACTION.store(left, Ordering::SeqCst);
-    TRAY_RIGHT_ACTION.store(right, Ordering::SeqCst);
+    let _transaction = TRAY_CONFIGURATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     if right == 1 {
@@ -865,6 +914,9 @@ pub fn set_tray_click_actions(
         .map_err(|e| e.to_string())?;
         tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
     }
+
+    TRAY_LEFT_ACTION.store(left, Ordering::SeqCst);
+    TRAY_RIGHT_ACTION.store(right, Ordering::SeqCst);
 
     Ok(())
 }
