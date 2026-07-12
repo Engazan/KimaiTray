@@ -13,7 +13,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+    permissions:
+      contents: read
+      checks: write
+
   manual-build:
+    needs: verify
     if: github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
@@ -44,9 +51,10 @@ jobs:
         with:
           node-version: 20.19.0
           cache: npm
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
-        with:
-          targets: ${{ matrix.target }}
+      - name: Install repository Rust toolchain and target
+        run: |
+          rustup show active-toolchain
+          rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: src-tauri -> target
@@ -66,6 +74,7 @@ jobs:
           retention-days: 7
 
   release:
+    needs: verify
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -98,9 +107,10 @@ jobs:
         with:
           node-version: 20.19.0
           cache: npm
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
-        with:
-          targets: ${{ matrix.target }}
+      - name: Install repository Rust toolchain and target
+        run: |
+          rustup show active-toolchain
+          rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: src-tauri -> target
