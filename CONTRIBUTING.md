@@ -23,3 +23,5 @@ signing or notarization.
 Changes to connection identity, credentials, timers, storage migrations, or
 time-zone handling must include a regression test. Never commit API tokens,
 signing keys, production URLs containing credentials, or user diagnostics.
+The frontend check also enforces the baseline coverage thresholds in
+`vitest.config.ts`; new critical modules should include focused regression tests.
