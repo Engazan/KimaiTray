@@ -739,6 +739,32 @@ export default function TrayPopup() {
 
   const compactTimer = popupLayout === "taskbar" || popupLayout === "timeline";
 
+  // Render paused timers as a compact single-row list whenever there is more
+  // than one (or an active timer / a compact layout is in play), so several are
+  // scannable at once; a lone paused timer keeps the roomier detail card. Cap
+  // the list so ~5 compact rows show before it scrolls — the half row of
+  // headroom lets the next card peek to signal there is more.
+  const pausedCardsCompact =
+    !!timer || compactTimer || pausedTimers.length > 1;
+  const pausedListMaxHeight = Math.round((pausedCardsCompact ? 40 : 128) * 5.5);
+  // Soft-fade the bottom edge only while the list actually scrolls, so the
+  // clipped row doesn't leave a hard strip of inter-card margin showing.
+  const pausedListRef = useRef<HTMLDivElement>(null);
+  const [pausedListScrolls, setPausedListScrolls] = useState(false);
+  useEffect(() => {
+    const el = pausedListRef.current;
+    if (!el) {
+      setPausedListScrolls(false);
+      return;
+    }
+    const update = () =>
+      setPausedListScrolls(el.scrollHeight > el.clientHeight + 1);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pausedTimers, pausedCardsCompact, pausedListMaxHeight]);
+
   const showIdleDialog =
     !!client &&
     idleState === "returned" &&
@@ -797,54 +823,82 @@ export default function TrayPopup() {
       ) : (
         <>
           <div className="flex flex-1 min-h-0 flex-col">
-            {/* Timer area */}
-            <div className="timer-area max-h-[50%] min-h-0 shrink-0 overflow-y-auto overscroll-contain">
-              {status === "loading" ? (
-                <EmptyTimerState variant="loading" compact={compactTimer} />
-              ) : status === "unconfigured" ? (
-                <EmptyTimerState variant="unconfigured" compact={compactTimer} />
-              ) : timer ? (
-                <ActiveTimerCard
-                  timer={timer}
-                  onStop={stopActiveTimer}
-                  onPause={pauseTimer}
-                  isStopping={isStoppingActive}
-                  isPausing={isPausing}
-                  multipleActive={multipleActive}
-                  onEdit={editTimer}
-                  isSaving={isSaving}
-                  saveError={saveError}
-                  compact={compactTimer}
-                  focusMode={popupLayout === "focus"}
-                  showNote={featureFlags.featureNote}
-                  showTags={featureFlags.featureTags}
-                  tagSuggestions={tagSuggestions}
-                  issueUrl={timerIssueUrl}
-                  timeEstimate={showIssueEstimate ? estimateIssue!.timeEstimate : undefined}
-                  timeSpent={showIssueEstimate ? estimateIssue!.timeSpent : undefined}
-                  colorMode={colorMode}
-                />
-              ) : !hasPausedTimers ? (
-                <EmptyTimerState compact={compactTimer} />
-              ) : null}
-              {pausedTimers.map((pt) => (
-                <PausedTimerCard
-                  key={pt.id}
-                  paused={pt}
-                  onResume={() => resumeTimer(pt.id)}
-                  onStop={() => discardPausedTimer(pt.id)}
-                  isResuming={resumingId === pt.id}
-                  isStopping={discardingId === pt.id}
-                  error={pauseError}
-                  onDismissError={dismissPauseError}
-                  compact={!!timer || compactTimer}
-                  colorMode={colorMode}
-                  showDescriptionOnHover={
-                    featureFlags.featurePausedTimerDescriptionHover
-                  }
-                />
-              ))}
-            </div>
+            {/* Active timer / connection state. In the focus layout this is a
+                fixed-height band, so only render it when it has real content —
+                otherwise the paused list would sit under an empty reserved
+                strip. */}
+            {(status === "loading" ||
+              status === "unconfigured" ||
+              timer ||
+              !hasPausedTimers) && (
+              <div className="timer-area min-h-0 shrink-0">
+                {status === "loading" ? (
+                  <EmptyTimerState variant="loading" compact={compactTimer} />
+                ) : status === "unconfigured" ? (
+                  <EmptyTimerState variant="unconfigured" compact={compactTimer} />
+                ) : timer ? (
+                  <ActiveTimerCard
+                    timer={timer}
+                    onStop={stopActiveTimer}
+                    onPause={pauseTimer}
+                    isStopping={isStoppingActive}
+                    isPausing={isPausing}
+                    multipleActive={multipleActive}
+                    onEdit={editTimer}
+                    isSaving={isSaving}
+                    saveError={saveError}
+                    compact={compactTimer}
+                    focusMode={popupLayout === "focus"}
+                    showNote={featureFlags.featureNote}
+                    showTags={featureFlags.featureTags}
+                    tagSuggestions={tagSuggestions}
+                    issueUrl={timerIssueUrl}
+                    timeEstimate={showIssueEstimate ? estimateIssue!.timeEstimate : undefined}
+                    timeSpent={showIssueEstimate ? estimateIssue!.timeSpent : undefined}
+                    colorMode={colorMode}
+                  />
+                ) : (
+                  <EmptyTimerState compact={compactTimer} />
+                )}
+              </div>
+            )}
+            {/* Paused timers live in their own scroll area so they are not
+                clipped by the focus layout's fixed-height timer band. */}
+            {pausedTimers.length > 0 && (
+              <div
+                ref={pausedListRef}
+                className="min-h-0 shrink-0 overflow-y-auto overscroll-contain"
+                style={{
+                  maxHeight: `${pausedListMaxHeight}px`,
+                  ...(pausedListScrolls
+                    ? {
+                        WebkitMaskImage:
+                          "linear-gradient(to bottom, #000 calc(100% - 12px), transparent)",
+                        maskImage:
+                          "linear-gradient(to bottom, #000 calc(100% - 12px), transparent)",
+                      }
+                    : {}),
+                }}
+              >
+                {pausedTimers.map((pt) => (
+                  <PausedTimerCard
+                    key={pt.id}
+                    paused={pt}
+                    onResume={() => resumeTimer(pt.id)}
+                    onStop={() => discardPausedTimer(pt.id)}
+                    isResuming={resumingId === pt.id}
+                    isStopping={discardingId === pt.id}
+                    error={pauseError}
+                    onDismissError={dismissPauseError}
+                    compact={pausedCardsCompact}
+                    colorMode={colorMode}
+                    showDescriptionOnHover={
+                      featureFlags.featurePausedTimerDescriptionHover
+                    }
+                  />
+                ))}
+              </div>
+            )}
 
             {(switchError || pauseError || timesheetDeleteError) && (
               <ErrorBanner
