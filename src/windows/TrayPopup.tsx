@@ -869,6 +869,7 @@ export default function TrayPopup() {
             {featureFlags.featureCategoryMode && client ? (
               <>
                 <CategoryModePanel
+                  key={client.cacheScope}
                   client={client}
                   connectionId={activeConnectionId}
                   hasActiveTimer={!!timer}
