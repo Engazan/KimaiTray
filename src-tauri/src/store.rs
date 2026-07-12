@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_store::{Store, StoreExt};
 
@@ -175,6 +175,7 @@ pub enum LegacyStoreMigration {
     CategoryLastActivity,
     HiddenTasks { connection_id: String },
     PausedTimer { generated_id: String },
+    SettingsConnection { generated_id: String, name: String },
 }
 
 #[derive(Deserialize)]
@@ -418,6 +419,48 @@ fn migrate_legacy_store_backend(
     store: &impl StoreBackend,
     migration: LegacyStoreMigration,
 ) -> Result<Value, String> {
+    if let LegacyStoreMigration::SettingsConnection { generated_id, name } = migration {
+        if generated_id.is_empty()
+            || generated_id.len() > MAX_ENTRY_KEY_BYTES
+            || name.is_empty()
+            || name.len() > MAX_ENTRY_KEY_BYTES
+        {
+            return Err("Invalid migrated connection identity".into());
+        }
+        let mut settings = match store.get_value("settings") {
+            Some(Value::Object(settings)) => settings,
+            None => Map::new(),
+            Some(_) => return Err("Settings value is not an object".into()),
+        };
+        let has_connections = settings
+            .get("connections")
+            .and_then(Value::as_array)
+            .is_some_and(|connections| !connections.is_empty());
+        if !has_connections {
+            let url = settings
+                .get("kimaiUrl")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if !url.is_empty() {
+                settings.insert(
+                    "connections".into(),
+                    Value::Array(vec![json!({
+                        "id": generated_id,
+                        "name": name,
+                        "url": url,
+                    })]),
+                );
+                settings.insert("activeConnectionId".into(), Value::String(generated_id));
+                persist_value_with_rollback(
+                    store,
+                    "settings",
+                    Some(Value::Object(settings.clone())),
+                )?;
+            }
+        }
+        return Ok(Value::Object(settings));
+    }
+
     let (target_key, legacy_key) = match &migration {
         LegacyStoreMigration::CategoryConfig => ("categoryConfig", "csConfig"),
         LegacyStoreMigration::CategoryLastActivity => ("categoryLastActivity", "csLastActivity"),
@@ -425,6 +468,7 @@ fn migrate_legacy_store_backend(
             ("hiddenRecentTasksByConnection", "hiddenRecentTasks")
         }
         LegacyStoreMigration::PausedTimer { .. } => ("pausedTimers", "pausedTimer"),
+        LegacyStoreMigration::SettingsConnection { .. } => unreachable!(),
     };
     let current = store.get_value(target_key);
     let legacy = store.get_value(legacy_key);
@@ -492,6 +536,7 @@ fn migrate_legacy_store_backend(
                 },
             }
         }
+        LegacyStoreMigration::SettingsConnection { .. } => unreachable!(),
     };
 
     if legacy.is_some() {
@@ -782,6 +827,37 @@ mod tests {
         );
         assert_eq!(store.get_value("categoryLastActivity"), None);
         assert_eq!(store.get_value("csLastActivity"), Some(legacy));
+    }
+
+    #[test]
+    fn legacy_connection_claim_is_idempotent_across_windows() {
+        let store = FailingStore {
+            values: Mutex::new(HashMap::from([(
+                "settings".into(),
+                json!({"kimaiUrl": "https://kimai.example.test", "connections": []}),
+            )])),
+            save_results: Mutex::new(Vec::new()),
+        };
+
+        migrate_legacy_store_backend(
+            &store,
+            LegacyStoreMigration::SettingsConnection {
+                generated_id: "window-a".into(),
+                name: "kimai.example.test".into(),
+            },
+        )
+        .unwrap();
+        let second = migrate_legacy_store_backend(
+            &store,
+            LegacyStoreMigration::SettingsConnection {
+                generated_id: "window-b".into(),
+                name: "other".into(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(second["activeConnectionId"], json!("window-a"));
+        assert_eq!(second["connections"][0]["id"], json!("window-a"));
     }
 
     #[test]

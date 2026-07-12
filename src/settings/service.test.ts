@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const storeMocks = vi.hoisted(() => ({
   load: vi.fn(),
   get: vi.fn(),
-  set: vi.fn(),
-  save: vi.fn(),
+  invoke: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-store", () => ({ load: storeMocks.load }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: storeMocks.invoke }));
 
 import { defaultSettings, loadSettings, mergeSettings } from "./service";
 
@@ -16,8 +16,6 @@ describe("settings schema defaults", () => {
     vi.resetAllMocks();
     storeMocks.load.mockResolvedValue({
       get: storeMocks.get,
-      set: storeMocks.set,
-      save: storeMocks.save,
     });
   });
   it("deep-merges partial nested settings without mutating defaults", () => {
@@ -121,12 +119,14 @@ describe("settings schema defaults", () => {
       theme: "dark",
       useCompactPopup: true,
     });
-    storeMocks.set.mockRejectedValue(new Error("disk unavailable"));
+    storeMocks.invoke.mockRejectedValue(new Error("disk unavailable"));
 
     const settings = await loadSettings();
 
     expect(settings.theme).toBe("dark");
     expect(settings.uiSize).toBe("small");
-    expect(storeMocks.save).not.toHaveBeenCalled();
+    expect(storeMocks.invoke).toHaveBeenCalledWith("patch_settings", {
+      request: { values: { uiSize: "small" }, expected: undefined },
+    });
   });
 });

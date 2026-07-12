@@ -4,7 +4,8 @@ type LegacyStoreMigration =
   | { type: "categoryConfig" }
   | { type: "categoryLastActivity" }
   | { type: "hiddenTasks"; connectionId: string }
-  | { type: "pausedTimer"; generatedId: string };
+  | { type: "pausedTimer"; generatedId: string }
+  | { type: "settingsConnection"; generatedId: string; name: string };
 
 export async function migrateLegacyStore<T>(
   migration: LegacyStoreMigration,

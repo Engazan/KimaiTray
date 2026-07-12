@@ -7,6 +7,7 @@ import type {
   SavedConnection,
   TrayStateColors,
 } from "../types";
+import { migrateLegacyStore } from "../api/storeMigrations";
 
 const STORE_PATH = "settings.json";
 const SETTINGS_KEY = "settings";
@@ -90,16 +91,15 @@ function getStore() {
   return storePromise;
 }
 
-async function persistMigratedSettings(
-  store: Awaited<ReturnType<typeof getStore>>,
-  settings: AppSettings,
-): Promise<void> {
+async function persistMigratedPatch(
+  values: Partial<AppSettings>,
+): Promise<AppSettings | null> {
   try {
-    await store.set(SETTINGS_KEY, settings);
-    await store.save();
+    return await patchSettings(values);
   } catch {
     // The normalized in-memory settings remain usable. A later startup can
     // retry this idempotent migration when persistence is available again.
+    return null;
   }
 }
 
@@ -432,23 +432,36 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
 export async function loadSettings(): Promise<AppSettings> {
   try {
     const store = await getStore();
-    const raw = await store.get<AppSettings>(SETTINGS_KEY);
+    let raw = await store.get<AppSettings>(SETTINGS_KEY);
     if (!raw) return mergeSettings();
+    const initialRaw = raw as unknown as Record<string, unknown>;
+    if (
+      typeof initialRaw.kimaiUrl === "string" &&
+      initialRaw.kimaiUrl &&
+      (!Array.isArray(initialRaw.connections) || initialRaw.connections.length === 0)
+    ) {
+      let name = "Kimai";
+      try {
+        name = new URL(initialRaw.kimaiUrl).hostname;
+      } catch {
+        // Keep the legacy display name fallback.
+      }
+      try {
+        raw = await migrateLegacyStore<AppSettings>({
+          type: "settingsConnection",
+          generatedId: crypto.randomUUID(),
+          name,
+        });
+      } catch {
+        // Retry the idempotent native claim on a later load.
+      }
+    }
     const settings = mergeSettings(raw);
 
     const rawObj = raw as unknown as Record<string, unknown>;
     if (rawObj.useCompactPopup !== undefined && !("uiSize" in rawObj)) {
       settings.uiSize = rawObj.useCompactPopup === true ? "small" : "default";
-      await persistMigratedSettings(store, settings);
-    }
-
-    if (settings.kimaiUrl && (!settings.connections || settings.connections.length === 0)) {
-      const id = crypto.randomUUID();
-      let name = "Kimai";
-      try { name = new URL(settings.kimaiUrl).hostname; } catch { /* keep default */ }
-      settings.connections = [{ id, name, url: settings.kimaiUrl }];
-      settings.activeConnectionId = id;
-      await persistMigratedSettings(store, settings);
+      await persistMigratedPatch({ uiSize: settings.uiSize });
     }
 
     // Migrate the old global feature toggles into per-connection settings by
@@ -489,7 +502,7 @@ export async function loadSettings(): Promise<AppSettings> {
       for (const conn of settings.connections ?? []) {
         settings.features[conn.id] = { ...migrated };
       }
-      await persistMigratedSettings(store, settings);
+      await persistMigratedPatch({ features: settings.features });
     }
 
     // Migrate the per-connection toggle from the old "CS Mode" name.
@@ -507,7 +520,7 @@ export async function loadSettings(): Promise<AppSettings> {
       }
     }
     if (migratedCategoryMode) {
-      await persistMigratedSettings(store, settings);
+      await persistMigratedPatch({ features: settings.features });
     }
 
     return settings;
