@@ -2,6 +2,7 @@ mod http;
 mod idle;
 mod keychain;
 mod shortcuts;
+mod store;
 mod tray;
 
 use log::{error, info};
@@ -184,6 +185,7 @@ pub fn run() {
             tray::set_popup_monitor,
             idle::get_idle_seconds,
             shortcuts::register_shortcuts,
+            store::mutate_scoped_store,
         ])
         .setup(|app| {
             info!(

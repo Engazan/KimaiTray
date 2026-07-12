@@ -1,5 +1,6 @@
 import { load } from "@tauri-apps/plugin-store";
 import type { CategoryLastActivity } from "./types";
+import { mutateScopedStore } from "../api/scopedStore";
 
 // Remembers the last category activity started per connection, for the
 // "continue last activity" shortcut (FR6). Sibling key in settings.json.
@@ -54,9 +55,5 @@ export async function saveCategoryLastActivity(
   data: CategoryLastActivity,
 ): Promise<void> {
   if (!connectionId) return;
-  const store = await getStore();
-  const all = await readMap(store);
-  all[connectionId] = data;
-  await store.set(KEY, all);
-  await store.save();
+  await mutateScopedStore(KEY, connectionId, { type: "set", value: data });
 }

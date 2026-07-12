@@ -1,6 +1,7 @@
 import { load } from "@tauri-apps/plugin-store";
 import type { CategoryConfig } from "./types";
 import { cloneDefaultCategoryConfig } from "./defaultCategoryConfig";
+import { mutateScopedStore } from "../api/scopedStore";
 
 // Persists the Category Mode category tree per connection, as a sibling key inside the
 // shared settings.json plugin-store (same idiom as favoritesStore/hiddenTasksStore).
@@ -69,11 +70,7 @@ export async function saveCategoryConfig(
   config: CategoryConfig,
 ): Promise<void> {
   if (!connectionId) return;
-  const store = await getStore();
-  const all = await readMap(store);
-  all[connectionId] = config;
-  await store.set(KEY, all);
-  await store.save();
+  await mutateScopedStore(KEY, connectionId, { type: "set", value: config });
 }
 
 /** Subscribe to cross-window config changes so the popup reflects edits made in

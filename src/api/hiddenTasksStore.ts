@@ -1,4 +1,5 @@
 import { load } from "@tauri-apps/plugin-store";
+import { mutateScopedStore } from "./scopedStore";
 
 const STORE_PATH = "settings.json";
 const KEY = "hiddenRecentTasks";
@@ -26,11 +27,13 @@ async function loadScopedTasks(connectionId: string): Promise<{
   }
   const legacy = (await store.get<string[]>(KEY)) ?? [];
   if (legacy.length > 0) {
-    const migrated = { ...all, [connectionId]: legacy };
-    await store.set(SCOPED_KEY, migrated);
+    await mutateScopedStore(SCOPED_KEY, connectionId, {
+      type: "set",
+      value: legacy,
+    });
     await store.delete(KEY);
     await store.save();
-    return { store, all: migrated, current: legacy };
+    return { store, all: { ...all, [connectionId]: legacy }, current: legacy };
   }
   return { store, all, current: [] };
 }
@@ -49,27 +52,28 @@ export async function addHiddenTask(
   connectionId: string,
   key: string,
 ): Promise<string[]> {
-  const { store, all, current } = await loadScopedTasks(connectionId);
+  const { current } = await loadScopedTasks(connectionId);
   if (current.includes(key)) return current;
-  const updated = [...current, key];
-  await store.set(SCOPED_KEY, { ...all, [connectionId]: updated });
-  await store.save();
-  return updated;
+  return mutateScopedStore<string[]>(SCOPED_KEY, connectionId, {
+    type: "addString",
+    value: key,
+  });
 }
 
 export async function removeHiddenTask(
   connectionId: string,
   key: string,
 ): Promise<string[]> {
-  const { store, all, current } = await loadScopedTasks(connectionId);
-  const updated = current.filter((k) => k !== key);
-  await store.set(SCOPED_KEY, { ...all, [connectionId]: updated });
-  await store.save();
-  return updated;
+  await loadScopedTasks(connectionId);
+  return mutateScopedStore<string[]>(SCOPED_KEY, connectionId, {
+    type: "removeString",
+    value: key,
+  });
 }
 
 export async function clearHiddenTasks(connectionId: string): Promise<void> {
-  const { store, all } = await loadScopedTasks(connectionId);
-  await store.set(SCOPED_KEY, { ...all, [connectionId]: [] });
-  await store.save();
+  await loadScopedTasks(connectionId);
+  await mutateScopedStore<string[]>(SCOPED_KEY, connectionId, {
+    type: "clearStrings",
+  });
 }

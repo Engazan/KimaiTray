@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CategoryConfig } from "./types";
 import { cloneDefaultCategoryConfig } from "./defaultCategoryConfig";
 import { loadCategoryConfig, saveCategoryConfig, onCategoryConfigChange } from "./categoryConfigStore";
+import { PendingWriteEchoes } from "../utils/pendingWriteEchoes";
 
 /**
  * Loads and persists the Category Mode config for the given connection, and keeps it
@@ -10,13 +11,11 @@ import { loadCategoryConfig, saveCategoryConfig, onCategoryConfigChange } from "
 export function useCategoryConfig(connectionId: string) {
   const [config, setConfig] = useState<CategoryConfig>(() => cloneDefaultCategoryConfig());
   const [loaded, setLoaded] = useState(false);
-  // Number of our own saves whose store echo hasn't arrived yet. Each save fires
-  // one onKeyChange in this same window; skipping those prevents a late echo of
-  // an earlier value from reverting in-progress edits (e.g. while typing).
-  const pendingSelfWrites = useRef(0);
+  const pendingSelfWrites = useRef(new PendingWriteEchoes<CategoryConfig>());
 
   useEffect(() => {
     let cancelled = false;
+    pendingSelfWrites.current.clear();
     setLoaded(false);
     loadCategoryConfig(connectionId).then((c) => {
       if (!cancelled) {
@@ -33,10 +32,7 @@ export function useCategoryConfig(connectionId: string) {
   useEffect(() => {
     if (!connectionId) return;
     const cleanup = onCategoryConfigChange(connectionId, (next) => {
-      if (pendingSelfWrites.current > 0) {
-        pendingSelfWrites.current -= 1;
-        return;
-      }
+      if (pendingSelfWrites.current.consume(next)) return;
       setConfig(next);
     });
     return () => {
@@ -47,8 +43,13 @@ export function useCategoryConfig(connectionId: string) {
   const updateConfig = useCallback(
     async (next: CategoryConfig) => {
       setConfig(next);
-      pendingSelfWrites.current += 1;
-      await saveCategoryConfig(connectionId, next);
+      pendingSelfWrites.current.remember(next);
+      try {
+        await saveCategoryConfig(connectionId, next);
+      } catch (error) {
+        pendingSelfWrites.current.discard(next);
+        throw error;
+      }
     },
     [connectionId],
   );
