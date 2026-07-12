@@ -204,7 +204,8 @@ The NSIS installer bundles a WebView2 bootstrapper. If you built manually, insta
 Your API token may have expired or lack permissions. Generate a new one in Kimai -> Profile -> API Access.
 
 **Idle detection not working on Linux**
-Install `xprintidle` for X11-based idle detection:
+Idle detection uses `xprintidle` on X11 and the GNOME Mutter or KDE KIdleTime
+D-Bus API on Wayland. Install `xprintidle` when using X11:
 ```sh
 sudo apt install xprintidle
 ```
