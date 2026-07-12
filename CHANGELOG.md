@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2] - 2026-07-12
+
+### Bug Fixes
+
+- **Paused timers work again** — pausing a timer, seeing your paused timers and resuming them stopped working after 0.17.0 moved the store to the native layer. The request that loads paused timers used the wrong field names, so it silently returned nothing and no paused-timer cards ever appeared. Pausing now keeps the timer as a resumable amber card again, previously paused timers reappear, and resume/discard work as before
+- **Paused timer list fits the Focus layout** — in the Focus menu-bar layout the paused timers now get their own scrollable list instead of being squeezed into the fixed-height timer band. Several are shown at once as a compact list, any extras scroll (with a soft fade at the edge), and there is no longer an empty strip below them when no timer is running
+
 ## [0.17.1] - 2026-07-12
 
 ### Maintenance
