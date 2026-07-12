@@ -71,16 +71,19 @@ export function SettingsList({
   title,
   description,
   children,
+  allowOverflow = false,
 }: {
   title?: string;
   description?: string;
   children: ReactNode;
+  /** Allow popovers such as searchable selects to extend beyond the card. */
+  allowOverflow?: boolean;
 }) {
   return (
     <section>
       <GroupHeader title={title} description={description} />
       <div
-        className={`overflow-hidden divide-y divide-gray-100 dark:divide-gray-800 ${CARD}`}
+        className={`${allowOverflow ? "overflow-visible" : "overflow-hidden"} divide-y divide-gray-100 dark:divide-gray-800 ${CARD}`}
       >
         {children}
       </div>

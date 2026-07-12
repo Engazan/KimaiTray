@@ -7,13 +7,12 @@ import { getActivities } from "../api/activityApi";
 import { getProjects } from "../api/projectApi";
 import SearchableSelect from "../components/SearchableSelect";
 import {
-  Divider,
-  FieldGroup,
   NumberInput,
   SectionDescription,
   TextInput,
   Toggle,
 } from "../settings/Controls";
+import { SettingsCard, SettingsList, SettingsRow, SettingsRowStacked } from "../settings/SettingsLayout";
 import { useCategoryConfig } from "./useCategoryConfig";
 import { cloneDefaultCategoryConfig } from "./defaultCategoryConfig";
 import { normalizeCategories } from "./categoryNormalize";
@@ -35,12 +34,16 @@ const genId = () => crypto.randomUUID();
 /** Small square icon button used for reorder/delete row actions. */
 function IconButton({
   onClick,
+  onBlur,
   disabled,
+  dangerActive,
   title,
   children,
 }: {
   onClick: () => void;
+  onBlur?: () => void;
   disabled?: boolean;
+  dangerActive?: boolean;
   title: string;
   children: ReactNode;
 }) {
@@ -48,9 +51,15 @@ function IconButton({
     <button
       type="button"
       onClick={onClick}
+      onBlur={onBlur}
       disabled={disabled}
       title={title}
-      className="p-1 rounded text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+      aria-label={title}
+      className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+        dangerActive
+          ? "bg-red-50 text-red-600 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-900"
+          : "text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+      }`}
     >
       {children}
     </button>
@@ -135,6 +144,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
   const [resetConfirm, setResetConfirm] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const handleSyncNow = async () => {
     const url = config.sourceUrl?.trim();
@@ -267,7 +277,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
   }
 
   return (
-    <div>
+    <div className="space-y-5">
       <SectionDescription>
         {t("categoryMode.settingsDescription", { name: name ?? "" })}
       </SectionDescription>
@@ -280,59 +290,58 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
         </div>
       )}
 
-      <FieldGroup
-        label={t("categoryMode.defaultProject")}
-        description={t("categoryMode.defaultProjectHint")}
-      >
-        <SearchableSelect
-          options={projectOptions}
-          value={config.defaultProjectId}
-          onChange={(v) => updateConfig({ ...config, defaultProjectId: v })}
-          placeholder={t("categoryMode.selectDefaultProject")}
-          allowEmpty
-          emptyLabel={t("categoryMode.noDefaultProject")}
-        />
-      </FieldGroup>
+      <SettingsList title={t("categoryMode.behaviorTitle")} allowOverflow>
+        <SettingsRowStacked
+          label={t("categoryMode.defaultProject")}
+          description={t("categoryMode.defaultProjectHint")}
+        >
+          <SearchableSelect
+            options={projectOptions}
+            value={config.defaultProjectId}
+            onChange={(v) => updateConfig({ ...config, defaultProjectId: v })}
+            placeholder={t("categoryMode.selectDefaultProject")}
+            allowEmpty
+            emptyLabel={t("categoryMode.noDefaultProject")}
+          />
+        </SettingsRowStacked>
+        <SettingsRow
+          label={t("categoryMode.continueWindow")}
+          description={t("categoryMode.continueWindowHint")}
+        >
+          <NumberInput
+            value={config.continueWindowMinutes}
+            onChange={(v) =>
+              updateConfig({
+                ...config,
+                continueWindowMinutes: Math.min(240, Math.max(0, v)),
+              })
+            }
+            min={0}
+            max={240}
+            suffix={t("categoryMode.minutes")}
+          />
+        </SettingsRow>
+      </SettingsList>
 
-      <FieldGroup
-        label={t("categoryMode.continueWindow")}
-        description={t("categoryMode.continueWindowHint")}
-        horizontal
-      >
-        <NumberInput
-          value={config.continueWindowMinutes}
-          onChange={(v) =>
-            updateConfig({
-              ...config,
-              continueWindowMinutes: Math.max(0, v),
-            })
-          }
-          min={0}
-          max={240}
-          suffix={t("categoryMode.minutes")}
-        />
-      </FieldGroup>
+      <SettingsList title={t("categoryMode.sourceTitle")}>
+        <SettingsRow
+          label={t("categoryMode.sourceUrl")}
+          description={t("categoryMode.sourceUrlHint")}
+        >
+          <Toggle
+            checked={urlEnabled}
+            onChange={(on) => {
+              setSyncError(false);
+              updateConfig({
+                ...config,
+                sourceUrl: on ? (config.sourceUrl ?? "") : undefined,
+                sourceSyncedAt: on ? config.sourceSyncedAt : undefined,
+              });
+            }}
+          />
+        </SettingsRow>
 
-      <FieldGroup
-        label={t("categoryMode.sourceUrl")}
-        description={t("categoryMode.sourceUrlHint")}
-        horizontal
-      >
-        <Toggle
-          checked={urlEnabled}
-          onChange={(on) => {
-            setSyncError(false);
-            updateConfig({
-              ...config,
-              sourceUrl: on ? (config.sourceUrl ?? "") : undefined,
-              sourceSyncedAt: on ? config.sourceSyncedAt : undefined,
-            });
-          }}
-        />
-      </FieldGroup>
-
-      {urlEnabled && (
-        <div className="space-y-2 pb-2">
+        {urlEnabled && <div className="space-y-3 px-4 py-3">
           <TextInput
             value={config.sourceUrl ?? ""}
             onChange={(v) => updateConfig({ ...config, sourceUrl: v })}
@@ -340,12 +349,12 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
             type="url"
           />
           {config.sourceUrl?.trim() && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleSyncNow}
                 disabled={syncing}
-                className="rounded-md border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none disabled:opacity-50"
+                className="rounded-md bg-[var(--accent)] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:opacity-50"
               >
                 {syncing ? t("categoryMode.syncing") : t("categoryMode.syncNow")}
               </button>
@@ -368,25 +377,32 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
               </span>
             </div>
           )}
-          <p className="text-[10px] text-amber-600 dark:text-amber-500 leading-snug">
-            {t("categoryMode.remoteManaged")}
-          </p>
-        </div>
-      )}
+          <div className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+            <svg className="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-1.5a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12V16.5Z" />
+            </svg>
+            <span>{t("categoryMode.remoteManaged")}</span>
+          </div>
+        </div>}
+      </SettingsList>
 
       {/* Category tree editor — hidden while categories are managed from a URL */}
       {!urlEnabled && (
-        <>
-      <Divider />
-
-      <div className="space-y-3">
+        <SettingsCard
+          title={t("categoryMode.categoriesTitle")}
+          description={t("categoryMode.categoriesHint")}
+          className="space-y-3"
+        >
         {loaded &&
           config.categories.map((cat, ci) => (
             <div
               key={cat.id}
-              className="rounded-lg border border-gray-200 dark:border-gray-700 p-2.5"
+              className="rounded-xl border border-gray-200 dark:border-gray-700"
             >
-              <div className="flex items-center gap-1.5 mb-2">
+              <div className="flex items-center gap-2 rounded-t-xl border-b border-gray-100 bg-gray-50/70 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-[11px] font-semibold tabular-nums text-gray-400 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+                  {ci + 1}
+                </span>
                 <div className="flex-1 min-w-0">
                   <TextInput
                     value={cat.label}
@@ -399,7 +415,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                   disabled={ci === 0}
                   title={t("categoryMode.moveUp")}
                 >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
                   </svg>
                 </IconButton>
@@ -408,28 +424,81 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                   disabled={ci === config.categories.length - 1}
                   title={t("categoryMode.moveDown")}
                 >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 </IconButton>
-                <IconButton onClick={() => removeCategory(ci)} title={t("categoryMode.deleteCategory")}>
-                  <svg className="h-3.5 w-3.5 hover:text-red-500 dark:hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <IconButton
+                  onClick={() => {
+                    const key = `category-${cat.id}`;
+                    if (deleteConfirm === key) {
+                      removeCategory(ci);
+                      setDeleteConfirm(null);
+                    } else {
+                      setDeleteConfirm(key);
+                    }
+                  }}
+                  onBlur={() => setDeleteConfirm(null)}
+                  dangerActive={deleteConfirm === `category-${cat.id}`}
+                  title={deleteConfirm === `category-${cat.id}` ? t("categoryMode.confirmDelete") : t("categoryMode.deleteCategory")}
+                >
+                  {deleteConfirm === `category-${cat.id}` ? (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4 hover:text-red-500 dark:hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673A2.25 2.25 0 0 1 15.916 21H8.084a2.25 2.25 0 0 1-2.244-2.327L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0V4.477c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  )}
                 </IconButton>
               </div>
 
               {/* Leaves */}
-              <div className="space-y-1.5 pl-2 border-l border-gray-100 dark:border-gray-800">
+              <div className="space-y-2.5 p-3">
                 {cat.children.map((leaf, li) => (
-                  <div key={leaf.id} className="flex items-start gap-1.5">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <TextInput
-                        value={leaf.label}
-                        onChange={(v) => updateLeaf(ci, li, { label: v })}
-                        placeholder={t("categoryMode.leafNamePlaceholder")}
-                      />
-                      {activityNames.length > 0 ? (
+                  <div key={leaf.id} className="rounded-lg border border-gray-100 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-gray-800/30">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                        {t("categoryMode.subcategoryLabel", { number: li + 1 })}
+                      </span>
+                      <IconButton
+                        onClick={() => {
+                          const key = `leaf-${leaf.id}`;
+                          if (deleteConfirm === key) {
+                            removeLeaf(ci, li);
+                            setDeleteConfirm(null);
+                          } else {
+                            setDeleteConfirm(key);
+                          }
+                        }}
+                        onBlur={() => setDeleteConfirm(null)}
+                        dangerActive={deleteConfirm === `leaf-${leaf.id}`}
+                        title={deleteConfirm === `leaf-${leaf.id}` ? t("categoryMode.confirmDelete") : t("categoryMode.deleteLeaf")}
+                      >
+                        {deleteConfirm === `leaf-${leaf.id}` ? (
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        ) : (
+                          <svg className="h-4 w-4 hover:text-red-500 dark:hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673A2.25 2.25 0 0 1 15.916 21H8.084a2.25 2.25 0 0 1-2.244-2.327L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0V4.477c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        )}
+                      </IconButton>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 block text-[11px] font-medium text-gray-500 dark:text-gray-400">{t("categoryMode.displayName")}</span>
+                        <TextInput
+                          value={leaf.label}
+                          onChange={(v) => updateLeaf(ci, li, { label: v })}
+                          placeholder={t("categoryMode.leafNamePlaceholder")}
+                        />
+                      </label>
+                      <div className="min-w-0">
+                        <span className="mb-1.5 block text-[11px] font-medium text-gray-500 dark:text-gray-400">{t("categoryMode.activityMapping")}</span>
+                        {activityNames.length > 0 ? (
                         <SearchableSelect
                           options={(activityNames.includes(leaf.activityName) || !leaf.activityName
                             ? activityNames
@@ -439,34 +508,35 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                           onChange={(v) => updateLeaf(ci, li, { activityName: v ?? "" })}
                           placeholder={t("categoryMode.selectActivity")}
                         />
-                      ) : (
+                        ) : (
                         <TextInput
                           value={leaf.activityName}
                           onChange={(v) => updateLeaf(ci, li, { activityName: v })}
                           placeholder={t("categoryMode.activityNamePlaceholder")}
                         />
-                      )}
-                      <label className="flex items-center gap-2 pt-0.5">
+                        )}
+                      </div>
+                    </div>
+                    <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 border-t border-gray-200/70 pt-3 dark:border-gray-700/70">
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        {t("categoryMode.requiresProject")}
+                      </span>
                         <Toggle
                           checked={leaf.requiresProject}
                           onChange={(v) => updateLeaf(ci, li, { requiresProject: v })}
                         />
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                          {t("categoryMode.requiresProject")}
-                        </span>
-                      </label>
-                    </div>
-                    <IconButton onClick={() => removeLeaf(ci, li)} title={t("categoryMode.deleteLeaf")}>
-                      <svg className="h-3.5 w-3.5 hover:text-red-500 dark:hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </IconButton>
+                    </label>
                   </div>
                 ))}
+                {cat.children.length === 0 && (
+                  <p className="py-2 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                    {t("categoryMode.noSubcategories")}
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => addLeaf(ci)}
-                  className="mt-1 flex items-center gap-1 text-[11px] font-medium text-[var(--accent)] hover:opacity-80 transition-opacity focus:outline-none"
+                  className="flex items-center gap-1.5 rounded-md px-1 py-1 text-[11px] font-semibold text-[var(--accent)] hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                 >
                   <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -477,25 +547,31 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
             </div>
           ))}
 
+        {loaded && config.categories.length === 0 && (
+          <div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center dark:border-gray-700">
+            <p className="text-[12px] text-gray-500 dark:text-gray-400">{t("categoryMode.noCategoriesEditor")}</p>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={addCategory}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 px-3 py-2 text-[12px] font-medium text-gray-500 dark:text-gray-400 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors focus:outline-none"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-3 py-2.5 text-[12px] font-semibold text-gray-500 hover:border-[var(--accent)] hover:bg-[var(--accent-light)] hover:text-[var(--accent)] dark:border-gray-600 dark:bg-gray-800/20 dark:text-gray-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           {t("categoryMode.addCategory")}
         </button>
-      </div>
-        </>
+        </SettingsCard>
       )}
 
       {/* Import / export / reset — hidden while categories are managed from a URL */}
       {!urlEnabled && (
-        <>
-      <Divider />
-
+        <SettingsCard
+          title={t("categoryMode.dataToolsTitle")}
+          description={t("categoryMode.dataToolsHint")}
+        >
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -533,7 +609,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
       </div>
 
       {jsonOpen && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-3 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
           <textarea
             value={jsonDraft}
             onChange={(e) => setJsonDraft(e.target.value)}
@@ -553,7 +629,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
           </button>
         </div>
       )}
-        </>
+        </SettingsCard>
       )}
     </div>
   );
