@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, WebviewWindow};
 use tauri_plugin_store::{Store, StoreExt};
 
 const STORE_PATH: &str = "settings.json";
@@ -204,6 +204,30 @@ fn validate_request(request: &ScopedStoreRequest) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_scoped_store_window(
+    window_label: &str,
+    key: &str,
+    previous: Option<&Value>,
+    next: &Value,
+) -> Result<(), String> {
+    match (window_label, key) {
+        ("settings", "categoryConfig") => Ok(()),
+        ("tray-popup", "categoryConfig") => {
+            let previous_source = previous
+                .and_then(Value::as_object)
+                .and_then(|config| config.get("sourceUrl"));
+            let next_source = next.as_object().and_then(|config| config.get("sourceUrl"));
+            if previous_source == next_source {
+                Ok(())
+            } else {
+                Err("Tray window cannot change the category source URL".into())
+            }
+        }
+        ("tray-popup", "categoryLastActivity" | "hiddenRecentTasksByConnection") => Ok(()),
+        _ => Err("Window is not authorized to mutate this scoped store".into()),
+    }
+}
+
 fn string_items(value: Option<&Value>) -> Result<Vec<String>, String> {
     match value {
         None => Ok(Vec::new()),
@@ -325,6 +349,45 @@ fn apply_settings_patch(
         return Err("Settings changed before the patch could be applied".into());
     }
     settings.extend(values);
+    Ok(())
+}
+
+fn validate_settings_patch_window(
+    window_label: &str,
+    settings: &Map<String, Value>,
+    values: &Map<String, Value>,
+) -> Result<(), String> {
+    if window_label == "settings" {
+        return Ok(());
+    }
+    if window_label != "tray-popup"
+        || values
+            .keys()
+            .any(|key| !matches!(key.as_str(), "activeConnectionId" | "kimaiUrl"))
+    {
+        return Err("Window is not authorized to patch these settings".into());
+    }
+
+    let connection_id = values
+        .get("activeConnectionId")
+        .and_then(Value::as_str)
+        .ok_or("Tray settings patch must select a connection")?;
+    let connection = settings
+        .get("connections")
+        .and_then(Value::as_array)
+        .and_then(|connections| {
+            connections.iter().find(|connection| {
+                connection.get("id").and_then(Value::as_str) == Some(connection_id)
+            })
+        })
+        .ok_or("Tray settings patch selected an unknown connection")?;
+    let configured_url = connection
+        .get("url")
+        .and_then(Value::as_str)
+        .ok_or("Selected connection URL is invalid")?;
+    if values.get("kimaiUrl").and_then(Value::as_str) != Some(configured_url) {
+        return Err("Tray settings patch URL does not match the selected connection".into());
+    }
     Ok(())
 }
 
@@ -564,6 +627,7 @@ pub fn migrate_legacy_store(
 #[tauri::command]
 pub fn mutate_scoped_store(
     app: AppHandle,
+    window: WebviewWindow,
     request: ScopedStoreRequest,
 ) -> Result<ScopedStoreResponse, String> {
     validate_request(&request)?;
@@ -576,7 +640,9 @@ pub fn mutate_scoped_store(
         None => Map::new(),
         Some(_) => return Err("Scoped store value is not an object".into()),
     };
+    let previous = map.get(&request.entry_key).cloned();
     let value = apply_mutation(&mut map, &request.entry_key, request.mutation)?;
+    validate_scoped_store_window(window.label(), &request.key, previous.as_ref(), &value)?;
     persist_store_value(store.as_ref(), &request.key, Some(Value::Object(map)))?;
     Ok(ScopedStoreResponse { value })
 }
@@ -614,6 +680,7 @@ pub fn mutate_array_store(
 #[tauri::command]
 pub fn patch_settings(
     app: AppHandle,
+    window: WebviewWindow,
     request: SettingsPatchRequest,
 ) -> Result<ScopedStoreResponse, String> {
     if request.values.is_empty()
@@ -641,6 +708,7 @@ pub fn patch_settings(
         None => Map::new(),
         Some(_) => return Err("Settings value is not an object".into()),
     };
+    validate_settings_patch_window(window.label(), &settings, &request.values)?;
     apply_settings_patch(&mut settings, request.values, request.expected.as_ref())?;
     let value = Value::Object(settings);
     persist_store_value(store.as_ref(), "settings", Some(value.clone()))?;
@@ -703,8 +771,8 @@ mod tests {
     use super::{
         apply_array_mutation, apply_mutation, apply_settings_patch, claim_legacy_favorites,
         migrate_legacy_store_backend, move_favorites, persist_value_with_rollback,
-        ArrayStoreMutation, LegacyStoreMigration, MoveFavoritesRequest, ScopedStoreMutation,
-        StoreBackend,
+        validate_scoped_store_window, validate_settings_patch_window, ArrayStoreMutation,
+        LegacyStoreMigration, MoveFavoritesRequest, ScopedStoreMutation, StoreBackend,
     };
     use serde_json::{json, Map, Value};
     use std::{collections::HashMap, sync::Mutex};
@@ -886,6 +954,77 @@ mod tests {
             .unwrap(),
             json!(["one"])
         );
+    }
+
+    #[test]
+    fn windows_can_only_mutate_owned_scoped_state() {
+        let previous = json!({
+            "sourceUrl": "https://config.test/categories.json",
+            "categories": []
+        });
+        let synced = json!({
+            "sourceUrl": "https://config.test/categories.json",
+            "categories": [{"id": "support"}]
+        });
+        let changed_source = json!({
+            "sourceUrl": "https://attacker.test/categories.json",
+            "categories": []
+        });
+
+        assert!(validate_scoped_store_window(
+            "tray-popup",
+            "categoryConfig",
+            Some(&previous),
+            &synced,
+        )
+        .is_ok());
+        assert!(validate_scoped_store_window(
+            "tray-popup",
+            "categoryConfig",
+            Some(&previous),
+            &changed_source,
+        )
+        .is_err());
+        assert!(validate_scoped_store_window(
+            "settings",
+            "categoryConfig",
+            Some(&previous),
+            &changed_source,
+        )
+        .is_ok());
+        assert!(
+            validate_scoped_store_window("settings", "categoryLastActivity", None, &json!({}),)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn tray_settings_patches_only_select_configured_connections() {
+        let settings = Map::from_iter([(
+            "connections".into(),
+            json!([{
+                "id": "connection-a",
+                "url": "https://kimai.test"
+            }]),
+        )]);
+        let valid = Map::from_iter([
+            ("activeConnectionId".into(), json!("connection-a")),
+            ("kimaiUrl".into(), json!("https://kimai.test")),
+        ]);
+        let arbitrary_url = Map::from_iter([
+            ("activeConnectionId".into(), json!("connection-a")),
+            ("kimaiUrl".into(), json!("https://attacker.test")),
+        ]);
+
+        assert!(validate_settings_patch_window("tray-popup", &settings, &valid).is_ok());
+        assert!(validate_settings_patch_window("tray-popup", &settings, &arbitrary_url).is_err());
+        assert!(validate_settings_patch_window(
+            "tray-popup",
+            &settings,
+            &Map::from_iter([("theme".into(), json!("dark"))]),
+        )
+        .is_err());
+        assert!(validate_settings_patch_window("settings", &settings, &arbitrary_url).is_ok());
     }
 
     #[test]
