@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -24,7 +24,6 @@ struct Cancellation {
     notify: tokio::sync::Notify,
 }
 
-static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 static HTTP_SEMAPHORE: OnceLock<tokio::sync::Semaphore> = OnceLock::new();
 static CANCELLATIONS: OnceLock<CancellationRegistry> = OnceLock::new();
 
@@ -181,17 +180,37 @@ fn validate_url(value: &str) -> Result<Url, String> {
         .and_then(|value| value.strip_suffix(']'))
         .unwrap_or(host);
     if let Ok(address) = ip_literal.parse::<IpAddr>() {
-        let unsafe_address = match address {
-            IpAddr::V4(ip) => ip.is_unspecified() || ip.is_link_local() || ip.is_multicast(),
-            IpAddr::V6(ip) => {
-                ip.is_unspecified() || ip.is_unicast_link_local() || ip.is_multicast()
-            }
-        };
-        if unsafe_address {
-            return Err("HTTP target IP range is not allowed".into());
-        }
+        validate_target_ip(address)?;
     }
     Ok(url)
+}
+
+fn validate_target_ip(address: IpAddr) -> Result<(), String> {
+    let unsafe_address = match address {
+        IpAddr::V4(ip) => ip.is_unspecified() || ip.is_link_local() || ip.is_multicast(),
+        IpAddr::V6(ip) => {
+            if let Some(mapped) = ip.to_ipv4_mapped() {
+                mapped.is_unspecified() || mapped.is_link_local() || mapped.is_multicast()
+            } else {
+                ip.is_unspecified() || ip.is_unicast_link_local() || ip.is_multicast()
+            }
+        }
+    };
+    if unsafe_address {
+        Err("HTTP target IP range is not allowed".into())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_resolved_addresses(addresses: &[SocketAddr]) -> Result<(), String> {
+    if addresses.is_empty() {
+        return Err("HTTP target could not be resolved".into());
+    }
+    for address in addresses {
+        validate_target_ip(address.ip())?;
+    }
+    Ok(())
 }
 
 fn validate_url_for_origin(value: &str, allowed_origin: &str) -> Result<Url, String> {
@@ -240,20 +259,34 @@ fn validate_headers(values: Vec<(String, String)>) -> Result<HeaderMap, String> 
     Ok(headers)
 }
 
-fn client() -> Result<&'static reqwest::Client, String> {
-    if let Some(client) = HTTP_CLIENT.get() {
-        return Ok(client);
-    }
-    let client = reqwest::Client::builder()
+async fn client_for_target(url: &Url) -> Result<reqwest::Client, String> {
+    let host = url.host_str().ok_or("HTTP URL must include a host")?;
+    let lookup_host = host
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        .unwrap_or(host);
+    let port = url
+        .port_or_known_default()
+        .ok_or("HTTP URL must include a valid port")?;
+    let mut builder = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(30));
+
+    if lookup_host.parse::<IpAddr>().is_err() {
+        let mut addresses = tokio::net::lookup_host((lookup_host, port))
+            .await
+            .map_err(|_| "HTTP target could not be resolved".to_string())?
+            .collect::<Vec<_>>();
+        addresses.sort_unstable();
+        addresses.dedup();
+        validate_resolved_addresses(&addresses)?;
+        builder = builder.resolve_to_addrs(lookup_host, &addresses);
+    }
+
+    builder
         .build()
-        .map_err(|_| "Failed to initialize HTTP client".to_string())?;
-    let _ = HTTP_CLIENT.set(client);
-    HTTP_CLIENT
-        .get()
-        .ok_or_else(|| "Failed to initialize HTTP client".to_string())
+        .map_err(|_| "Failed to initialize HTTP client".to_string())
 }
 
 fn cancellations() -> &'static CancellationRegistry {
@@ -305,7 +338,8 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
         HTTP_SEMAPHORE.get_or_init(|| tokio::sync::Semaphore::new(MAX_CONCURRENT_REQUESTS));
     let _permit = acquire_request_permit(semaphore, &cancellation, REQUEST_QUEUE_TIMEOUT).await?;
 
-    let mut builder = client()?.request(method, url).headers(headers);
+    let http_client = client_for_target(&url).await?;
+    let mut builder = http_client.request(method, url).headers(headers);
     if let Some(body) = request.body {
         builder = builder.body(body);
     }
@@ -361,9 +395,11 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
 #[cfg(test)]
 mod tests {
     use super::{
-        acquire_request_permit, validate_headers, validate_method, validate_url,
-        validate_url_for_origin, Cancellation, CancellationRegistry, MAX_CANCELLATION_TOMBSTONES,
+        acquire_request_permit, validate_headers, validate_method, validate_resolved_addresses,
+        validate_target_ip, validate_url, validate_url_for_origin, Cancellation,
+        CancellationRegistry, MAX_CANCELLATION_TOMBSTONES,
     };
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::time::Duration;
 
     #[test]
@@ -386,6 +422,10 @@ mod tests {
         assert!(validate_url("https://user:password@example.test").is_err());
         assert!(validate_url("http://169.254.169.254/latest/meta-data").is_err());
         assert!(validate_url("http://[fe80::1]/metadata").is_err());
+        assert!(validate_target_ip(IpAddr::V6(
+            Ipv4Addr::new(169, 254, 169, 254).to_ipv6_mapped(),
+        ))
+        .is_err());
         assert!(validate_url_for_origin(
             "https://attacker.example.test/collect",
             "https://kimai.example.test"
@@ -399,6 +439,21 @@ mod tests {
         assert!(validate_method("TRACE").is_err());
         assert!(validate_headers(vec![("host".into(), "attacker.test".into())]).is_err());
         assert!(validate_headers(vec![("x-invalid\nname".into(), "value".into())]).is_err());
+    }
+
+    #[test]
+    fn resolved_dns_addresses_block_unsafe_ranges_but_allow_self_hosting() {
+        assert!(validate_resolved_addresses(&[
+            SocketAddr::from(([192, 168, 1, 10], 443)),
+            SocketAddr::from(([127, 0, 0, 1], 443)),
+        ])
+        .is_ok());
+        assert!(validate_resolved_addresses(&[
+            SocketAddr::from(([203, 0, 113, 10], 443)),
+            SocketAddr::from(([169, 254, 169, 254], 443)),
+        ])
+        .is_err());
+        assert!(validate_resolved_addresses(&[]).is_err());
     }
 
     #[test]
