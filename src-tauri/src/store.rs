@@ -32,7 +32,11 @@ fn settings_keys() -> &'static HashSet<String> {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ScopedStoreMutation {
     Set { value: Value },
     AddString { value: String },
@@ -55,7 +59,11 @@ pub struct ScopedStoreResponse {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ArrayStoreMutation {
     AppendUnique {
         value: Value,
@@ -106,7 +114,11 @@ pub struct MoveFavoritesResponse {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum LegacyStoreMigration {
     CategoryConfig,
     CategoryLastActivity,
