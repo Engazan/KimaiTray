@@ -32,7 +32,7 @@ fn settings_keys() -> &'static HashSet<String> {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ScopedStoreMutation {
     Set { value: Value },
     AddString { value: String },
@@ -55,7 +55,7 @@ pub struct ScopedStoreResponse {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ArrayStoreMutation {
     AppendUnique {
         value: Value,
@@ -106,7 +106,7 @@ pub struct MoveFavoritesResponse {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum LegacyStoreMigration {
     CategoryConfig,
     CategoryLastActivity,
@@ -757,6 +757,49 @@ mod tests {
                 results.remove(0)
             }
         }
+    }
+
+    #[test]
+    fn ipc_enums_deserialize_camel_case_fields_from_the_frontend() {
+        // The frontend sends camelCase field names inside these internally-tagged
+        // enums. Without `rename_all_fields`, serde keeps the snake_case field
+        // names: it silently dropped the optional `sortField` and rejected the
+        // required `generatedId`/`connectionId`, which made every paused-timer
+        // load throw and disappear.
+        let mutation: ArrayStoreMutation = serde_json::from_value(json!({
+            "type": "appendUnique",
+            "value": { "id": "a" },
+            "identity": { "id": "a" },
+            "limit": 10,
+            "sortField": "pausedAt",
+        }))
+        .expect("appendUnique with sortField should deserialize");
+        match mutation {
+            ArrayStoreMutation::AppendUnique { sort_field, .. } => {
+                assert_eq!(sort_field.as_deref(), Some("pausedAt"));
+            }
+            _ => panic!("expected AppendUnique"),
+        }
+
+        let migration: LegacyStoreMigration = serde_json::from_value(json!({
+            "type": "pausedTimer",
+            "generatedId": "generated-id",
+        }))
+        .expect("pausedTimer migration with generatedId should deserialize");
+        assert!(matches!(
+            migration,
+            LegacyStoreMigration::PausedTimer { generated_id } if generated_id == "generated-id"
+        ));
+
+        let hidden: LegacyStoreMigration = serde_json::from_value(json!({
+            "type": "hiddenTasks",
+            "connectionId": "conn-a",
+        }))
+        .expect("hiddenTasks migration with connectionId should deserialize");
+        assert!(matches!(
+            hidden,
+            LegacyStoreMigration::HiddenTasks { connection_id } if connection_id == "conn-a"
+        ));
     }
 
     #[test]
