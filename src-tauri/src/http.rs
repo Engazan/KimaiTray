@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use reqwest::{header::HeaderMap, Method, Url};
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,9 @@ const MAX_RESPONSE_HEADERS: usize = 64;
 const MAX_RESPONSE_HEADER_BYTES: usize = 64 * 1024;
 const MAX_CONCURRENT_REQUESTS: usize = 8;
 const MAX_REQUEST_ID_BYTES: usize = 128;
+const MAX_CANCELLATION_TOMBSTONES: usize = 1024;
+const CANCELLATION_TOMBSTONE_TTL: Duration = Duration::from_secs(60);
+const REQUEST_QUEUE_TIMEOUT: Duration = Duration::from_secs(10);
 
 struct Cancellation {
     notify: tokio::sync::Notify,
@@ -23,16 +26,118 @@ struct Cancellation {
 
 static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 static HTTP_SEMAPHORE: OnceLock<tokio::sync::Semaphore> = OnceLock::new();
-static CANCELLATIONS: OnceLock<Mutex<HashMap<String, Arc<Cancellation>>>> = OnceLock::new();
+static CANCELLATIONS: OnceLock<CancellationRegistry> = OnceLock::new();
 
-struct RequestRegistration(String);
+enum CancellationEntry {
+    Active(Arc<Cancellation>),
+    Cancelled(Instant),
+}
 
-impl Drop for RequestRegistration {
+#[derive(Default)]
+struct CancellationRegistry {
+    entries: Mutex<HashMap<String, CancellationEntry>>,
+}
+
+struct RequestRegistration<'a> {
+    registry: &'a CancellationRegistry,
+    request_id: String,
+}
+
+impl Drop for RequestRegistration<'_> {
     fn drop(&mut self) {
-        cancellations()
+        self.registry.remove(&self.request_id);
+    }
+}
+
+impl CancellationRegistry {
+    fn prune(entries: &mut HashMap<String, CancellationEntry>) {
+        let now = Instant::now();
+        entries.retain(|_, entry| {
+            !matches!(entry, CancellationEntry::Cancelled(created) if now.duration_since(*created) >= CANCELLATION_TOMBSTONE_TTL)
+        });
+    }
+
+    fn register(
+        &self,
+        request_id: &str,
+    ) -> Result<(Arc<Cancellation>, RequestRegistration<'_>), String> {
+        validate_request_id(request_id)?;
+        let cancellation = Arc::new(Cancellation {
+            notify: tokio::sync::Notify::new(),
+        });
+        let mut entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Self::prune(&mut entries);
+        match entries.remove(request_id) {
+            Some(CancellationEntry::Cancelled(_)) => {
+                return Err("HTTP request cancelled".into());
+            }
+            Some(CancellationEntry::Active(active)) => {
+                entries.insert(request_id.into(), CancellationEntry::Active(active));
+                return Err("HTTP request id is already active".into());
+            }
+            None => {}
+        }
+        entries.insert(
+            request_id.into(),
+            CancellationEntry::Active(cancellation.clone()),
+        );
+        Ok((
+            cancellation,
+            RequestRegistration {
+                registry: self,
+                request_id: request_id.into(),
+            },
+        ))
+    }
+
+    fn cancel(&self, request_id: &str) -> Result<(), String> {
+        validate_request_id(request_id)?;
+        let mut entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Self::prune(&mut entries);
+        match entries.get(request_id) {
+            Some(CancellationEntry::Active(cancellation)) => {
+                cancellation.notify.notify_one();
+            }
+            Some(CancellationEntry::Cancelled(_)) => {}
+            None => {
+                if entries
+                    .values()
+                    .filter(|entry| matches!(entry, CancellationEntry::Cancelled(_)))
+                    .count()
+                    >= MAX_CANCELLATION_TOMBSTONES
+                {
+                    if let Some(oldest) = entries
+                        .iter()
+                        .filter_map(|(id, entry)| match entry {
+                            CancellationEntry::Cancelled(created) => Some((id.clone(), *created)),
+                            CancellationEntry::Active(_) => None,
+                        })
+                        .min_by_key(|(_, created)| *created)
+                        .map(|(id, _)| id)
+                    {
+                        entries.remove(&oldest);
+                    }
+                }
+                entries.insert(
+                    request_id.into(),
+                    CancellationEntry::Cancelled(Instant::now()),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn remove(&self, request_id: &str) {
+        self.entries
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .remove(&self.0);
+            .remove(request_id);
     }
 }
 
@@ -151,53 +256,40 @@ fn client() -> Result<&'static reqwest::Client, String> {
         .ok_or_else(|| "Failed to initialize HTTP client".to_string())
 }
 
-fn cancellations() -> &'static Mutex<HashMap<String, Arc<Cancellation>>> {
-    CANCELLATIONS.get_or_init(|| Mutex::new(HashMap::new()))
+fn cancellations() -> &'static CancellationRegistry {
+    CANCELLATIONS.get_or_init(CancellationRegistry::default)
 }
 
-fn register_request(request_id: &str) -> Result<(Arc<Cancellation>, RequestRegistration), String> {
+fn validate_request_id(request_id: &str) -> Result<(), String> {
     if request_id.is_empty() || request_id.len() > MAX_REQUEST_ID_BYTES {
         return Err("Invalid HTTP request id".into());
-    }
-    let cancellation = Arc::new(Cancellation {
-        notify: tokio::sync::Notify::new(),
-    });
-    let mut active = cancellations()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    match active.entry(request_id.to_string()) {
-        std::collections::hash_map::Entry::Vacant(entry) => {
-            entry.insert(cancellation.clone());
-        }
-        std::collections::hash_map::Entry::Occupied(_) => {
-            return Err("HTTP request id is already active".into());
-        }
-    }
-    Ok((cancellation, RequestRegistration(request_id.to_string())))
-}
-
-#[tauri::command]
-pub fn cancel_http_request(request_id: String) -> Result<(), String> {
-    if request_id.is_empty() || request_id.len() > MAX_REQUEST_ID_BYTES {
-        return Err("Invalid HTTP request id".into());
-    }
-    if let Some(cancellation) = cancellations()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .get(&request_id)
-    {
-        cancellation.notify.notify_one();
     }
     Ok(())
 }
 
+async fn acquire_request_permit<'a>(
+    semaphore: &'a tokio::sync::Semaphore,
+    cancellation: &Cancellation,
+    timeout: Duration,
+) -> Result<tokio::sync::SemaphorePermit<'a>, String> {
+    tokio::select! {
+        result = tokio::time::timeout(timeout, semaphore.acquire()) => {
+            result
+                .map_err(|_| "HTTP request queue timed out".to_string())?
+                .map_err(|_| "HTTP request queue is unavailable".to_string())
+        },
+        _ = cancellation.notify.notified() => Err("HTTP request cancelled".into()),
+    }
+}
+
+#[tauri::command]
+pub fn cancel_http_request(request_id: String) -> Result<(), String> {
+    cancellations().cancel(&request_id)
+}
+
 #[tauri::command]
 pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> {
-    let _permit = HTTP_SEMAPHORE
-        .get_or_init(|| tokio::sync::Semaphore::new(MAX_CONCURRENT_REQUESTS))
-        .try_acquire()
-        .map_err(|_| "Too many concurrent HTTP requests".to_string())?;
-    let (cancellation, _registration) = register_request(&request.request_id)?;
+    let (cancellation, _registration) = cancellations().register(&request.request_id)?;
     let url = validate_url_for_origin(&request.url, &request.allowed_origin)?;
     let method = validate_method(&request.method)?;
     let headers = validate_headers(request.headers)?;
@@ -208,6 +300,10 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
     {
         return Err("HTTP request body is too large".into());
     }
+
+    let semaphore =
+        HTTP_SEMAPHORE.get_or_init(|| tokio::sync::Semaphore::new(MAX_CONCURRENT_REQUESTS));
+    let _permit = acquire_request_permit(semaphore, &cancellation, REQUEST_QUEUE_TIMEOUT).await?;
 
     let mut builder = client()?.request(method, url).headers(headers);
     if let Some(body) = request.body {
@@ -264,7 +360,11 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_headers, validate_method, validate_url, validate_url_for_origin};
+    use super::{
+        acquire_request_permit, validate_headers, validate_method, validate_url,
+        validate_url_for_origin, Cancellation, CancellationRegistry, MAX_CANCELLATION_TOMBSTONES,
+    };
+    use std::time::Duration;
 
     #[test]
     fn accepts_supported_http_requests() {
@@ -299,5 +399,63 @@ mod tests {
         assert!(validate_method("TRACE").is_err());
         assert!(validate_headers(vec![("host".into(), "attacker.test".into())]).is_err());
         assert!(validate_headers(vec![("x-invalid\nname".into(), "value".into())]).is_err());
+    }
+
+    #[test]
+    fn cancellation_before_registration_is_consumed_atomically() {
+        let registry = CancellationRegistry::default();
+        registry.cancel("request-a").unwrap();
+
+        let error = match registry.register("request-a") {
+            Ok(_) => panic!("pre-cancelled request unexpectedly registered"),
+            Err(error) => error,
+        };
+        assert_eq!(error, "HTTP request cancelled");
+        assert!(registry.entries.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn active_request_ids_remain_unique_and_are_released_on_drop() {
+        let registry = CancellationRegistry::default();
+        let (_, registration) = registry.register("request-a").unwrap();
+        assert!(registry.register("request-a").is_err());
+
+        drop(registration);
+        assert!(registry.register("request-a").is_ok());
+    }
+
+    #[test]
+    fn orphan_cancellation_tombstones_are_bounded() {
+        let registry = CancellationRegistry::default();
+        for index in 0..=MAX_CANCELLATION_TOMBSTONES {
+            registry.cancel(&format!("request-{index}")).unwrap();
+        }
+        assert!(registry.entries.lock().unwrap().len() <= MAX_CANCELLATION_TOMBSTONES);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn queued_request_honors_cancellation_and_timeout() {
+        let semaphore = tokio::sync::Semaphore::new(1);
+        let _held = semaphore.acquire().await.unwrap();
+        let cancelled = Cancellation {
+            notify: tokio::sync::Notify::new(),
+        };
+        cancelled.notify.notify_one();
+        assert_eq!(
+            acquire_request_permit(&semaphore, &cancelled, Duration::from_secs(1))
+                .await
+                .unwrap_err(),
+            "HTTP request cancelled"
+        );
+
+        let waiting = Cancellation {
+            notify: tokio::sync::Notify::new(),
+        };
+        assert_eq!(
+            acquire_request_permit(&semaphore, &waiting, Duration::from_millis(1))
+                .await
+                .unwrap_err(),
+            "HTTP request queue timed out"
+        );
     }
 }
