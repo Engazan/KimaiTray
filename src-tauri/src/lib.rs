@@ -3,6 +3,7 @@ mod idle;
 mod keychain;
 mod shortcuts;
 mod store;
+mod store_persistence;
 mod tray;
 
 use log::{error, info};

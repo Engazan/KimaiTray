@@ -5,8 +5,12 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use tauri::{AppHandle, Runtime, WebviewWindow};
-use tauri_plugin_store::{Store, StoreExt};
+use tauri::{AppHandle, WebviewWindow};
+use tauri_plugin_store::StoreExt;
+
+use crate::store_persistence::{
+    persist_changes_with_rollback, persist_store_value, persist_value_with_rollback, StoreBackend,
+};
 
 const STORE_PATH: &str = "settings.json";
 const MAX_ENTRY_KEY_BYTES: usize = 256;
@@ -25,88 +29,6 @@ fn settings_keys() -> &'static HashSet<String> {
             .and_then(|keys| serde_json::from_value(keys).ok())
             .unwrap_or_default()
     })
-}
-
-trait StoreBackend {
-    fn get_value(&self, key: &str) -> Option<Value>;
-    fn set_value(&self, key: &str, value: Value);
-    fn delete_value(&self, key: &str);
-    fn save_value(&self) -> Result<(), String>;
-}
-
-impl<R: Runtime> StoreBackend for Store<R> {
-    fn get_value(&self, key: &str) -> Option<Value> {
-        self.get(key)
-    }
-
-    fn set_value(&self, key: &str, value: Value) {
-        self.set(key, value);
-    }
-
-    fn delete_value(&self, key: &str) {
-        self.delete(key);
-    }
-
-    fn save_value(&self) -> Result<(), String> {
-        self.save().map_err(|error| error.to_string())
-    }
-}
-
-fn persist_value_with_rollback(
-    store: &impl StoreBackend,
-    key: &str,
-    value: Option<Value>,
-) -> Result<(), String> {
-    let previous = store.get_value(key);
-    match value {
-        Some(value) => store.set_value(key, value),
-        None => store.delete_value(key),
-    }
-
-    if let Err(error) = store.save_value() {
-        match previous {
-            Some(previous) => store.set_value(key, previous),
-            None => store.delete_value(key),
-        }
-        let _ = store.save_value();
-        return Err(error);
-    }
-    Ok(())
-}
-
-fn persist_changes_with_rollback(
-    store: &impl StoreBackend,
-    changes: &[(String, Option<Value>)],
-) -> Result<(), String> {
-    let previous = changes
-        .iter()
-        .map(|(key, _)| (key.clone(), store.get_value(key)))
-        .collect::<Vec<_>>();
-    for (key, value) in changes {
-        match value {
-            Some(value) => store.set_value(key, value.clone()),
-            None => store.delete_value(key),
-        }
-    }
-    if let Err(error) = store.save_value() {
-        for (key, value) in previous {
-            match value {
-                Some(value) => store.set_value(&key, value),
-                None => store.delete_value(&key),
-            }
-        }
-        let _ = store.save_value();
-        return Err(error);
-    }
-    Ok(())
-}
-
-pub(crate) fn persist_store_value<R: Runtime>(
-    store: &Store<R>,
-    key: &str,
-    value: Option<Value>,
-) -> Result<(), String> {
-    persist_value_with_rollback(store, key, value)
 }
 
 #[derive(Deserialize, Serialize)]

@@ -9,6 +9,11 @@ import EmptyTimerState from "../components/EmptyTimerState";
 import RecentTasksList from "../components/RecentTasksList";
 import FavoriteTasksList from "../components/FavoriteTasksList";
 import PopupFooterActions from "../components/PopupFooterActions";
+import { ErrorBanner, UpdateBanner } from "../components/TrayFeedback";
+import {
+  CollapsibleTraySection,
+  FocusTabs,
+} from "../components/TrayLayoutControls";
 import NewTaskForm from "../components/NewTaskForm";
 import CategoryModePanel from "../categorymode/CategoryModePanel";
 import IdleDialog from "../components/IdleDialog";
@@ -766,20 +771,11 @@ export default function TrayPopup() {
       />
 
       {updater.available && (
-        <button
-          onClick={() => updater.install?.()}
-          disabled={updater.downloading}
-          className="mx-3 mt-1.5 flex items-center gap-2 rounded-md bg-[var(--accent)]/10 border border-[var(--accent)]/20 px-2.5 py-1.5 text-[11px] text-[var(--accent)] hover:bg-[var(--accent)]/15 transition-colors disabled:opacity-60"
-        >
-          {updater.downloading ? (
-            <div className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]" />
-          ) : (
-            <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-          )}
-          <span className="font-medium">{t("updateSettings.updateLabel", { version: updater.version })}</span>
-        </button>
+        <UpdateBanner
+          downloading={updater.downloading}
+          label={t("updateSettings.updateLabel", { version: updater.version })}
+          onInstall={() => updater.install?.()}
+        />
       )}
 
       {showNewTask && client ? (
@@ -851,17 +847,16 @@ export default function TrayPopup() {
             </div>
 
             {(switchError || pauseError || timesheetDeleteError) && (
-              <div className="mx-3 mt-1.5 flex items-start gap-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/40 px-2.5 py-2">
-                <span className="text-[11px] text-red-600 dark:text-red-400 flex-1 leading-snug">
-                  {switchError || pauseError || timesheetDeleteError}
-                </span>
-                <button
-                  onClick={switchError ? dismissError : timesheetDeleteError ? dismissDeleteError : dismissPauseError}
-                  className="text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300 text-xs leading-none shrink-0 p-0.5"
-                >
-                  ✕
-                </button>
-              </div>
+              <ErrorBanner
+                message={(switchError || pauseError || timesheetDeleteError)!}
+                onDismiss={
+                  switchError
+                    ? dismissError
+                    : timesheetDeleteError
+                      ? dismissDeleteError
+                      : dismissPauseError
+                }
+              />
             )}
 
             <div className="mx-3 mt-2 border-t border-gray-100 dark:border-gray-800" />
@@ -898,31 +893,12 @@ export default function TrayPopup() {
               </>
             ) : popupLayout === "focus" ? (
               <>
-                {/* Tab bar */}
-                <div className="sticky top-0 z-10 bg-white/95 py-1.5 backdrop-blur-sm dark:bg-[#1a1a1a]/95">
-                  <div className="mx-3 flex gap-1">
-                    <button
-                      onClick={() => setFocusTab("recent")}
-                      className={`flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors focus:outline-none ${
-                        focusTab === "recent"
-                          ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                          : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                      }`}
-                    >
-                      {t("tray.recentTasks")}
-                    </button>
-                    <button
-                      onClick={() => setFocusTab("today")}
-                      className={`flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors focus:outline-none ${
-                        focusTab === "today"
-                          ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                          : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                      }`}
-                    >
-                      {t("today.title")}
-                    </button>
-                  </div>
-                </div>
+                <FocusTabs
+                  active={focusTab}
+                  recentLabel={t("tray.recentTasks")}
+                  todayLabel={t("today.title")}
+                  onChange={setFocusTab}
+                />
                 <FavoriteTasksList
                   tasks={visibleFavorites}
                   onStart={handleStartFavorite}
@@ -996,22 +972,11 @@ export default function TrayPopup() {
                   colorMode={colorMode}
                 />
                 {/* Collapsible recent tasks */}
-                <div className="mt-1.5">
-                  <button
-                    onClick={() => setRecentCollapsed(!recentCollapsed)}
-                    className="w-full px-3 py-1.5 flex items-center justify-between"
-                  >
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                      {t("tray.recentTasks")}
-                    </span>
-                    <svg
-                      className={`h-3 w-3 text-gray-400 dark:text-gray-500 transition-transform ${recentCollapsed ? "" : "rotate-180"}`}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {!recentCollapsed && (
+                <CollapsibleTraySection
+                  title={t("tray.recentTasks")}
+                  collapsed={recentCollapsed}
+                  onToggle={() => setRecentCollapsed(!recentCollapsed)}
+                >
                     <RecentTasksList
                       tasks={visibleTasks}
                       onStart={handleStartRecent}
@@ -1028,8 +993,7 @@ export default function TrayPopup() {
                       showHeader={false}
                       colorMode={colorMode}
                     />
-                  )}
-                </div>
+                </CollapsibleTraySection>
               </>
             ) : popupLayout === "taskbar" ? (
               <>
@@ -1060,29 +1024,19 @@ export default function TrayPopup() {
                   <>
                     <div className="mx-3 border-t border-gray-100 dark:border-gray-800" />
                     {/* Collapsible today section */}
-                    <div className="mt-1.5">
-                      <button
-                        onClick={() => setTodayCollapsed(!todayCollapsed)}
-                        className="w-full px-3 py-1.5 flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                            {t("today.title")}
+                    <CollapsibleTraySection
+                      title={t("today.title")}
+                      detail={
+                        today.totalCount > 0 ? (
+                          <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+                            {today.totalDuration > 0 &&
+                              `${Math.floor(today.totalDuration / 3600)}h ${Math.floor((today.totalDuration % 3600) / 60)}m`}
                           </span>
-                          {today.totalCount > 0 && (
-                            <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
-                              {today.totalDuration > 0 && `${Math.floor(today.totalDuration / 3600)}h ${Math.floor((today.totalDuration % 3600) / 60)}m`}
-                            </span>
-                          )}
-                        </div>
-                        <svg
-                          className={`h-3 w-3 text-gray-400 dark:text-gray-500 transition-transform ${todayCollapsed ? "" : "rotate-180"}`}
-                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      {!todayCollapsed && (
+                        ) : undefined
+                      }
+                      collapsed={todayCollapsed}
+                      onToggle={() => setTodayCollapsed(!todayCollapsed)}
+                    >
                         <TodaySection
                           entries={today.entries}
                           totalCount={today.totalCount}
@@ -1097,8 +1051,7 @@ export default function TrayPopup() {
                           onRetry={() => today.refetch()}
                           colorMode={colorMode}
                         />
-                      )}
-                    </div>
+                    </CollapsibleTraySection>
                   </>
                 )}
               </>

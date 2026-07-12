@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
-use crate::store::persist_store_value;
+use crate::store_persistence::persist_store_value;
 
 use crate::{legacy_settings_path, scrub_legacy_store_key};
 
