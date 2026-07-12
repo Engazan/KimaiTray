@@ -1,3 +1,5 @@
+import { CategoryPictogram, categoryColorValue, type CategoryColor, type CategoryIcon } from "./CategoryVisual";
+
 interface CategoryButtonProps {
   label: string;
   /** Secondary line: mapped activity name, or a warning message. */
@@ -9,6 +11,8 @@ interface CategoryButtonProps {
   drilldown?: boolean;
   /** Warning state (e.g. activity not found / default project not set). */
   warning?: boolean;
+  icon?: CategoryIcon;
+  color?: CategoryColor;
 }
 
 // Full-width button matching the FavoriteTaskItem row look, used for both main
@@ -21,7 +25,11 @@ export default function CategoryButton({
   isStarting,
   drilldown,
   warning,
+  icon,
+  color,
 }: CategoryButtonProps) {
+  const accent = categoryColorValue(color);
+
   return (
     <button
       onClick={onClick}
@@ -32,6 +40,20 @@ export default function CategoryButton({
         focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]
         disabled:opacity-50 disabled:cursor-not-allowed"
     >
+      {icon && (
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+          style={accent ? { color: accent, backgroundColor: `${accent}18` } : undefined}
+        >
+          <CategoryPictogram icon={icon} className="h-4 w-4" />
+        </span>
+      )}
+      {!icon && accent && (
+        <span
+          className="ml-1 h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5">
           <span className="text-[13px] font-medium text-gray-700 dark:text-gray-200 truncate">

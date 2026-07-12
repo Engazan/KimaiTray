@@ -18,6 +18,8 @@ describe("remote category configuration", () => {
           {
             id: "support",
             label: "Support",
+            icon: "headset",
+            color: "blue",
             children: [
               {
                 id: "triage",
@@ -43,6 +45,8 @@ describe("remote category configuration", () => {
         {
           id: "support",
           label: "Support",
+          icon: "headset",
+          color: "blue",
           children: [
             {
               id: "triage",

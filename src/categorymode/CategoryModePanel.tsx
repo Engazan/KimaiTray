@@ -11,6 +11,7 @@ import { useCategoryRemoteSync } from "./useCategoryRemoteSync";
 import { loadCategoryLastActivity, saveCategoryLastActivity } from "./categoryLastActivityStore";
 import type { Category, CategoryLeaf, CategoryLastActivity } from "./types";
 import CategoryButton from "./CategoryButton";
+import { CategoryPictogram, categoryColorValue, type CategoryColor, type CategoryIcon } from "./CategoryVisual";
 
 interface CategoryModePanelProps {
   client: KimaiClient;
@@ -27,7 +28,18 @@ interface CategoryModePanelProps {
 type View = "main" | "sub" | "project";
 
 // Section header matching the favorites/recent list style.
-function Header({ title, onBack }: { title: string; onBack?: () => void }) {
+function Header({
+  title,
+  onBack,
+  icon,
+  color,
+}: {
+  title: string;
+  onBack?: () => void;
+  icon?: CategoryIcon;
+  color?: CategoryColor;
+}) {
+  const accent = categoryColorValue(color);
   return (
     <div className="relative flex h-[30px] shrink-0 items-center px-3">
       {onBack && (
@@ -41,13 +53,20 @@ function Header({ title, onBack }: { title: string; onBack?: () => void }) {
           </svg>
         </button>
       )}
-      <span
-        className={`min-w-0 truncate text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 ${
+      <div
+        className={`flex min-w-0 items-center gap-1.5 ${
           onBack ? "pl-6" : ""
         }`}
       >
-        {title}
-      </span>
+        {icon && (
+          <span style={accent ? { color: accent } : undefined}>
+            <CategoryPictogram icon={icon} className="h-3.5 w-3.5" />
+          </span>
+        )}
+        <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          {title}
+        </span>
+      </div>
     </div>
   );
 }
@@ -190,6 +209,8 @@ export default function CategoryModePanel({
                 }}
                 disabled={disabled}
                 drilldown
+                icon={cat.icon}
+                color={cat.color}
               />
             ))}
             {config.categories.length === 0 && (
@@ -231,7 +252,12 @@ export default function CategoryModePanel({
 
       {view === "sub" && activeCategory && (
         <>
-          <Header title={activeCategory.label} onBack={resetToMain} />
+          <Header
+            title={activeCategory.label}
+            onBack={resetToMain}
+            icon={activeCategory.icon}
+            color={activeCategory.color}
+          />
           <div className="px-1.5 pb-1">
             {activeCategory.children.map((leaf) => {
               // No warnings while activities are still loading — avoids flashing

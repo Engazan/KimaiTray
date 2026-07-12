@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { createKimaiClient } from "../api/kimaiClient";
@@ -18,6 +18,14 @@ import { cloneDefaultCategoryConfig } from "./defaultCategoryConfig";
 import { normalizeCategories } from "./categoryNormalize";
 import { fetchRemoteCategoryConfig } from "./categoryRemoteSource";
 import type { CategoryConfig } from "./types";
+import {
+  CATEGORY_COLORS,
+  CATEGORY_ICON_KEYS,
+  CategoryPictogram,
+  categoryColorValue,
+  type CategoryColor,
+  type CategoryIcon,
+} from "./CategoryVisual";
 
 interface Props {
   /** Connection whose Category Mode categories are being configured. */
@@ -63,6 +71,132 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+function CategoryVisualPicker({
+  icon,
+  color,
+  fallback,
+  onIconChange,
+  onColorChange,
+}: {
+  icon?: CategoryIcon;
+  color?: CategoryColor;
+  fallback: number;
+  onIconChange: (icon?: CategoryIcon) => void;
+  onColorChange: (color?: CategoryColor) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const accent = categoryColorValue(color);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOutside);
+    return () => document.removeEventListener("mousedown", closeOutside);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        title={t("categoryMode.editVisual")}
+        aria-label={t("categoryMode.editVisual")}
+        className="group flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[11px] font-semibold tabular-nums text-gray-400 shadow-sm ring-1 ring-gray-200 transition-transform hover:scale-105 hover:ring-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] dark:bg-gray-800 dark:ring-gray-700 dark:hover:ring-gray-600"
+        style={accent ? { color: accent, backgroundColor: `${accent}18` } : undefined}
+      >
+        {icon ? <CategoryPictogram icon={icon} /> : fallback}
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={t("categoryMode.editVisual")}
+          className="absolute left-0 top-full z-40 mt-2 w-[252px] rounded-xl border border-gray-200 bg-white p-3 shadow-xl shadow-black/10 dark:border-gray-700 dark:bg-[#252525] dark:shadow-black/30"
+        >
+          <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            {t("categoryMode.categoryIcon")}
+          </span>
+          <div className="grid grid-cols-5 gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                onIconChange(undefined);
+              }}
+              title={t("categoryMode.noIcon")}
+              aria-label={t("categoryMode.noIcon")}
+              className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                !icon
+                  ? "bg-[var(--accent-light)] text-[var(--accent)]"
+                  : "text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/[0.06]"
+              }`}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" d="M5 19 19 5" />
+              </svg>
+            </button>
+            {CATEGORY_ICON_KEYS.map((optionIcon) => (
+              <button
+                key={optionIcon}
+                type="button"
+                onClick={() => {
+                  onIconChange(optionIcon);
+                }}
+                title={t("categoryMode.iconOption", { name: optionIcon })}
+                aria-label={t("categoryMode.iconOption", { name: optionIcon })}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                  icon === optionIcon
+                    ? "bg-[var(--accent-light)] text-[var(--accent)]"
+                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
+                }`}
+              >
+                <CategoryPictogram icon={optionIcon} />
+              </button>
+            ))}
+          </div>
+          <div className="my-3 border-t border-gray-100 dark:border-gray-700" />
+          <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            {t("categoryMode.categoryColor")}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onColorChange(undefined)}
+              title={t("categoryMode.noColor")}
+              aria-label={t("categoryMode.noColor")}
+              className={`flex h-7 w-7 items-center justify-center rounded-full border transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                !color ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : "border-gray-300 dark:border-gray-600"
+              }`}
+            >
+              <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" d="M5 19 19 5" />
+              </svg>
+            </button>
+            {CATEGORY_COLORS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onColorChange(option.key)}
+                title={t("categoryMode.colorOption", { name: option.key })}
+                aria-label={t("categoryMode.colorOption", { name: option.key })}
+                className={`h-7 w-7 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] dark:border-gray-800 ${
+                  color === option.key ? "ring-2 ring-gray-400 ring-offset-1 dark:ring-gray-500 dark:ring-offset-[#252525]" : ""
+                }`}
+                style={{ backgroundColor: option.value }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -211,9 +345,12 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
   };
 
   // ── config mutations ────────────────────────────────────────────
-  const setCategoryLabel = (ci: number, label: string) => {
+  const updateCategory = (
+    ci: number,
+    patch: Partial<Pick<CategoryConfig["categories"][number], "label" | "icon" | "color">>,
+  ) => {
     const next = clone(config);
-    next.categories[ci].label = label;
+    next.categories[ci] = { ...next.categories[ci], ...patch };
     updateConfig(next);
   };
   const addCategory = () => {
@@ -400,13 +537,17 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
               className="rounded-xl border border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-center gap-2 rounded-t-xl border-b border-gray-100 bg-gray-50/70 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-[11px] font-semibold tabular-nums text-gray-400 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-                  {ci + 1}
-                </span>
+                <CategoryVisualPicker
+                  icon={cat.icon}
+                  color={cat.color}
+                  fallback={ci + 1}
+                  onIconChange={(icon) => updateCategory(ci, { icon })}
+                  onColorChange={(color) => updateCategory(ci, { color })}
+                />
                 <div className="flex-1 min-w-0">
                   <TextInput
                     value={cat.label}
-                    onChange={(v) => setCategoryLabel(ci, v)}
+                    onChange={(v) => updateCategory(ci, { label: v })}
                     placeholder={t("categoryMode.categoryNamePlaceholder")}
                   />
                 </div>

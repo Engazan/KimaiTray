@@ -1,4 +1,5 @@
 import type { CategoryConfig } from "./types";
+import { isCategoryColor, isCategoryIcon } from "./CategoryVisual";
 
 const genId = () => crypto.randomUUID();
 
@@ -28,6 +29,8 @@ export function normalizeCategories(raw: unknown): CategoryConfig["categories"] 
     out.push({
       id: typeof cat.id === "string" && cat.id ? cat.id : genId(),
       label: typeof cat.label === "string" ? cat.label : "",
+      icon: isCategoryIcon(cat.icon) ? cat.icon : undefined,
+      color: isCategoryColor(cat.color) ? cat.color : undefined,
       children,
     });
   }

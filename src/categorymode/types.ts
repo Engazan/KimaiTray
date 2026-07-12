@@ -2,6 +2,7 @@
 // categories mapped onto Kimai activities. Kept entirely separate from the core
 // timer engine: a leaf only produces a project+activity that feeds the existing
 // `useStartTask` start path.
+import type { CategoryColor, CategoryIcon } from "./CategoryVisual";
 
 export interface CategoryLeaf {
   /** Stable identifier used for React keys and per-item spinner tracking. */
@@ -21,6 +22,9 @@ export interface CategoryLeaf {
 export interface Category {
   id: string;
   label: string;
+  /** Optional visual identity used by the category button and drill-down header. */
+  icon?: CategoryIcon;
+  color?: CategoryColor;
   children: CategoryLeaf[];
 }
 
