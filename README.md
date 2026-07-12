@@ -35,9 +35,9 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 
 | Tool | Version |
 |------|---------|
-| [Node.js](https://nodejs.org/) | 20+ |
+| [Node.js](https://nodejs.org/) | 20.19+ |
 | [Rust](https://rustup.rs/) | stable |
-| [Tauri CLI](https://tauri.app/start/) | `npm install -g @tauri-apps/cli` (or use `npx`) |
+| [Tauri CLI](https://tauri.app/start/) | Installed locally by `npm install` |
 
 ### Platform-specific
 
