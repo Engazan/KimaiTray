@@ -46,6 +46,21 @@ fn format_elapsed(secs: u64, show_seconds: bool) -> String {
     }
 }
 
+fn tray_label_title(
+    label_style: &str,
+    project: &str,
+    activity: &str,
+    elapsed_seconds: u64,
+    show_seconds: bool,
+) -> String {
+    match label_style {
+        "timer" => format_elapsed(elapsed_seconds, show_seconds),
+        "project" => project.to_owned(),
+        "activity" => activity.to_owned(),
+        _ => String::new(),
+    }
+}
+
 fn tick_tray(app: &AppHandle) {
     let snapshot = {
         let state = TRAY_TICKER_STATE
@@ -74,10 +89,8 @@ fn tick_tray(app: &AppHandle) {
             let elapsed = format_elapsed(secs, true);
             let _ = tray.set_tooltip(Some(&format!("{project} — {activity} — {elapsed}")));
 
-            if label_style == "timer" {
-                let title = format_elapsed(secs, show_seconds);
-                let _ = tray.set_title(Some(&title));
-            }
+            let title = tray_label_title(&label_style, &project, &activity, secs, show_seconds);
+            let _ = tray.set_title(Some(&title));
         }
     }
 }
@@ -768,7 +781,31 @@ pub fn set_popup_vibrancy(app: AppHandle, enabled: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_hex_color, validate_popup_geometry, validate_text};
+    use super::{parse_hex_color, tray_label_title, validate_popup_geometry, validate_text};
+
+    #[test]
+    fn tray_label_title_supports_every_configured_style() {
+        assert_eq!(
+            tray_label_title("timer", "Project", "Activity", 3_661, true),
+            "01:01:01"
+        );
+        assert_eq!(
+            tray_label_title("timer", "Project", "Activity", 3_661, false),
+            "01:01"
+        );
+        assert_eq!(
+            tray_label_title("project", "Project", "Activity", 3_661, true),
+            "Project"
+        );
+        assert_eq!(
+            tray_label_title("activity", "Project", "Activity", 3_661, true),
+            "Activity"
+        );
+        assert_eq!(
+            tray_label_title("hidden", "Project", "Activity", 3_661, true),
+            ""
+        );
+    }
 
     #[test]
     fn popup_geometry_accepts_supported_values() {
