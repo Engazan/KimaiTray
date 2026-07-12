@@ -7,32 +7,41 @@ const localesDir = resolve(__dirname, "../src/shared/i18n/locales");
 
 const languages = ["en", "sk", "cs", "de", "uk"];
 
-function getKeys(obj, prefix = "") {
-  const keys = [];
+function flatten(obj, prefix = "") {
+  const entries = [];
   for (const [key, value] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
     if (typeof value === "object" && value !== null) {
-      keys.push(...getKeys(value, fullKey));
+      entries.push(...flatten(value, fullKey));
     } else {
-      keys.push(fullKey);
+      entries.push([fullKey, value]);
     }
   }
-  return keys.sort();
+  return entries.sort(([left], [right]) => left.localeCompare(right));
 }
 
-const allKeys = {};
+function placeholders(value) {
+  if (typeof value !== "string") return [];
+  return [...value.matchAll(/\{\{\s*([^},\s]+)[^}]*\}\}/g)]
+    .map((match) => match[1])
+    .sort();
+}
+
+const translations = {};
 for (const lang of languages) {
   const data = JSON.parse(readFileSync(resolve(localesDir, `${lang}.json`), "utf-8"));
-  allKeys[lang] = new Set(getKeys(data));
+  translations[lang] = new Map(flatten(data));
 }
 
 const reference = "en";
-const refKeys = allKeys[reference];
+const referenceTranslations = translations[reference];
+const refKeys = new Set(referenceTranslations.keys());
 let hasError = false;
 
 for (const lang of languages) {
   if (lang === reference) continue;
-  const langKeys = allKeys[lang];
+  const langTranslations = translations[lang];
+  const langKeys = new Set(langTranslations.keys());
 
   const missing = [...refKeys].filter((k) => !langKeys.has(k));
   const extra = [...langKeys].filter((k) => !refKeys.has(k));
@@ -43,8 +52,20 @@ for (const lang of languages) {
     hasError = true;
   }
   if (extra.length > 0) {
-    console.warn(`\n${lang}: ${extra.length} extra key(s) not in ${reference}:`);
-    extra.forEach((k) => console.warn(`  + ${k}`));
+    console.error(`\n${lang}: ${extra.length} extra key(s) not in ${reference}:`);
+    extra.forEach((k) => console.error(`  + ${k}`));
+    hasError = true;
+  }
+
+  for (const key of [...refKeys].filter((item) => langKeys.has(item))) {
+    const expected = placeholders(referenceTranslations.get(key));
+    const actual = placeholders(langTranslations.get(key));
+    if (expected.join("\0") !== actual.join("\0")) {
+      console.error(
+        `\n${lang}: placeholder mismatch for ${key}: expected [${expected.join(", ")}], got [${actual.join(", ")}]`,
+      );
+      hasError = true;
+    }
   }
 }
 

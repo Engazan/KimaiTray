@@ -27,11 +27,12 @@ jobs:
       - run: npm audit --audit-level=high
 
   rust:
-    permissions:
-      contents: read
-      checks: write
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-22.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -40,6 +41,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
@@ -50,6 +52,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
       - run: cargo fmt --all -- --check
+        if: runner.os == 'Linux'
         working-directory: src-tauri
       - run: cargo clippy --locked --all-targets -- -D warnings
         working-directory: src-tauri
@@ -57,6 +60,15 @@ jobs:
         working-directory: src-tauri
       - name: Build desktop smoke target
         run: npm run tauri build -- --debug --no-bundle
+
+  rust-audit:
+    permissions:
+      contents: read
+      checks: write
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Audit Rust dependencies
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
         with:
