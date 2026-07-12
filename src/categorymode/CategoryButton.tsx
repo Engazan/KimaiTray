@@ -34,7 +34,7 @@ export default function CategoryButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group flex w-full items-center gap-2.5 rounded-md px-2.5 py-2
+      className="group flex min-h-11 w-full items-center gap-2.5 rounded-md px-2.5 py-2
         text-left transition-colors
         hover:bg-gray-100 dark:hover:bg-white/[0.06]
         focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]

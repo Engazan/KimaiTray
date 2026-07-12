@@ -195,70 +195,79 @@ export default function CategoryModePanel({
 
   return (
     <div className="mt-1.5">
-      {view === "main" && (
-        <>
-          <Header title={t("categoryMode.prompt")} />
-          <div className="px-1.5 pb-1">
-            {config.categories.map((cat) => (
-              <CategoryButton
-                key={cat.id}
-                label={cat.label}
-                onClick={() => {
-                  setActiveCategory(cat);
-                  setView("sub");
-                }}
-                disabled={disabled}
-                drilldown
-                icon={cat.icon}
-                color={cat.color}
-              />
-            ))}
-            {config.categories.length === 0 && (
-              <p className="px-2.5 py-3 text-[11px] text-gray-400 dark:text-gray-500">
-                {t("categoryMode.noCategories")}
-              </p>
-            )}
-          </div>
-          {continueLast && last && (
-            <div className="mx-3 border-t border-gray-100 px-0 pb-1 pt-1 dark:border-gray-800">
-              <CategoryButton
-                label={t("categoryMode.continueLast", { label: last.label })}
-                onClick={() => {
-                  void (async () => {
-                    const started = await startTask(
-                      {
-                        projectId: last.projectId,
-                        activityId: last.activityId,
-                        tags: last.tags?.length ? last.tags : undefined,
-                        label: last.label,
-                      },
-                      last.leafId,
-                    );
-                    if (started) {
-                      recordStart({
-                        ...last,
-                        startedAt: Math.floor(Date.now() / 1000),
-                      });
-                    }
-                  })();
-                }}
-                disabled={disabled}
-                isStarting={startingKey === last.leafId}
-              />
-            </div>
-          )}
-        </>
-      )}
+      {view === "main" && <Header title={t("categoryMode.prompt")} />}
 
       {view === "sub" && activeCategory && (
-        <>
           <Header
             title={activeCategory.label}
             onBack={resetToMain}
             icon={activeCategory.icon}
             color={activeCategory.color}
           />
-          <div className="px-1.5 pb-1">
+      )}
+
+      {(view === "main" || view === "sub") && (
+        <div className="relative">
+          {/* The main list remains as an inert sizing layer while drilling down.
+              This keeps the category and subcategory views exactly the same height. */}
+          <div
+            inert={view !== "main"}
+            aria-hidden={view !== "main"}
+            className={view === "main" ? "" : "invisible"}
+          >
+            <div className="px-1.5 pb-1">
+              {config.categories.map((cat) => (
+                <CategoryButton
+                  key={cat.id}
+                  label={cat.label}
+                  onClick={() => {
+                    setActiveCategory(cat);
+                    setView("sub");
+                  }}
+                  disabled={disabled}
+                  drilldown
+                  icon={cat.icon}
+                  color={cat.color}
+                />
+              ))}
+              {config.categories.length === 0 && (
+                <p className="px-2.5 py-3 text-[11px] text-gray-400 dark:text-gray-500">
+                  {t("categoryMode.noCategories")}
+                </p>
+              )}
+            </div>
+            {continueLast && last && (
+              <div className="mx-3 border-t border-gray-100 px-0 pb-1 pt-1 dark:border-gray-800">
+                <CategoryButton
+                  label={t("categoryMode.continueLast", { label: last.label })}
+                  onClick={() => {
+                    void (async () => {
+                      const started = await startTask(
+                        {
+                          projectId: last.projectId,
+                          activityId: last.activityId,
+                          tags: last.tags?.length ? last.tags : undefined,
+                          label: last.label,
+                        },
+                        last.leafId,
+                      );
+                      if (started) {
+                        recordStart({
+                          ...last,
+                          startedAt: Math.floor(Date.now() / 1000),
+                        });
+                      }
+                    })();
+                  }}
+                  disabled={disabled}
+                  isStarting={startingKey === last.leafId}
+                />
+              </div>
+            )}
+          </div>
+
+          {view === "sub" && activeCategory && (
+            <div className="absolute inset-0 overflow-y-auto overscroll-contain px-1.5 pb-1">
             {activeCategory.children.map((leaf) => {
               // No warnings while activities are still loading — avoids flashing
               // a false "activity missing" on every leaf before the fetch settles.
@@ -293,8 +302,9 @@ export default function CategoryModePanel({
                 />
               );
             })}
-          </div>
-        </>
+            </div>
+          )}
+        </div>
       )}
 
       {view === "project" && pendingLeaf && (
