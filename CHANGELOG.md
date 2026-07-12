@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1] - 2026-07-12
+
+### Maintenance
+
+- **Dependency security updates** — bumped bundled dependencies to clear reported advisories, with no user-facing behavior changes: `plist` (1.10.0) and `tauri-winrt-notification` (0.7.3), which remove the vulnerable `quick-xml` copies ([RUSTSEC-2026-0194](https://rustsec.org/advisories/RUSTSEC-2026-0194.html), [RUSTSEC-2026-0195](https://rustsec.org/advisories/RUSTSEC-2026-0195.html)), and `anyhow` (1.0.103) for a soundness fix ([RUSTSEC-2026-0190](https://rustsec.org/advisories/RUSTSEC-2026-0190.html))
+- **CI/build fixes** — resolved a Clippy lint (`filter_next`) in the Linux idle-time parser that was failing the Linux build, and removed the Dependabot configuration
+
 ## [0.17.0] - 2026-07-12
 
 ### New Features
