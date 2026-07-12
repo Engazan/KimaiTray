@@ -76,6 +76,7 @@ export function createGiteaProvider(
   token: string,
 ): IssueProvider {
   const base = config.baseUrl.replace(/\/+$/, "");
+  const allowedOrigin = new URL(base).origin;
   let cachedUsername: string | null = null;
 
   async function request(path: string, params?: Record<string, string>): Promise<unknown> {
@@ -87,6 +88,7 @@ export function createGiteaProvider(
     }
 
     const res = await fetch(url.toString(), {
+      allowedOrigin,
       signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `token ${token}`,
@@ -173,6 +175,7 @@ export function createGiteaProvider(
       const res = await fetch(
         `${base}/api/v1/repos/${config.projectPathOrRepo}/issues/${issueId}/times`,
         {
+          allowedOrigin,
           method: "POST",
           signal: AbortSignal.timeout(30_000),
           headers: {

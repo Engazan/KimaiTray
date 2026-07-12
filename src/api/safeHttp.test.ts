@@ -47,6 +47,7 @@ describe("safe HTTP redirects", () => {
     });
 
     const response = await safeHttpFetch(`${origin}/api/timesheets`, {
+      allowedOrigin: origin,
       method: "POST",
       headers: {
         Authorization: "Bearer secret",
@@ -59,6 +60,7 @@ describe("safe HTTP redirects", () => {
       request: {
         requestId: expect.any(String),
         url: `${origin}/api/timesheets`,
+        allowedOrigin: origin,
         method: "POST",
         headers: expect.arrayContaining([
           ["authorization", "Bearer secret"],
@@ -85,7 +87,9 @@ describe("safe HTTP redirects", () => {
         body: "done",
       });
 
-    const response = await safeHttpFetch(`${origin}/api/version`);
+    const response = await safeHttpFetch(`${origin}/api/version`, {
+      allowedOrigin: origin,
+    });
 
     expect(core.invoke).toHaveBeenCalledTimes(2);
     expect(core.invoke).toHaveBeenLastCalledWith(
@@ -115,6 +119,7 @@ describe("safe HTTP redirects", () => {
     });
     const controller = new AbortController();
     const request = safeHttpFetch(`${origin}/api/version`, {
+      allowedOrigin: origin,
       signal: controller.signal,
     });
     await vi.waitFor(() =>
@@ -130,5 +135,14 @@ describe("safe HTTP redirects", () => {
     expect(core.invoke).toHaveBeenCalledWith("cancel_http_request", {
       requestId: expect.any(String),
     });
+  });
+
+  it("rejects a target outside the client-authorized origin before IPC", async () => {
+    await expect(
+      safeHttpFetch("https://attacker.example/collect", {
+        allowedOrigin: origin,
+      }),
+    ).rejects.toThrow(/not authorized/);
+    expect(core.invoke).not.toHaveBeenCalled();
   });
 });

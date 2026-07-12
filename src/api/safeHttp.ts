@@ -10,6 +10,11 @@ interface NativeHttpResponse {
   body: string;
 }
 
+export interface SafeHttpRequestInit extends RequestInit {
+  /** Exact origin authorized by the client configuration that owns credentials. */
+  allowedOrigin: string;
+}
+
 function serializeBody(body: BodyInit | null | undefined): string | undefined {
   if (body == null) return undefined;
   if (typeof body === "string") return body;
@@ -19,6 +24,7 @@ function serializeBody(body: BodyInit | null | undefined): string | undefined {
 
 async function nativeFetch(
   url: string,
+  allowedOrigin: string,
   method: string,
   headers: Headers,
   body: BodyInit | null | undefined,
@@ -38,6 +44,7 @@ async function nativeFetch(
       request: {
         requestId,
         url,
+        allowedOrigin,
         method,
         headers: Array.from(headers.entries()),
         body: serializeBody(body),
@@ -76,10 +83,13 @@ export function resolveSafeRedirect(
  */
 export async function safeHttpFetch(
   input: string | URL,
-  init: RequestInit = {},
+  init: SafeHttpRequestInit,
 ): Promise<Response> {
   let currentUrl = new URL(input.toString()).toString();
-  const allowedOrigin = new URL(currentUrl).origin;
+  const allowedOrigin = new URL(init.allowedOrigin).origin;
+  if (new URL(currentUrl).origin !== allowedOrigin) {
+    throw new Error("HTTP request origin is not authorized");
+  }
   let method = (init.method ?? "GET").toUpperCase();
   let body = init.body;
   let headers = new Headers(init.headers);
@@ -87,6 +97,7 @@ export async function safeHttpFetch(
   for (let redirectCount = 0; ; redirectCount += 1) {
     const response = await nativeFetch(
       currentUrl,
+      allowedOrigin,
       method,
       headers,
       body,

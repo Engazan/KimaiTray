@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -40,6 +41,7 @@ impl Drop for RequestRegistration {
 pub struct HttpRequest {
     request_id: String,
     url: String,
+    allowed_origin: String,
     method: String,
     headers: Vec<(String, String)>,
     body: Option<String>,
@@ -67,6 +69,34 @@ fn validate_url(value: &str) -> Result<Url, String> {
     }
     if url.host_str().is_none() {
         return Err("HTTP URL must include a host".into());
+    }
+    let host = url.host_str().unwrap_or_default();
+    let ip_literal = host
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        .unwrap_or(host);
+    if let Ok(address) = ip_literal.parse::<IpAddr>() {
+        let unsafe_address = match address {
+            IpAddr::V4(ip) => ip.is_unspecified() || ip.is_link_local() || ip.is_multicast(),
+            IpAddr::V6(ip) => {
+                ip.is_unspecified() || ip.is_unicast_link_local() || ip.is_multicast()
+            }
+        };
+        if unsafe_address {
+            return Err("HTTP target IP range is not allowed".into());
+        }
+    }
+    Ok(url)
+}
+
+fn validate_url_for_origin(value: &str, allowed_origin: &str) -> Result<Url, String> {
+    let url = validate_url(value)?;
+    let origin = validate_url(allowed_origin)?;
+    if origin.path() != "/" || origin.query().is_some() || origin.fragment().is_some() {
+        return Err("Allowed HTTP origin must not include a path, query, or fragment".into());
+    }
+    if url.origin() != origin.origin() {
+        return Err("HTTP request origin is not authorized".into());
     }
     Ok(url)
 }
@@ -168,7 +198,7 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
         .try_acquire()
         .map_err(|_| "Too many concurrent HTTP requests".to_string())?;
     let (cancellation, _registration) = register_request(&request.request_id)?;
-    let url = validate_url(&request.url)?;
+    let url = validate_url_for_origin(&request.url, &request.allowed_origin)?;
     let method = validate_method(&request.method)?;
     let headers = validate_headers(request.headers)?;
     if request
@@ -234,12 +264,17 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_headers, validate_method, validate_url};
+    use super::{validate_headers, validate_method, validate_url, validate_url_for_origin};
 
     #[test]
     fn accepts_supported_http_requests() {
         assert!(validate_url("https://kimai.example.test/api/version").is_ok());
         assert!(validate_url("http://localhost:8001/api/version").is_ok());
+        assert!(validate_url_for_origin(
+            "https://kimai.example.test/api/version",
+            "https://kimai.example.test"
+        )
+        .is_ok());
         assert!(validate_method("GET").is_ok());
         assert!(validate_method("PATCH").is_ok());
         assert!(validate_headers(vec![("authorization".into(), "Bearer token".into())]).is_ok());
@@ -249,6 +284,18 @@ mod tests {
     fn rejects_unsafe_request_metadata() {
         assert!(validate_url("file:///etc/passwd").is_err());
         assert!(validate_url("https://user:password@example.test").is_err());
+        assert!(validate_url("http://169.254.169.254/latest/meta-data").is_err());
+        assert!(validate_url("http://[fe80::1]/metadata").is_err());
+        assert!(validate_url_for_origin(
+            "https://attacker.example.test/collect",
+            "https://kimai.example.test"
+        )
+        .is_err());
+        assert!(validate_url_for_origin(
+            "https://kimai.example.test/api",
+            "https://kimai.example.test/prefix"
+        )
+        .is_err());
         assert!(validate_method("TRACE").is_err());
         assert!(validate_headers(vec![("host".into(), "attacker.test".into())]).is_err());
         assert!(validate_headers(vec![("x-invalid\nname".into(), "value".into())]).is_err());

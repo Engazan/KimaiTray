@@ -161,6 +161,7 @@ async function request<T>(
   const timeout = window.setTimeout(() => controller.abort(), 30_000);
   try {
     response = await safeHttpFetch(url, {
+      allowedOrigin: new URL(baseUrl).origin,
       method,
       headers: {
         Authorization: `Bearer ${token}`,

@@ -85,6 +85,7 @@ export function createGitLabProvider(
   token: string,
 ): IssueProvider {
   const base = config.baseUrl.replace(/\/+$/, "");
+  const allowedOrigin = new URL(base).origin;
   const encodedPath = encodeURIComponent(config.projectPathOrRepo);
 
   async function request(path: string, params?: Record<string, string>): Promise<unknown> {
@@ -96,6 +97,7 @@ export function createGitLabProvider(
     }
 
     const res = await fetch(url.toString(), {
+      allowedOrigin,
       signal: AbortSignal.timeout(30_000),
       headers: {
         "PRIVATE-TOKEN": token,
@@ -233,6 +235,7 @@ export function createGitLabProvider(
       const res = await fetch(
         `${base}/api/v4/projects/${encodedPath}/issues/${issueId}/add_spent_time`,
         {
+          allowedOrigin,
           method: "POST",
           signal: AbortSignal.timeout(30_000),
           headers: {

@@ -17,7 +17,10 @@ export async function fetchRemoteCategoryConfig(
   url: string,
 ): Promise<RemoteCategoryConfig | null> {
   try {
-    const res = await fetch(url, { method: "GET" });
+    const res = await fetch(url, {
+      allowedOrigin: new URL(url).origin,
+      method: "GET",
+    });
     if (!res.ok) return null;
     const data: unknown = await res.json();
     const obj =

@@ -82,6 +82,7 @@ export function createGitHubProvider(
   token: string,
 ): IssueProvider {
   const apiBase = (config.apiBaseUrl || "https://api.github.com").replace(/\/+$/, "");
+  const allowedOrigin = new URL(apiBase).origin;
   let cachedUsername: string | null = null;
 
   async function request(path: string, params?: Record<string, string>): Promise<unknown> {
@@ -93,6 +94,7 @@ export function createGitHubProvider(
     }
 
     const res = await fetch(url.toString(), {
+      allowedOrigin,
       signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${token}`,
