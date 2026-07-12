@@ -64,6 +64,28 @@ pub struct SettingsPatchRequest {
     expected: Option<Map<String, Value>>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FavoriteScopeRequest {
+    connection_id: String,
+    base_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MoveFavoritesRequest {
+    from_connection_id: String,
+    to_connection_id: String,
+    from_base_url: Option<String>,
+    to_base_url: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MoveFavoritesResponse {
+    count: usize,
+}
+
 fn validate_request(request: &ScopedStoreRequest) -> Result<(), String> {
     if !matches!(
         request.key.as_str(),
@@ -208,6 +230,93 @@ fn apply_settings_patch(
     Ok(())
 }
 
+fn belongs_to_connection(value: &Value, connection_id: &str, base_url: Option<&str>) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    match object.get("connectionId").and_then(Value::as_str) {
+        Some(stored) => stored == connection_id,
+        None => base_url.is_some_and(|base_url| {
+            object
+                .get("baseUrl")
+                .and_then(Value::as_str)
+                .is_none_or(|stored| stored == base_url)
+        }),
+    }
+}
+
+fn claim_legacy_favorites(items: &mut [Value], connection_id: &str, base_url: &str) {
+    for item in items {
+        if belongs_to_connection(item, connection_id, Some(base_url))
+            && item
+                .as_object()
+                .is_some_and(|object| !object.contains_key("connectionId"))
+        {
+            if let Some(object) = item.as_object_mut() {
+                object.insert("connectionId".into(), Value::String(connection_id.into()));
+                object.insert("baseUrl".into(), Value::String(base_url.into()));
+            }
+        }
+    }
+}
+
+fn move_favorites(items: &mut Vec<Value>, request: &MoveFavoritesRequest) -> usize {
+    let moving_count = items
+        .iter()
+        .filter(|item| {
+            belongs_to_connection(
+                item,
+                &request.from_connection_id,
+                request.from_base_url.as_deref(),
+            )
+        })
+        .count();
+    let destination_keys = items
+        .iter()
+        .filter(|item| {
+            belongs_to_connection(
+                item,
+                &request.to_connection_id,
+                request.to_base_url.as_deref(),
+            )
+        })
+        .filter_map(|item| item.get("key").and_then(Value::as_str).map(str::to_owned))
+        .collect::<std::collections::HashSet<_>>();
+
+    items.retain_mut(|item| {
+        if !belongs_to_connection(
+            item,
+            &request.from_connection_id,
+            request.from_base_url.as_deref(),
+        ) {
+            return true;
+        }
+        let duplicate = item
+            .get("key")
+            .and_then(Value::as_str)
+            .is_some_and(|key| destination_keys.contains(key));
+        if duplicate {
+            return false;
+        }
+        if let Some(object) = item.as_object_mut() {
+            object.insert(
+                "connectionId".into(),
+                Value::String(request.to_connection_id.clone()),
+            );
+            match &request.to_base_url {
+                Some(base_url) => {
+                    object.insert("baseUrl".into(), Value::String(base_url.clone()));
+                }
+                None => {
+                    object.remove("baseUrl");
+                }
+            }
+        }
+        true
+    });
+    moving_count
+}
+
 #[tauri::command]
 pub fn mutate_scoped_store(
     app: AppHandle,
@@ -297,11 +406,64 @@ pub fn patch_settings(
     Ok(ScopedStoreResponse { value })
 }
 
+#[tauri::command]
+pub fn claim_legacy_favorites_store(
+    app: AppHandle,
+    request: FavoriteScopeRequest,
+) -> Result<ScopedStoreResponse, String> {
+    let Some(base_url) = request.base_url.as_deref() else {
+        return Err("Favorite legacy base URL is required".into());
+    };
+    if request.connection_id.is_empty() || request.connection_id.len() > MAX_ENTRY_KEY_BYTES {
+        return Err("Invalid favorite connection id".into());
+    }
+    let _transaction = STORE_MUTATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
+    let mut items = match store.get("favoriteTasks") {
+        Some(Value::Array(items)) => items,
+        None => Vec::new(),
+        Some(_) => return Err("Favorite store value is not an array".into()),
+    };
+    claim_legacy_favorites(&mut items, &request.connection_id, base_url);
+    let value = Value::Array(items);
+    store.set("favoriteTasks", value.clone());
+    store.save().map_err(|e| e.to_string())?;
+    Ok(ScopedStoreResponse { value })
+}
+
+#[tauri::command]
+pub fn move_favorites_store(
+    app: AppHandle,
+    request: MoveFavoritesRequest,
+) -> Result<MoveFavoritesResponse, String> {
+    if request.from_connection_id.is_empty()
+        || request.to_connection_id.is_empty()
+        || request.from_connection_id == request.to_connection_id
+    {
+        return Err("Invalid favorite connection move".into());
+    }
+    let _transaction = STORE_MUTATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
+    let mut items = match store.get("favoriteTasks") {
+        Some(Value::Array(items)) => items,
+        None => Vec::new(),
+        Some(_) => return Err("Favorite store value is not an array".into()),
+    };
+    let count = move_favorites(&mut items, &request);
+    store.set("favoriteTasks", Value::Array(items));
+    store.save().map_err(|e| e.to_string())?;
+    Ok(MoveFavoritesResponse { count })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_array_mutation, apply_mutation, apply_settings_patch, ArrayStoreMutation,
-        ScopedStoreMutation,
+        apply_array_mutation, apply_mutation, apply_settings_patch, claim_legacy_favorites,
+        move_favorites, ArrayStoreMutation, MoveFavoritesRequest, ScopedStoreMutation,
     };
     use serde_json::{json, Map};
 
@@ -380,5 +542,31 @@ mod tests {
         )
         .is_err());
         assert_eq!(settings["language"], json!("sk"));
+    }
+
+    #[test]
+    fn favorite_scope_moves_are_atomic_and_deduplicated() {
+        let mut items = vec![
+            json!({ "key": "duplicate", "baseUrl": "https://old" }),
+            json!({ "key": "moved", "baseUrl": "https://old" }),
+            json!({ "key": "duplicate", "connectionId": "new" }),
+        ];
+        claim_legacy_favorites(&mut items, "old", "https://old");
+        let count = move_favorites(
+            &mut items,
+            &MoveFavoritesRequest {
+                from_connection_id: "old".into(),
+                to_connection_id: "new".into(),
+                from_base_url: Some("https://old".into()),
+                to_base_url: Some("https://new".into()),
+            },
+        );
+        assert_eq!(count, 2);
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().any(|item| {
+            item["key"] == "moved"
+                && item["connectionId"] == "new"
+                && item["baseUrl"] == "https://new"
+        }));
     }
 }

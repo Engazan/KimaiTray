@@ -188,6 +188,8 @@ pub fn run() {
             store::mutate_scoped_store,
             store::mutate_array_store,
             store::patch_settings,
+            store::claim_legacy_favorites_store,
+            store::move_favorites_store,
         ])
         .setup(|app| {
             info!(

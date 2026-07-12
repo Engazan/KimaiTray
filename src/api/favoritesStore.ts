@@ -1,4 +1,5 @@
 import { load } from "@tauri-apps/plugin-store";
+import { invoke } from "@tauri-apps/api/core";
 import type { FavoriteTask } from "../types";
 import { mutateArrayStore } from "./arrayStore";
 
@@ -41,13 +42,11 @@ export async function loadFavorites(
           !t.connectionId && (!t.baseUrl || t.baseUrl === legacyBaseUrl),
       )
     ) {
-      all = all.map((t) =>
-        !t.connectionId && (!t.baseUrl || t.baseUrl === legacyBaseUrl)
-          ? { ...t, connectionId, baseUrl: legacyBaseUrl }
-          : t,
+      const response = await invoke<{ value: FavoriteTask[] }>(
+        "claim_legacy_favorites_store",
+        { request: { connectionId, baseUrl: legacyBaseUrl } },
       );
-      await store.set(KEY, all);
-      await store.save();
+      all = response.value;
     }
 
     return all.filter((t) => t.connectionId === connectionId);
@@ -93,35 +92,13 @@ export async function moveFavorites(
   toBaseUrl?: string,
 ): Promise<number> {
   if (!fromConnectionId || !toConnectionId || fromConnectionId === toConnectionId) return 0;
-  const store = await getStore();
-  const all = (await store.get<FavoriteTask[]>(KEY)) ?? [];
-  const moving = all.filter((t) =>
-    belongsToConnection(t, fromConnectionId, fromBaseUrl),
-  );
-  if (moving.length === 0) return 0;
-
-  const destKeys = new Set(
-    all
-      .filter((t) => belongsToConnection(t, toConnectionId, toBaseUrl))
-      .map((t) => t.key),
-  );
-  const updated = all
-    // Drop source favorites whose key already exists on the destination.
-    .filter(
-      (t) =>
-        !(
-          belongsToConnection(t, fromConnectionId, fromBaseUrl) &&
-          destKeys.has(t.key)
-        ),
-    )
-    // Re-scope the rest onto the destination connection.
-    .map((t) =>
-      belongsToConnection(t, fromConnectionId, fromBaseUrl)
-        ? { ...t, connectionId: toConnectionId, baseUrl: toBaseUrl }
-        : t,
-    );
-
-  await store.set(KEY, updated);
-  await store.save();
-  return moving.length;
+  const response = await invoke<{ count: number }>("move_favorites_store", {
+    request: {
+      fromConnectionId,
+      toConnectionId,
+      fromBaseUrl,
+      toBaseUrl,
+    },
+  });
+  return response.count;
 }
