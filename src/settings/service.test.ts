@@ -1,7 +1,25 @@
-import { describe, expect, it } from "vitest";
-import { defaultSettings, mergeSettings } from "./service";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const storeMocks = vi.hoisted(() => ({
+  load: vi.fn(),
+  get: vi.fn(),
+  set: vi.fn(),
+  save: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-store", () => ({ load: storeMocks.load }));
+
+import { defaultSettings, loadSettings, mergeSettings } from "./service";
 
 describe("settings schema defaults", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    storeMocks.load.mockResolvedValue({
+      get: storeMocks.get,
+      set: storeMocks.set,
+      save: storeMocks.save,
+    });
+  });
   it("deep-merges partial nested settings without mutating defaults", () => {
     const merged = mergeSettings({
       trayColors: { running: "#123456" } as typeof defaultSettings.trayColors,
@@ -21,5 +39,94 @@ describe("settings schema defaults", () => {
       connections: "invalid" as unknown as typeof defaultSettings.connections,
     });
     expect(merged.connections).toEqual([]);
+  });
+
+  it("normalizes corrupted scalar settings and numeric ranges", () => {
+    const merged = mergeSettings({
+      language: "fr",
+      refreshInterval: "600",
+      idleThresholdMinutes: -20,
+      popupMonitorIndex: 999,
+      popupLayout: "unknown",
+      enableIdleDetection: "true",
+      trayIconShape: "triangle",
+    } as unknown as Partial<typeof defaultSettings>);
+
+    expect(merged.language).toBe(defaultSettings.language);
+    expect(merged.refreshInterval).toBe(defaultSettings.refreshInterval);
+    expect(merged.idleThresholdMinutes).toBe(1);
+    expect(merged.popupMonitorIndex).toBe(255);
+    expect(merged.popupLayout).toBe(defaultSettings.popupLayout);
+    expect(merged.enableIdleDetection).toBe(defaultSettings.enableIdleDetection);
+    expect(merged.trayIconShape).toBe(defaultSettings.trayIconShape);
+  });
+
+  it("filters malformed nested records while preserving valid settings", () => {
+    const merged = mergeSettings({
+      refreshInterval: 300,
+      connections: [
+        { id: "connection-a", name: "Primary", url: "https://kimai.test" },
+        { id: "connection-a", name: "Duplicate", url: "https://other.test" },
+        { id: "", name: "Invalid", url: "https://invalid.test" },
+      ],
+      activeConnectionId: "connection-a",
+      trayColors: {
+        idle: "not-a-color",
+        running: "#123456",
+      },
+      features: {
+        "connection-a": {
+          featureNote: false,
+          featureTags: "invalid",
+        },
+      },
+      issueIntegrations: {
+        "connection-a": {
+          enabled: true,
+          provider: "invalid",
+          baseUrl: "https://git.test",
+          filterLabels: ["bug", 123],
+          filterLabelsMode: "exclude",
+        },
+      },
+    } as unknown as Partial<typeof defaultSettings>);
+
+    expect(merged.refreshInterval).toBe(300);
+    expect(merged.connections).toEqual([
+      { id: "connection-a", name: "Primary", url: "https://kimai.test" },
+    ]);
+    expect(merged.activeConnectionId).toBe("connection-a");
+    expect(merged.trayColors.idle).toBe(defaultSettings.trayColors.idle);
+    expect(merged.trayColors.running).toBe("#123456");
+    expect(merged.features["connection-a"]).toEqual({
+      ...defaultSettings.features["connection-a"],
+      featureNote: false,
+      featureTags: false,
+      featurePausedTimerDescriptionHover: false,
+      featureCustomerSelect: true,
+      featureCustomStartTime: true,
+      featureCategoryMode: false,
+    });
+    expect(merged.issueIntegrations["connection-a"]).toMatchObject({
+      enabled: true,
+      provider: "gitlab",
+      baseUrl: "https://git.test",
+      filterLabels: ["bug"],
+      filterLabelsMode: "exclude",
+    });
+  });
+
+  it("keeps normalized settings when migration persistence fails", async () => {
+    storeMocks.get.mockResolvedValue({
+      theme: "dark",
+      useCompactPopup: true,
+    });
+    storeMocks.set.mockRejectedValue(new Error("disk unavailable"));
+
+    const settings = await loadSettings();
+
+    expect(settings.theme).toBe("dark");
+    expect(settings.uiSize).toBe("small");
+    expect(storeMocks.save).not.toHaveBeenCalled();
   });
 });
