@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ExternalIssue, IssueIntegrationSettings } from "./types";
 import { createIssueProvider } from "./issueProvider";
+import { resolveIssueCacheScope } from "./issueCacheScope";
 
 function useDebouncedValue(value: string, ms: number): string {
   const [debounced, setDebounced] = useState(value);
@@ -26,19 +27,12 @@ export function useIssues(
     return createIssueProvider(config, token);
   }, [enabled, config, token]);
 
-  const tokenVersionRef = useRef({ token, version: 0 });
-  if (tokenVersionRef.current.token !== token) {
-    tokenVersionRef.current = {
-      token,
-      version: tokenVersionRef.current.version + 1,
-    };
-  }
+  const cacheScope = resolveIssueCacheScope(connectionId, token);
 
   const query = useQuery<ExternalIssue[]>({
     queryKey: [
       "issues",
-      connectionId,
-      tokenVersionRef.current.version,
+      cacheScope,
       config?.provider,
       config?.baseUrl,
       config?.apiBaseUrl,

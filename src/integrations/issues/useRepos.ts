@@ -1,7 +1,8 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ExternalRepo, IssueIntegrationSettings } from "./types";
 import { createIssueProvider } from "./issueProvider";
+import { resolveIssueCacheScope } from "./issueCacheScope";
 
 export function useRepos(
   config: IssueIntegrationSettings | null,
@@ -15,19 +16,12 @@ export function useRepos(
     return createIssueProvider(config, token);
   }, [enabled, config, token]);
 
-  const tokenVersionRef = useRef({ token, version: 0 });
-  if (tokenVersionRef.current.token !== token) {
-    tokenVersionRef.current = {
-      token,
-      version: tokenVersionRef.current.version + 1,
-    };
-  }
+  const cacheScope = resolveIssueCacheScope(connectionId, token);
 
   const query = useQuery<ExternalRepo[]>({
     queryKey: [
       "issue-repos",
-      connectionId,
-      tokenVersionRef.current.version,
+      cacheScope,
       config?.provider,
       config?.baseUrl,
       config?.apiBaseUrl,

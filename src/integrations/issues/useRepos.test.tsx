@@ -65,15 +65,51 @@ describe("issue repository query isolation", () => {
     rerender({ connectionId: "connection-b" });
     await waitFor(() => expect(providerMocks.fetchRepos).toHaveBeenCalledTimes(2));
 
-    const connectionKeys = queryClient
+    const connectionScopes = queryClient
       .getQueryCache()
       .getAll()
       .map((query) => query.queryKey[1]);
-    expect(connectionKeys).toEqual(
-      expect.arrayContaining(["connection-a", "connection-b"]),
+    expect(connectionScopes).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("connection-a:"),
+        expect.stringContaining("connection-b:"),
+      ]),
     );
 
     unmount();
+    queryClient.clear();
+  });
+
+  it("rotates cache scope after a credential change across remounts", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    const first = renderHook(
+      () => useRepos(config, "first-secret-token", "rotating-connection"),
+      { wrapper },
+    );
+    await waitFor(() => expect(first.result.current.repos).toHaveLength(1));
+    first.unmount();
+
+    const second = renderHook(
+      () => useRepos(config, "second-secret-token", "rotating-connection"),
+      { wrapper },
+    );
+    await waitFor(() => expect(providerMocks.fetchRepos).toHaveBeenCalledTimes(2));
+
+    const scopes = queryClient
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.queryKey[1]);
+    expect(new Set(scopes).size).toBe(2);
+    expect(JSON.stringify(scopes)).not.toContain("first-secret-token");
+    expect(JSON.stringify(scopes)).not.toContain("second-secret-token");
+
+    second.unmount();
     queryClient.clear();
   });
 });
