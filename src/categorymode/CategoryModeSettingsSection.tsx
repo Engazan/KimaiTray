@@ -141,7 +141,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
     if (!url) return;
     setSyncing(true);
     setSyncError(false);
-    const remote = await fetchRemoteCategoryConfig(url);
+    const remote = await fetchRemoteCategoryConfig(url, connectionId);
     setSyncing(false);
     if (!remote) {
       setSyncError(true);

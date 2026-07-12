@@ -15,10 +15,13 @@ export interface RemoteCategoryConfig {
  */
 export async function fetchRemoteCategoryConfig(
   url: string,
+  connectionId = "",
 ): Promise<RemoteCategoryConfig | null> {
   try {
     const res = await fetch(url, {
-      allowedOrigin: new URL(url).origin,
+      authorization: connectionId
+        ? { type: "category", connectionId }
+        : { type: "test", origin: new URL(url).origin },
       method: "GET",
     });
     if (!res.ok) return null;

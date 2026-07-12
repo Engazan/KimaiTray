@@ -83,6 +83,7 @@ function normalize(issue: GitLabIssue): ExternalIssue {
 export function createGitLabProvider(
   config: IssueIntegrationSettings,
   token: string,
+  connectionId = "",
 ): IssueProvider {
   const base = config.baseUrl.replace(/\/+$/, "");
   const allowedOrigin = new URL(base).origin;
@@ -97,7 +98,9 @@ export function createGitLabProvider(
     }
 
     const res = await fetch(url.toString(), {
-      allowedOrigin,
+      authorization: connectionId
+        ? { type: "issue", connectionId }
+        : { type: "test", origin: allowedOrigin },
       signal: AbortSignal.timeout(30_000),
       headers: {
         "PRIVATE-TOKEN": token,
@@ -235,7 +238,9 @@ export function createGitLabProvider(
       const res = await fetch(
         `${base}/api/v4/projects/${encodedPath}/issues/${issueId}/add_spent_time`,
         {
-          allowedOrigin,
+          authorization: connectionId
+            ? { type: "issue", connectionId }
+            : { type: "test", origin: allowedOrigin },
           method: "POST",
           signal: AbortSignal.timeout(30_000),
           headers: {

@@ -293,7 +293,11 @@ export default function TrayPopup() {
         issueToken &&
         client
       ) {
-        const provider = createIssueProvider(issueIntegration, issueToken);
+        const provider = createIssueProvider(
+          issueIntegration,
+          issueToken,
+          activeConnectionId,
+        );
         if (provider.addSpentTime) {
           void getTimesheet(client, prevId)
             .then((entry) => {
@@ -676,7 +680,11 @@ export default function TrayPopup() {
     }
 
     const url = storedIssue?.webUrl ?? timerIssueUrl;
-    const provider = createIssueProvider(issueIntegration, issueToken);
+    const provider = createIssueProvider(
+      issueIntegration,
+      issueToken,
+      activeConnectionId,
+    );
     if (!url || !provider.fetchIssueByUrl) {
       setFetchedIssue(storedIssue);
       linkedIssueRef.current = storedIssue;

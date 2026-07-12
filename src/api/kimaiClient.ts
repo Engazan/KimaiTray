@@ -143,6 +143,7 @@ async function safeParseJson(response: Response): Promise<unknown> {
 async function request<T>(
   baseUrl: string,
   token: string,
+  connectionId: string,
   method: string,
   path: string,
   body?: unknown,
@@ -161,7 +162,9 @@ async function request<T>(
   const timeout = window.setTimeout(() => controller.abort(), 30_000);
   try {
     response = await safeHttpFetch(url, {
-      allowedOrigin: new URL(baseUrl).origin,
+      authorization: connectionId
+        ? { type: "kimai", connectionId }
+        : { type: "test", origin: new URL(baseUrl).origin },
       method,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -288,12 +291,12 @@ export function createKimaiClient(
     connectionId,
     cacheScope: resolveCacheScope(connectionId, baseUrl, token),
     get: <T>(path: string, params?: QueryParamLike) =>
-      request<T>(baseUrl, token, "GET", path, undefined, params as QueryParams),
+      request<T>(baseUrl, token, connectionId, "GET", path, undefined, params as QueryParams),
     post: <T>(path: string, body?: unknown) =>
-      request<T>(baseUrl, token, "POST", path, body),
+      request<T>(baseUrl, token, connectionId, "POST", path, body),
     patch: <T>(path: string, body?: unknown) =>
-      request<T>(baseUrl, token, "PATCH", path, body),
+      request<T>(baseUrl, token, connectionId, "PATCH", path, body),
     del: (path: string) =>
-      request<void>(baseUrl, token, "DELETE", path),
+      request<void>(baseUrl, token, connectionId, "DELETE", path),
   };
 }

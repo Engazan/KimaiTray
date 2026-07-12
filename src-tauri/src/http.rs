@@ -5,6 +5,9 @@ use std::time::{Duration, Instant};
 
 use reqwest::{header::HeaderMap, Method, Url};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tauri::{AppHandle, WebviewWindow};
+use tauri_plugin_store::StoreExt;
 
 const MAX_URL_BYTES: usize = 8 * 1024;
 const MAX_HEADERS: usize = 32;
@@ -145,10 +148,23 @@ impl CancellationRegistry {
 pub struct HttpRequest {
     request_id: String,
     url: String,
-    allowed_origin: String,
+    authorization: HttpAuthorization,
     method: String,
     headers: Vec<(String, String)>,
     body: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+enum HttpAuthorization {
+    Kimai { connection_id: String },
+    Issue { connection_id: String },
+    Category { connection_id: String },
+    Test { origin: String },
 }
 
 #[derive(Serialize)]
@@ -223,6 +239,74 @@ fn validate_url_for_origin(value: &str, allowed_origin: &str) -> Result<Url, Str
         return Err("HTTP request origin is not authorized".into());
     }
     Ok(url)
+}
+
+fn configured_http_origin(
+    settings: Option<&Value>,
+    category_config: Option<&Value>,
+    authorization: &HttpAuthorization,
+) -> Result<String, String> {
+    let settings = settings.and_then(Value::as_object);
+    let url = match authorization {
+        HttpAuthorization::Kimai { connection_id } => settings
+            .and_then(|settings| settings.get("connections"))
+            .and_then(Value::as_array)
+            .and_then(|connections| {
+                connections.iter().find(|connection| {
+                    connection.get("id").and_then(Value::as_str) == Some(connection_id)
+                })
+            })
+            .and_then(|connection| connection.get("url"))
+            .and_then(Value::as_str),
+        HttpAuthorization::Issue { connection_id } => {
+            let integration = settings
+                .and_then(|settings| settings.get("issueIntegrations"))
+                .and_then(Value::as_object)
+                .and_then(|integrations| integrations.get(connection_id))
+                .and_then(Value::as_object)
+                .ok_or("HTTP issue scope is not configured")?;
+            if integration.get("enabled").and_then(Value::as_bool) != Some(true) {
+                return Err("HTTP issue scope is disabled".into());
+            }
+            match integration.get("provider").and_then(Value::as_str) {
+                Some("github") => integration
+                    .get("apiBaseUrl")
+                    .and_then(Value::as_str)
+                    .filter(|url| !url.is_empty())
+                    .or(Some("https://api.github.com")),
+                Some("gitlab" | "gitea") => integration.get("baseUrl").and_then(Value::as_str),
+                _ => None,
+            }
+        }
+        HttpAuthorization::Category { connection_id } => category_config
+            .and_then(Value::as_object)
+            .and_then(|configs| configs.get(connection_id))
+            .and_then(|config| config.get("sourceUrl"))
+            .and_then(Value::as_str),
+        HttpAuthorization::Test { origin } => Some(origin.as_str()),
+    }
+    .ok_or("HTTP authorization scope is not configured")?;
+    let url = validate_url(url)?;
+    Ok(url.origin().ascii_serialization())
+}
+
+fn authorize_http_request(
+    app: &AppHandle,
+    window_label: &str,
+    request_url: &str,
+    authorization: &HttpAuthorization,
+) -> Result<Url, String> {
+    if matches!(authorization, HttpAuthorization::Test { .. }) && window_label != "settings" {
+        return Err("HTTP test scope is only available from settings".into());
+    }
+    let store = app
+        .store("settings.json")
+        .map_err(|error| error.to_string())?;
+    let settings = store.get("settings");
+    let category_config = store.get("categoryConfig");
+    let origin =
+        configured_http_origin(settings.as_ref(), category_config.as_ref(), authorization)?;
+    validate_url_for_origin(request_url, &origin)
 }
 
 fn validate_method(value: &str) -> Result<Method, String> {
@@ -321,9 +405,13 @@ pub fn cancel_http_request(request_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> {
+pub async fn http_request(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: HttpRequest,
+) -> Result<HttpResponse, String> {
     let (cancellation, _registration) = cancellations().register(&request.request_id)?;
-    let url = validate_url_for_origin(&request.url, &request.allowed_origin)?;
+    let url = authorize_http_request(&app, window.label(), &request.url, &request.authorization)?;
     let method = validate_method(&request.method)?;
     let headers = validate_headers(request.headers)?;
     if request
@@ -395,10 +483,11 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
 #[cfg(test)]
 mod tests {
     use super::{
-        acquire_request_permit, validate_headers, validate_method, validate_resolved_addresses,
-        validate_target_ip, validate_url, validate_url_for_origin, Cancellation,
-        CancellationRegistry, MAX_CANCELLATION_TOMBSTONES,
+        acquire_request_permit, configured_http_origin, validate_headers, validate_method,
+        validate_resolved_addresses, validate_target_ip, validate_url, validate_url_for_origin,
+        Cancellation, CancellationRegistry, HttpAuthorization, MAX_CANCELLATION_TOMBSTONES,
     };
+    use serde_json::json;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::time::Duration;
 
@@ -454,6 +543,97 @@ mod tests {
         ])
         .is_err());
         assert!(validate_resolved_addresses(&[]).is_err());
+    }
+
+    #[test]
+    fn configured_scopes_derive_origins_from_native_store_values() {
+        let settings = json!({
+            "connections": [{"id": "connection-a", "url": "https://kimai.test/path"}],
+            "issueIntegrations": {
+                "connection-a": {
+                    "enabled": true,
+                    "provider": "github",
+                    "apiBaseUrl": ""
+                }
+            }
+        });
+        let categories = json!({
+            "connection-a": {"sourceUrl": "https://config.test/categories.json"}
+        });
+
+        assert_eq!(
+            configured_http_origin(
+                Some(&settings),
+                Some(&categories),
+                &HttpAuthorization::Kimai {
+                    connection_id: "connection-a".into(),
+                },
+            )
+            .unwrap(),
+            "https://kimai.test"
+        );
+        assert_eq!(
+            configured_http_origin(
+                Some(&settings),
+                Some(&categories),
+                &HttpAuthorization::Issue {
+                    connection_id: "connection-a".into(),
+                },
+            )
+            .unwrap(),
+            "https://api.github.com"
+        );
+        assert_eq!(
+            configured_http_origin(
+                Some(&settings),
+                Some(&categories),
+                &HttpAuthorization::Category {
+                    connection_id: "connection-a".into(),
+                },
+            )
+            .unwrap(),
+            "https://config.test"
+        );
+        assert!(configured_http_origin(
+            Some(&settings),
+            Some(&categories),
+            &HttpAuthorization::Kimai {
+                connection_id: "missing".into(),
+            },
+        )
+        .is_err());
+
+        let disabled_settings = json!({
+            "issueIntegrations": {
+                "connection-a": {
+                    "enabled": false,
+                    "provider": "gitlab",
+                    "baseUrl": "https://gitlab.test"
+                }
+            }
+        });
+        assert!(configured_http_origin(
+            Some(&disabled_settings),
+            None,
+            &HttpAuthorization::Issue {
+                connection_id: "connection-a".into(),
+            },
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn authorization_scopes_accept_frontend_field_names() {
+        let authorization = serde_json::from_value::<HttpAuthorization>(json!({
+            "type": "kimai",
+            "connectionId": "connection-a"
+        }))
+        .unwrap();
+
+        assert!(matches!(
+            authorization,
+            HttpAuthorization::Kimai { connection_id } if connection_id == "connection-a"
+        ));
     }
 
     #[test]

@@ -80,6 +80,7 @@ function normalize(issue: GitHubIssue): ExternalIssue {
 export function createGitHubProvider(
   config: IssueIntegrationSettings,
   token: string,
+  connectionId = "",
 ): IssueProvider {
   const apiBase = (config.apiBaseUrl || "https://api.github.com").replace(/\/+$/, "");
   const allowedOrigin = new URL(apiBase).origin;
@@ -94,7 +95,9 @@ export function createGitHubProvider(
     }
 
     const res = await fetch(url.toString(), {
-      allowedOrigin,
+      authorization: connectionId
+        ? { type: "issue", connectionId }
+        : { type: "test", origin: allowedOrigin },
       signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${token}`,

@@ -74,6 +74,7 @@ function normalizeColor(color: string): string {
 export function createGiteaProvider(
   config: IssueIntegrationSettings,
   token: string,
+  connectionId = "",
 ): IssueProvider {
   const base = config.baseUrl.replace(/\/+$/, "");
   const allowedOrigin = new URL(base).origin;
@@ -88,7 +89,9 @@ export function createGiteaProvider(
     }
 
     const res = await fetch(url.toString(), {
-      allowedOrigin,
+      authorization: connectionId
+        ? { type: "issue", connectionId }
+        : { type: "test", origin: allowedOrigin },
       signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `token ${token}`,
@@ -175,7 +178,9 @@ export function createGiteaProvider(
       const res = await fetch(
         `${base}/api/v1/repos/${config.projectPathOrRepo}/issues/${issueId}/times`,
         {
-          allowedOrigin,
+          authorization: connectionId
+            ? { type: "issue", connectionId }
+            : { type: "test", origin: allowedOrigin },
           method: "POST",
           signal: AbortSignal.timeout(30_000),
           headers: {

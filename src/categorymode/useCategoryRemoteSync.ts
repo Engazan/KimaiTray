@@ -24,7 +24,7 @@ export function useCategoryRemoteSync(
     let cancelled = false;
 
     const sync = async () => {
-      const remote = await fetchRemoteCategoryConfig(url);
+      const remote = await fetchRemoteCategoryConfig(url, connectionId);
       if (cancelled || !remote) return;
       const cfg = await loadCategoryConfig(connectionId);
       // Only apply while this URL is still the configured source.

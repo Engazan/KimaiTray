@@ -10,9 +10,14 @@ interface NativeHttpResponse {
   body: string;
 }
 
+export type SafeHttpAuthorization =
+  | { type: "kimai"; connectionId: string }
+  | { type: "issue"; connectionId: string }
+  | { type: "category"; connectionId: string }
+  | { type: "test"; origin: string };
+
 export interface SafeHttpRequestInit extends RequestInit {
-  /** Exact origin authorized by the client configuration that owns credentials. */
-  allowedOrigin: string;
+  authorization: SafeHttpAuthorization;
 }
 
 function serializeBody(body: BodyInit | null | undefined): string | undefined {
@@ -24,7 +29,7 @@ function serializeBody(body: BodyInit | null | undefined): string | undefined {
 
 async function nativeFetch(
   url: string,
-  allowedOrigin: string,
+  authorization: SafeHttpAuthorization,
   method: string,
   headers: Headers,
   body: BodyInit | null | undefined,
@@ -44,7 +49,7 @@ async function nativeFetch(
       request: {
         requestId,
         url,
-        allowedOrigin,
+        authorization,
         method,
         headers: Array.from(headers.entries()),
         body: serializeBody(body),
@@ -86,8 +91,11 @@ export async function safeHttpFetch(
   init: SafeHttpRequestInit,
 ): Promise<Response> {
   let currentUrl = new URL(input.toString()).toString();
-  const allowedOrigin = new URL(init.allowedOrigin).origin;
-  if (new URL(currentUrl).origin !== allowedOrigin) {
+  const allowedOrigin = new URL(currentUrl).origin;
+  if (
+    init.authorization.type === "test" &&
+    new URL(init.authorization.origin).origin !== allowedOrigin
+  ) {
     throw new Error("HTTP request origin is not authorized");
   }
   let method = (init.method ?? "GET").toUpperCase();
@@ -97,7 +105,7 @@ export async function safeHttpFetch(
   for (let redirectCount = 0; ; redirectCount += 1) {
     const response = await nativeFetch(
       currentUrl,
-      allowedOrigin,
+      init.authorization,
       method,
       headers,
       body,

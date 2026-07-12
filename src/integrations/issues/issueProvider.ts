@@ -6,12 +6,13 @@ import { createGiteaProvider } from "./giteaIssueProvider";
 export function createIssueProvider(
   config: IssueIntegrationSettings,
   token: string,
+  connectionId = "",
 ): IssueProvider {
   if (config.provider === "github") {
-    return createGitHubProvider(config, token);
+    return createGitHubProvider(config, token, connectionId);
   }
   if (config.provider === "gitea") {
-    return createGiteaProvider(config, token);
+    return createGiteaProvider(config, token, connectionId);
   }
-  return createGitLabProvider(config, token);
+  return createGitLabProvider(config, token, connectionId);
 }

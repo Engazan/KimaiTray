@@ -24,8 +24,8 @@ export function useIssues(
 
   const provider = useMemo(() => {
     if (!enabled || !config || !token) return null;
-    return createIssueProvider(config, token);
-  }, [enabled, config, token]);
+    return createIssueProvider(config, token, connectionId);
+  }, [enabled, config, token, connectionId]);
 
   const cacheScope = resolveIssueCacheScope(connectionId, token);
 

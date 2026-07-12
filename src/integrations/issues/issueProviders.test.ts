@@ -35,12 +35,18 @@ describe("issue provider API boundaries", () => {
   });
 
   it.each([
-    ["GitLab", () => createGitLabProvider(config("gitlab"), "secret")],
-    ["GitHub", () => createGitHubProvider(config("github"), "secret")],
-    ["Gitea", () => createGiteaProvider(config("gitea"), "secret")],
+    ["GitLab", () => createGitLabProvider(config("gitlab"), "secret", "connection-a")],
+    ["GitHub", () => createGitHubProvider(config("github"), "secret", "connection-a")],
+    ["Gitea", () => createGiteaProvider(config("gitea"), "secret", "connection-a")],
   ])("rejects malformed %s issue lists", async (_name, createProvider) => {
     await expect(createProvider().searchIssues("")).rejects.toThrow(
       "returned an invalid response",
+    );
+    expect(http.safeHttpFetch).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        authorization: { type: "issue", connectionId: "connection-a" },
+      }),
     );
   });
 });

@@ -33,7 +33,10 @@ describe("remote category configuration", () => {
     });
 
     await expect(
-      fetchRemoteCategoryConfig("https://config.example.test/categories.json"),
+      fetchRemoteCategoryConfig(
+        "https://config.example.test/categories.json",
+        "connection-a",
+      ),
     ).resolves.toEqual({
       continueWindowMinutes: 20,
       categories: [
@@ -52,6 +55,12 @@ describe("remote category configuration", () => {
         },
       ],
     });
+    expect(http.safeHttpFetch).toHaveBeenCalledWith(
+      "https://config.example.test/categories.json",
+      expect.objectContaining({
+        authorization: { type: "category", connectionId: "connection-a" },
+      }),
+    );
   });
 
   it("preserves the existing configuration on network or shape failure", async () => {

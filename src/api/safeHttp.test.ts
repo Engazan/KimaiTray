@@ -47,7 +47,7 @@ describe("safe HTTP redirects", () => {
     });
 
     const response = await safeHttpFetch(`${origin}/api/timesheets`, {
-      allowedOrigin: origin,
+      authorization: { type: "kimai", connectionId: "connection-a" },
       method: "POST",
       headers: {
         Authorization: "Bearer secret",
@@ -60,7 +60,7 @@ describe("safe HTTP redirects", () => {
       request: {
         requestId: expect.any(String),
         url: `${origin}/api/timesheets`,
-        allowedOrigin: origin,
+        authorization: { type: "kimai", connectionId: "connection-a" },
         method: "POST",
         headers: expect.arrayContaining([
           ["authorization", "Bearer secret"],
@@ -88,7 +88,7 @@ describe("safe HTTP redirects", () => {
       });
 
     const response = await safeHttpFetch(`${origin}/api/version`, {
-      allowedOrigin: origin,
+      authorization: { type: "kimai", connectionId: "connection-a" },
     });
 
     expect(core.invoke).toHaveBeenCalledTimes(2);
@@ -119,7 +119,7 @@ describe("safe HTTP redirects", () => {
     });
     const controller = new AbortController();
     const request = safeHttpFetch(`${origin}/api/version`, {
-      allowedOrigin: origin,
+      authorization: { type: "kimai", connectionId: "connection-a" },
       signal: controller.signal,
     });
     await vi.waitFor(() =>
@@ -140,7 +140,7 @@ describe("safe HTTP redirects", () => {
   it("rejects a target outside the client-authorized origin before IPC", async () => {
     await expect(
       safeHttpFetch("https://attacker.example/collect", {
-        allowedOrigin: origin,
+        authorization: { type: "test", origin },
       }),
     ).rejects.toThrow(/not authorized/);
     expect(core.invoke).not.toHaveBeenCalled();
