@@ -52,8 +52,12 @@
 
 /* ── Focus layout: enlarged timer area ──────────────────────── */
 [data-layout="focus"][data-window="tray-popup"] .timer-area {
+  --focus-timer-height: clamp(88px, 16vh, 112px);
   display: flex;
   flex-direction: column;
+  height: var(--focus-timer-height);
+  min-height: var(--focus-timer-height);
+  max-height: var(--focus-timer-height);
 }
 
 html, body, #root {

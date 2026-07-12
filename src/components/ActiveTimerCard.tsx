@@ -211,7 +211,7 @@ export default function ActiveTimerCard({
   if (compact) {
     return (
       <div key={timer.id} className={`mx-3 mt-1.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 ${cardAnim}`}>
-        <div className="px-2.5 py-1.5 flex items-center gap-2">
+        <div className="flex min-h-5 items-center gap-2 px-2.5 py-1.5">
           <ColorDots
             activityColor={timer.activityColor}
             projectColor={timer.projectColor}

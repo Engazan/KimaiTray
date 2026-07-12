@@ -199,11 +199,28 @@ export default function AppearanceSection({ settings, update }: Props) {
   const layoutOptions: {
     value: AppSettings["popupLayout"];
     label: string;
+    description: string;
   }[] = [
-    { value: "classic", label: t("appearanceSettings.layoutClassic") },
-    { value: "focus", label: t("appearanceSettings.layoutFocus") },
-    { value: "taskbar", label: t("appearanceSettings.layoutTaskbar") },
-    { value: "timeline", label: t("appearanceSettings.layoutTimeline") },
+    {
+      value: "classic",
+      label: t("appearanceSettings.layoutClassic"),
+      description: t("appearanceSettings.layoutClassicDescription"),
+    },
+    {
+      value: "focus",
+      label: t("appearanceSettings.layoutFocus"),
+      description: t("appearanceSettings.layoutFocusDescription"),
+    },
+    {
+      value: "taskbar",
+      label: t("appearanceSettings.layoutTaskbar"),
+      description: t("appearanceSettings.layoutTaskbarDescription"),
+    },
+    {
+      value: "timeline",
+      label: t("appearanceSettings.layoutTimeline"),
+      description: t("appearanceSettings.layoutTimelineDescription"),
+    },
   ];
 
   const themeOptions: {
@@ -269,44 +286,33 @@ export default function AppearanceSection({ settings, update }: Props) {
         title={t("appearanceSettings.popupLayout")}
         description={t("appearanceSettings.popupLayoutDescription")}
       >
-        <div className="relative mt-1">
-          {/* Fade hint on the right edge */}
-          <div className="pointer-events-none absolute right-0 top-0 bottom-1 w-6 z-10 bg-gradient-to-l from-white dark:from-gray-900 to-transparent rounded-r-lg" />
-          <div className="-mx-1 px-1 flex gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-1 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-            {layoutOptions.map((opt) => {
-              const active = settings.popupLayout === opt.value;
-              return (
-                <SelectableCard
-                  key={opt.value}
-                  active={active}
-                  onClick={() => update("popupLayout", opt.value)}
-                  className="snap-start shrink-0 flex flex-col items-center gap-1.5 px-2 py-2"
-                  style={{ width: "calc((100% - 1rem) / 3)" }}
-                >
-                  <LayoutPreview layout={opt.value} />
-                  <div className="flex items-center gap-1">
-                    <RadioDot active={active} size="sm" />
-                    <span className="text-[11px] text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {opt.label}
-                    </span>
-                  </div>
-                </SelectableCard>
-              );
-            })}
-          </div>
-          {/* Dot indicators */}
-          <div className="flex justify-center gap-1 mt-1.5">
-            {layoutOptions.map((opt) => (
-              <span
+        <div className="mt-1 grid grid-cols-2 gap-2.5">
+          {layoutOptions.map((opt) => {
+            const active = settings.popupLayout === opt.value;
+            return (
+              <SelectableCard
                 key={opt.value}
-                className={`h-1 rounded-full transition-all ${
-                  settings.popupLayout === opt.value
-                    ? "w-3 bg-[var(--accent)]"
-                    : "w-1 bg-gray-300 dark:bg-gray-600"
-                }`}
-              />
-            ))}
-          </div>
+                active={active}
+                onClick={() => update("popupLayout", opt.value)}
+                className="flex min-w-0 flex-col gap-2 p-2.5 text-left"
+              >
+                <LayoutPreview layout={opt.value} />
+                <div className="flex min-w-0 items-start gap-2 px-0.5 pb-0.5">
+                  <span className="mt-0.5">
+                    <RadioDot active={active} size="md" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-medium text-gray-700 dark:text-gray-200">
+                      {opt.label}
+                    </div>
+                    <div className="mt-0.5 text-[10px] leading-3.5 text-gray-400 dark:text-gray-500">
+                      {opt.description}
+                    </div>
+                  </div>
+                </div>
+              </SelectableCard>
+            );
+          })}
         </div>
       </SettingsCard>
 

@@ -24,7 +24,7 @@ export default function EmptyTimerState({
   if (compact) {
     return (
       <div className="mx-3 mt-1.5 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-2.5 py-1.5 animate-card-in">
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-5 items-center gap-2">
           {variant === "loading" ? (
             <>
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-600 shrink-0" style={{ borderTopColor: "var(--accent)" }} />
