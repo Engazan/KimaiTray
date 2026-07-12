@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import ipcContract from "../../contracts/ipc-contract.json";
 
 const storeMocks = vi.hoisted(() => ({
   load: vi.fn(),
@@ -17,6 +18,12 @@ describe("settings schema defaults", () => {
     storeMocks.load.mockResolvedValue({
       get: storeMocks.get,
     });
+  });
+
+  it("keeps the shared native settings contract aligned with AppSettings", () => {
+    expect(new Set(ipcContract.settingsKeys)).toEqual(
+      new Set(Object.keys(defaultSettings)),
+    );
   });
   it("deep-merges partial nested settings without mutating defaults", () => {
     const merged = mergeSettings({

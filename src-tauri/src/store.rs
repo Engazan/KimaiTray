@@ -1,4 +1,7 @@
-use std::sync::Mutex;
+use std::{
+    collections::HashSet,
+    sync::{Mutex, OnceLock},
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -10,47 +13,19 @@ const MAX_ENTRY_KEY_BYTES: usize = 256;
 const MAX_VALUE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STRING_ITEMS: usize = 10_000;
 const MAX_STRING_BYTES: usize = 4 * 1024;
-const SETTINGS_KEYS: &[&str] = &[
-    "kimaiUrl",
-    "connections",
-    "activeConnectionId",
-    "language",
-    "launchAtLogin",
-    "refreshInterval",
-    "openKimaiInBrowser",
-    "showElapsedInTray",
-    "showTaskNameInTray",
-    "menuBarLabelStyle",
-    "showSecondsInTimer",
-    "trayIconSize",
-    "trayIconShape",
-    "trayColors",
-    "enableIdleDetection",
-    "idleThresholdMinutes",
-    "idleAction",
-    "showIdleNotification",
-    "theme",
-    "uiSize",
-    "roundedPopupCorners",
-    "reduceVisualEffects",
-    "accentStyle",
-    "popupLayout",
-    "colorMode",
-    "features",
-    "shortcutTogglePopup",
-    "shortcutStartStopTimer",
-    "shortcutOpenSettings",
-    "trayLeftClickAction",
-    "trayRightClickAction",
-    "displayMode",
-    "trueTrayMode",
-    "popupMonitorMode",
-    "popupMonitorIndex",
-    "popupMonitorPosition",
-    "autoUpdate",
-    "issueIntegrations",
-];
+const IPC_CONTRACT: &str = include_str!("../../contracts/ipc-contract.json");
 static STORE_MUTATION: Mutex<()> = Mutex::new(());
+static SETTINGS_KEYS: OnceLock<HashSet<String>> = OnceLock::new();
+
+fn settings_keys() -> &'static HashSet<String> {
+    SETTINGS_KEYS.get_or_init(|| {
+        serde_json::from_str::<Value>(IPC_CONTRACT)
+            .ok()
+            .and_then(|contract| contract.get("settingsKeys").cloned())
+            .and_then(|keys| serde_json::from_value(keys).ok())
+            .unwrap_or_default()
+    })
+}
 
 trait StoreBackend {
     fn get_value(&self, key: &str) -> Option<Value>;
@@ -446,7 +421,7 @@ fn validate_settings_patch_request(request: &SettingsPatchRequest) -> Result<(),
         {
             return Err("Settings patch is too large".into());
         }
-        if map.keys().any(|key| !SETTINGS_KEYS.contains(&key.as_str())) {
+        if map.keys().any(|key| !settings_keys().contains(key)) {
             return Err("Unknown settings key".into());
         }
     }

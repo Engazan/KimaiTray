@@ -637,6 +637,16 @@ mod tests {
     }
 
     #[test]
+    fn authorization_variants_match_the_shared_ipc_contract() {
+        let contract: serde_json::Value =
+            serde_json::from_str(include_str!("../../contracts/ipc-contract.json")).unwrap();
+        assert_eq!(
+            contract["httpAuthorizationTypes"],
+            json!(["kimai", "issue", "category", "test"])
+        );
+    }
+
+    #[test]
     fn cancellation_before_registration_is_consumed_atomically() {
         let registry = CancellationRegistry::default();
         registry.cancel("request-a").unwrap();

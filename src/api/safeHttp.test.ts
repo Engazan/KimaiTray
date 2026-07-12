@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import ipcContract from "../../contracts/ipc-contract.json";
 
 const core = vi.hoisted(() => ({ invoke: vi.fn() }));
 
@@ -10,6 +11,15 @@ describe("safe HTTP redirects", () => {
   const origin = "https://kimai.example.test";
 
   beforeEach(() => vi.resetAllMocks());
+
+  it("keeps authorization variants aligned with the native contract", () => {
+    expect(ipcContract.httpAuthorizationTypes).toEqual([
+      "kimai",
+      "issue",
+      "category",
+      "test",
+    ]);
+  });
 
   it("accepts relative redirects on the authenticated origin", () => {
     expect(
