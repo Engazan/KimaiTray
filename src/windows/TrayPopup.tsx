@@ -46,6 +46,7 @@ import {
 } from "../integrations/issues/linkedIssueStore";
 import { logger } from "../utils/logger";
 import { getRecordedDurationSeconds } from "../utils/timesheetDuration";
+import { toKimaiLocal } from "../utils/time";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 
@@ -488,7 +489,7 @@ export default function TrayPopup() {
           invalidateTimesheets(qc);
         } else if (idleSettings.idleAction === "discard" && idleStartedAt) {
           await updateTimesheet(client, timer.id, {
-            end: idleStartedAt.toISOString(),
+            end: toKimaiLocal(idleStartedAt),
           });
           invalidateTimesheets(qc);
         }
@@ -528,7 +529,7 @@ export default function TrayPopup() {
     let succeeded = false;
     try {
       await updateTimesheet(client, timer.id, {
-        end: idleStartedAt.toISOString(),
+        end: toKimaiLocal(idleStartedAt),
       });
       invalidateTimesheets(qc);
       succeeded = true;
@@ -571,7 +572,7 @@ export default function TrayPopup() {
     let succeeded = false;
     try {
       await updateTimesheet(client, timer.id, {
-        end: idleStartedAt.toISOString(),
+        end: toKimaiLocal(idleStartedAt),
       });
       invalidateTimesheets(qc);
       succeeded = true;

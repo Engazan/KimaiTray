@@ -25,6 +25,25 @@ export function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
+/**
+ * Serializes a Date into Kimai's HTML5 datetime format (`Y-m-d\TH:i:s`, e.g.
+ * "2026-07-12T14:00:00") using the LOCAL wall-clock components.
+ *
+ * Kimai's write API (POST/PATCH `begin`/`end`) deliberately ignores any timezone
+ * designator and stamps the supplied wall-clock digits with the authenticated
+ * user's configured timezone. Sending `Date.toISOString()` (UTC, "…Z") therefore
+ * records the time off by the user's UTC offset (e.g. 2h behind in CEST). Always
+ * send local wall-clock digits with NO timezone so Kimai reconstructs the right
+ * instant. See https://www.kimai.org/documentation/rest-api.html
+ */
+export function toKimaiLocal(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  );
+}
+
 export function getLocalDayRange(): { begin: string; end: string } {
   const now = new Date();
   const year = now.getFullYear();

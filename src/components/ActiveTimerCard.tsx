@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { ActiveTimer, ColorMode } from "../types";
 import type { KimaiTag } from "../api/tagApi";
-import { parseKimaiDate } from "../utils/time";
+import { parseKimaiDate, toKimaiLocal } from "../utils/time";
 import TagsList from "./TagsList";
 import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
@@ -188,9 +188,11 @@ export default function ActiveTimerCard({
     }
     setEditingBegin(false);
     setBeginError("");
-    const iso = d.toISOString();
-    if (iso !== timer.beginIso) {
-      onEdit?.(timer.id, { begin: iso });
+    // Kimai interprets the sent wall-clock in the user's timezone; send local
+    // (not UTC) so the edited start time is not shifted by the UTC offset.
+    const begin = toKimaiLocal(d);
+    if (begin !== timer.beginIso) {
+      onEdit?.(timer.id, { begin });
     }
   };
 
