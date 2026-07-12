@@ -10,6 +10,46 @@ const MAX_ENTRY_KEY_BYTES: usize = 256;
 const MAX_VALUE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STRING_ITEMS: usize = 10_000;
 const MAX_STRING_BYTES: usize = 4 * 1024;
+const SETTINGS_KEYS: &[&str] = &[
+    "kimaiUrl",
+    "connections",
+    "activeConnectionId",
+    "language",
+    "launchAtLogin",
+    "refreshInterval",
+    "openKimaiInBrowser",
+    "showElapsedInTray",
+    "showTaskNameInTray",
+    "menuBarLabelStyle",
+    "showSecondsInTimer",
+    "trayIconSize",
+    "trayIconShape",
+    "trayColors",
+    "enableIdleDetection",
+    "idleThresholdMinutes",
+    "idleAction",
+    "showIdleNotification",
+    "theme",
+    "uiSize",
+    "roundedPopupCorners",
+    "reduceVisualEffects",
+    "accentStyle",
+    "popupLayout",
+    "colorMode",
+    "features",
+    "shortcutTogglePopup",
+    "shortcutStartStopTimer",
+    "shortcutOpenSettings",
+    "trayLeftClickAction",
+    "trayRightClickAction",
+    "displayMode",
+    "trueTrayMode",
+    "popupMonitorMode",
+    "popupMonitorIndex",
+    "popupMonitorPosition",
+    "autoUpdate",
+    "issueIntegrations",
+];
 static STORE_MUTATION: Mutex<()> = Mutex::new(());
 
 trait StoreBackend {
@@ -391,6 +431,35 @@ fn validate_settings_patch_window(
     Ok(())
 }
 
+fn validate_settings_patch_request(request: &SettingsPatchRequest) -> Result<(), String> {
+    if request.values.is_empty() {
+        return Err("Settings patch is empty".into());
+    }
+    for map in [
+        &request.values,
+        request.expected.as_ref().unwrap_or(&request.values),
+    ] {
+        if serde_json::to_vec(map)
+            .map_err(|_| "Invalid settings patch".to_string())?
+            .len()
+            > MAX_VALUE_BYTES
+        {
+            return Err("Settings patch is too large".into());
+        }
+        if map.keys().any(|key| !SETTINGS_KEYS.contains(&key.as_str())) {
+            return Err("Unknown settings key".into());
+        }
+    }
+    if request
+        .expected
+        .as_ref()
+        .is_some_and(|expected| expected.keys().any(|key| !request.values.contains_key(key)))
+    {
+        return Err("Expected settings must be part of the patch".into());
+    }
+    Ok(())
+}
+
 fn belongs_to_connection(value: &Value, connection_id: &str, base_url: Option<&str>) -> bool {
     let Some(object) = value.as_object() else {
         return false;
@@ -683,21 +752,7 @@ pub fn patch_settings(
     window: WebviewWindow,
     request: SettingsPatchRequest,
 ) -> Result<ScopedStoreResponse, String> {
-    if request.values.is_empty()
-        || serde_json::to_vec(&request.values)
-            .map_err(|_| "Invalid settings patch".to_string())?
-            .len()
-            > MAX_VALUE_BYTES
-    {
-        return Err("Invalid settings patch".into());
-    }
-    if request
-        .values
-        .keys()
-        .any(|key| key.is_empty() || key.len() > MAX_ENTRY_KEY_BYTES)
-    {
-        return Err("Invalid settings key".into());
-    }
+    validate_settings_patch_request(&request)?;
 
     let _transaction = STORE_MUTATION
         .lock()
@@ -771,8 +826,10 @@ mod tests {
     use super::{
         apply_array_mutation, apply_mutation, apply_settings_patch, claim_legacy_favorites,
         migrate_legacy_store_backend, move_favorites, persist_value_with_rollback,
-        validate_scoped_store_window, validate_settings_patch_window, ArrayStoreMutation,
-        LegacyStoreMigration, MoveFavoritesRequest, ScopedStoreMutation, StoreBackend,
+        validate_scoped_store_window, validate_settings_patch_request,
+        validate_settings_patch_window, ArrayStoreMutation, LegacyStoreMigration,
+        MoveFavoritesRequest, ScopedStoreMutation, SettingsPatchRequest, StoreBackend,
+        MAX_VALUE_BYTES,
     };
     use serde_json::{json, Map, Value};
     use std::{collections::HashMap, sync::Mutex};
@@ -1025,6 +1082,33 @@ mod tests {
         )
         .is_err());
         assert!(validate_settings_patch_window("settings", &settings, &arbitrary_url).is_ok());
+    }
+
+    #[test]
+    fn settings_patches_only_accept_bounded_schema_keys() {
+        assert!(validate_settings_patch_request(&SettingsPatchRequest {
+            values: Map::from_iter([("theme".into(), json!("dark"))]),
+            expected: None,
+        })
+        .is_ok());
+        assert!(validate_settings_patch_request(&SettingsPatchRequest {
+            values: Map::from_iter([("arbitrary".into(), json!(true))]),
+            expected: None,
+        })
+        .is_err());
+        assert!(validate_settings_patch_request(&SettingsPatchRequest {
+            values: Map::from_iter([("theme".into(), json!("dark"))]),
+            expected: Some(Map::from_iter([("language".into(), json!("en"))])),
+        })
+        .is_err());
+        assert!(validate_settings_patch_request(&SettingsPatchRequest {
+            values: Map::from_iter([("theme".into(), json!("dark"))]),
+            expected: Some(Map::from_iter([(
+                "theme".into(),
+                json!("x".repeat(MAX_VALUE_BYTES)),
+            )])),
+        })
+        .is_err());
     }
 
     #[test]
