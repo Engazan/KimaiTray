@@ -90,8 +90,7 @@ mod platform {
     fn parse_milliseconds(output: &str) -> Option<u64> {
         output
             .split(|character: char| !character.is_ascii_digit())
-            .filter(|part| !part.is_empty())
-            .next_back()?
+            .rfind(|part| !part.is_empty())?
             .parse::<u64>()
             .ok()
             .map(|milliseconds| milliseconds / 1000)
