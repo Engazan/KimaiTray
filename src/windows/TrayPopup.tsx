@@ -316,19 +316,13 @@ export default function TrayPopup() {
   ]);
 
   // Global shortcut: toggle timer
-  const timerRef = useRef(timer);
-  const clientRef = useRef(client);
-  timerRef.current = timer;
-  clientRef.current = client;
+  const stopActiveTimerRef = useRef(stopActiveTimer);
+  stopActiveTimerRef.current = stopActiveTimer;
 
   useEffect(() => {
     const win = getCurrentWindow();
-    const unlisten = win.listen("kimai://toggle-timer", async () => {
-      const t = timerRef.current;
-      const c = clientRef.current;
-      if (t && c) {
-        try { await stopTimesheet(c, t.id); } catch { /* best-effort */ }
-      }
+    const unlisten = win.listen("kimai://toggle-timer", () => {
+      stopActiveTimerRef.current();
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);

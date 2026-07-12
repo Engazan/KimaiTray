@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { KimaiClient } from "../api/kimaiClient";
 import type { PausedTimerData } from "../api/pauseStore";
+import type { ActiveTimer } from "../types";
 
 const pauseStoreMocks = vi.hoisted(() => ({
   loadPausedTimers: vi.fn(),
@@ -54,6 +55,23 @@ function paused(connectionId: string): PausedTimerData {
     description: "",
     tags: [],
     pausedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function activeTimer(): ActiveTimer {
+  return {
+    id: 42,
+    projectId: 2,
+    activityId: 3,
+    project: "Project",
+    projectColor: "",
+    activityColor: "",
+    customerColor: "",
+    activity: "Activity",
+    description: "",
+    tags: [],
+    beginSeconds: 1_700_000_000,
+    beginIso: "2026-01-01T00:00:00.000Z",
   };
 }
 
@@ -155,5 +173,27 @@ describe("paused timer session isolation", () => {
       "paused-connection-a",
     );
     expect(result.current.pauseError).toBeNull();
+  });
+
+  it("deduplicates immediate repeated active timer stops", async () => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValueOnce([]);
+    const stopping = deferred<void>();
+    timesheetMocks.stopTimesheet.mockReturnValueOnce(stopping.promise);
+    const { result } = renderHook(
+      () =>
+        usePauseTimer(client("connection-a"), activeTimer(), "connection-a"),
+      { wrapper: wrapper() },
+    );
+
+    act(() => {
+      result.current.stopActiveTimer();
+      result.current.stopActiveTimer();
+    });
+
+    await waitFor(() =>
+      expect(timesheetMocks.stopTimesheet).toHaveBeenCalledTimes(1),
+    );
+    await act(async () => stopping.resolve());
+    await waitFor(() => expect(result.current.isStoppingActive).toBe(false));
   });
 });

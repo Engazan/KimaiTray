@@ -40,6 +40,7 @@ export function usePauseTimer(
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const timerRef = useRef(timer);
   timerRef.current = timer;
+  const stopActiveInFlightRef = useRef<string | null>(null);
   const sessionScope = client?.cacheScope ?? `connection:${connectionId}`;
   const sessionScopeRef = useRef(sessionScope);
   sessionScopeRef.current = sessionScope;
@@ -240,11 +241,17 @@ export function usePauseTimer(
       return scope;
     },
     onSuccess: (scope) => {
+      if (stopActiveInFlightRef.current === scope) {
+        stopActiveInFlightRef.current = null;
+      }
       if (sessionScopeRef.current !== scope) return;
       setPauseError(null);
       invalidate();
     },
     onError: (err: Error, { scope }) => {
+      if (stopActiveInFlightRef.current === scope) {
+        stopActiveInFlightRef.current = null;
+      }
       if (sessionScopeRef.current !== scope) return;
       setPauseError(err.message);
     },
@@ -310,9 +317,14 @@ export function usePauseTimer(
   );
 
   const stopActiveTimer = useCallback(() => {
-    if (!timer || isStoppingCurrentSession) return;
+    if (
+      !timer ||
+      isStoppingCurrentSession ||
+      stopActiveInFlightRef.current === sessionScope
+    ) return;
     if (!client) return;
     setPauseError(null);
+    stopActiveInFlightRef.current = sessionScope;
     stopActiveMut.mutate({
       timerId: timer.id,
       operationClient: client,
