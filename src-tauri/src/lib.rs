@@ -186,6 +186,7 @@ pub fn run() {
             idle::get_idle_seconds,
             shortcuts::register_shortcuts,
             store::mutate_scoped_store,
+            store::mutate_array_store,
         ])
         .setup(|app| {
             info!(

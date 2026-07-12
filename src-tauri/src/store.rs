@@ -35,6 +35,28 @@ pub struct ScopedStoreResponse {
     value: Value,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum ArrayStoreMutation {
+    AppendUnique {
+        value: Value,
+        identity: Map<String, Value>,
+        limit: Option<usize>,
+        sort_field: Option<String>,
+    },
+    RemoveMatching {
+        identity: Map<String, Value>,
+    },
+    Clear,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArrayStoreRequest {
+    key: String,
+    mutation: ArrayStoreMutation,
+}
+
 fn validate_request(request: &ScopedStoreRequest) -> Result<(), String> {
     if !matches!(
         request.key.as_str(),
@@ -102,6 +124,67 @@ fn apply_mutation(
     Ok(next)
 }
 
+fn matches_identity(value: &Value, identity: &Map<String, Value>) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    identity
+        .iter()
+        .all(|(key, expected)| object.get(key) == Some(expected))
+}
+
+fn apply_array_mutation(
+    items: &mut Vec<Value>,
+    mutation: ArrayStoreMutation,
+) -> Result<(), String> {
+    match mutation {
+        ArrayStoreMutation::AppendUnique {
+            value,
+            identity,
+            limit,
+            sort_field,
+        } => {
+            if !value.is_object() || identity.is_empty() {
+                return Err("Invalid array store object mutation".into());
+            }
+            if !items.iter().any(|item| matches_identity(item, &identity)) {
+                items.push(value);
+            }
+            if let Some(limit) = limit {
+                if limit == 0 || limit > MAX_STRING_ITEMS {
+                    return Err("Invalid array store limit".into());
+                }
+                if items.len() > limit {
+                    if let Some(field) = sort_field {
+                        items.sort_by(|left, right| {
+                            let left = left
+                                .as_object()
+                                .and_then(|object| object.get(&field))
+                                .and_then(Value::as_str)
+                                .unwrap_or("");
+                            let right = right
+                                .as_object()
+                                .and_then(|object| object.get(&field))
+                                .and_then(Value::as_str)
+                                .unwrap_or("");
+                            left.cmp(right)
+                        });
+                    }
+                    items.drain(0..items.len() - limit);
+                }
+            }
+        }
+        ArrayStoreMutation::RemoveMatching { identity } => {
+            if identity.is_empty() {
+                return Err("Array store identity is required".into());
+            }
+            items.retain(|item| !matches_identity(item, &identity));
+        }
+        ArrayStoreMutation::Clear => items.clear(),
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn mutate_scoped_store(
     app: AppHandle,
@@ -123,9 +206,40 @@ pub fn mutate_scoped_store(
     Ok(ScopedStoreResponse { value })
 }
 
+#[tauri::command]
+pub fn mutate_array_store(
+    app: AppHandle,
+    request: ArrayStoreRequest,
+) -> Result<ScopedStoreResponse, String> {
+    if !matches!(request.key.as_str(), "favoriteTasks" | "pausedTimers") {
+        return Err("Array store key is not allowed".into());
+    }
+    if serde_json::to_vec(&request.mutation)
+        .map_err(|_| "Invalid array store mutation".to_string())?
+        .len()
+        > MAX_VALUE_BYTES
+    {
+        return Err("Array store mutation is too large".into());
+    }
+    let _transaction = STORE_MUTATION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let store = app.store(STORE_PATH).map_err(|e| e.to_string())?;
+    let mut items = match store.get(&request.key) {
+        Some(Value::Array(items)) => items,
+        None => Vec::new(),
+        Some(_) => return Err("Array store value is not an array".into()),
+    };
+    apply_array_mutation(&mut items, request.mutation)?;
+    let value = Value::Array(items);
+    store.set(request.key, value.clone());
+    store.save().map_err(|e| e.to_string())?;
+    Ok(ScopedStoreResponse { value })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{apply_mutation, ScopedStoreMutation};
+    use super::{apply_array_mutation, apply_mutation, ArrayStoreMutation, ScopedStoreMutation};
     use serde_json::{json, Map};
 
     #[test]
@@ -153,6 +267,33 @@ mod tests {
             )
             .unwrap(),
             json!(["one"])
+        );
+    }
+
+    #[test]
+    fn array_mutations_preserve_concurrent_unique_items() {
+        let mut items = vec![json!({ "id": "existing", "pausedAt": "2026-01-01" })];
+        apply_array_mutation(
+            &mut items,
+            ArrayStoreMutation::AppendUnique {
+                value: json!({ "id": "new", "pausedAt": "2026-01-02" }),
+                identity: Map::from_iter([("id".into(), json!("new"))]),
+                limit: Some(10),
+                sort_field: Some("pausedAt".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(items.len(), 2);
+        apply_array_mutation(
+            &mut items,
+            ArrayStoreMutation::RemoveMatching {
+                identity: Map::from_iter([("id".into(), json!("existing"))]),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            items,
+            vec![json!({ "id": "new", "pausedAt": "2026-01-02" })]
         );
     }
 }

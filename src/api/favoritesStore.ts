@@ -1,5 +1,6 @@
 import { load } from "@tauri-apps/plugin-store";
 import type { FavoriteTask } from "../types";
+import { mutateArrayStore } from "./arrayStore";
 
 const STORE_PATH = "settings.json";
 const KEY = "favoriteTasks";
@@ -56,18 +57,11 @@ export async function loadFavorites(
 }
 
 export async function addFavorite(task: FavoriteTask): Promise<FavoriteTask[]> {
-  const store = await getStore();
-  const current = (await store.get<FavoriteTask[]>(KEY)) ?? [];
-  if (
-    current.some(
-      (t) => t.key === task.key && t.connectionId === task.connectionId,
-    )
-  ) {
-    return current.filter((t) => t.connectionId === task.connectionId);
-  }
-  const updated = [...current, task];
-  await store.set(KEY, updated);
-  await store.save();
+  const updated = await mutateArrayStore<FavoriteTask>(KEY, {
+    type: "appendUnique",
+    value: task,
+    identity: { key: task.key, connectionId: task.connectionId },
+  });
   return updated.filter((t) => t.connectionId === task.connectionId);
 }
 
@@ -76,17 +70,12 @@ export async function removeFavorite(
   connectionId: string,
   legacyBaseUrl?: string,
 ): Promise<FavoriteTask[]> {
-  const store = await getStore();
-  const current = (await store.get<FavoriteTask[]>(KEY)) ?? [];
-  const updated = current.filter(
-    (t) =>
-      !(
-        t.key === key &&
-        belongsToConnection(t, connectionId, legacyBaseUrl)
-      ),
-  );
-  await store.set(KEY, updated);
-  await store.save();
+  // loadFavorites claims matching legacy entries before mutations reach here.
+  await loadFavorites(connectionId, legacyBaseUrl);
+  const updated = await mutateArrayStore<FavoriteTask>(KEY, {
+    type: "removeMatching",
+    identity: { key, connectionId },
+  });
   return updated.filter((t) =>
     belongsToConnection(t, connectionId, legacyBaseUrl),
   );
