@@ -107,4 +107,20 @@ describe("Kimai connection session isolation", () => {
     await act(async () => resolveIssueToken("issue-token-b"));
     await waitFor(() => expect(result.current.issueToken).toBe("issue-token-b"));
   });
+
+  it("rotates the cache scope when credentials change on the same connection", async () => {
+    const settings = settingsFor("connection-a");
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(result.current.client).not.toBeNull());
+    const initialScope = result.current.client!.cacheScope;
+
+    credentialMocks.getConnectionToken.mockResolvedValueOnce("rotated-token");
+    act(() => serviceMocks.listener?.(settings));
+
+    await waitFor(() =>
+      expect(result.current.client?.cacheScope).not.toBe(initialScope),
+    );
+    expect(result.current.client?.connectionId).toBe("connection-a");
+    expect(result.current.client?.cacheScope).not.toContain("rotated-token");
+  });
 });

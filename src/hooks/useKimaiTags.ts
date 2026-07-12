@@ -8,7 +8,7 @@ import { getTags, type KimaiTag } from "../api/tagApi";
  */
 export function useKimaiTags(client: KimaiClient | null): KimaiTag[] {
   const { data } = useQuery({
-    queryKey: ["tags", client?.connectionId],
+    queryKey: ["tags", client?.cacheScope],
     queryFn: () => getTags(client!),
     enabled: !!client,
     staleTime: 5 * 60 * 1000,

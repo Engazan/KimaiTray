@@ -142,19 +142,19 @@ export default function NewTaskForm({
   const [moreOpen, setMoreOpen] = useState(false);
 
   const customersQ = useQuery({
-    queryKey: ["customers", client.connectionId],
+    queryKey: ["customers", client.cacheScope],
     queryFn: () => getCustomers(client),
     staleTime: 5 * 60 * 1000,
   });
 
   const projectsQ = useQuery({
-    queryKey: ["projects", client.connectionId],
+    queryKey: ["projects", client.cacheScope],
     queryFn: () => getProjects(client),
     staleTime: 5 * 60 * 1000,
   });
 
   const activitiesQ = useQuery({
-    queryKey: ["activities", client.connectionId],
+    queryKey: ["activities", client.cacheScope],
     queryFn: () => getActivities(client),
     staleTime: 5 * 60 * 1000,
   });
@@ -169,15 +169,15 @@ export default function NewTaskForm({
     setRefreshing(true);
     try {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["customers", client.connectionId] }),
-        qc.invalidateQueries({ queryKey: ["projects", client.connectionId] }),
-        qc.invalidateQueries({ queryKey: ["activities", client.connectionId] }),
-        qc.invalidateQueries({ queryKey: ["tags", client.connectionId] }),
+        qc.invalidateQueries({ queryKey: ["customers", client.cacheScope] }),
+        qc.invalidateQueries({ queryKey: ["projects", client.cacheScope] }),
+        qc.invalidateQueries({ queryKey: ["activities", client.cacheScope] }),
+        qc.invalidateQueries({ queryKey: ["tags", client.cacheScope] }),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [qc, client.connectionId, refreshing]);
+  }, [qc, client.cacheScope, refreshing]);
 
   const customers = customersQ.data ?? [];
 

@@ -30,7 +30,7 @@ export function useCategoryActivityMapping(
   client: KimaiClient | null,
 ): CategoryActivityMapping {
   const q = useQuery({
-    queryKey: ["activities", client?.connectionId],
+    queryKey: ["activities", client?.cacheScope],
     queryFn: () => getActivities(client!),
     enabled: !!client,
     staleTime: 5 * 60 * 1000,

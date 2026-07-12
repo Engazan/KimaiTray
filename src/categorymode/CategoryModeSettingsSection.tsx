@@ -65,9 +65,12 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
   // for the dropdowns.
   useEffect(() => {
     let cancelled = false;
+    setToken("");
     getConnectionToken(connectionId, url)
       .then((tk) => {
-        if (!cancelled) setToken(tk ?? "");
+        if (!cancelled) {
+          setToken(tk ?? "");
+        }
       })
       .catch(() => {
         if (!cancelled) setToken("");
@@ -91,14 +94,14 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
   );
 
   const activitiesQ = useQuery({
-    queryKey: ["activities", connectionId],
+    queryKey: ["activities", client?.cacheScope],
     queryFn: () => getActivities(client!),
     enabled: !!client,
     staleTime: 5 * 60 * 1000,
   });
 
   const projectsQ = useQuery({
-    queryKey: ["projects", connectionId],
+    queryKey: ["projects", client?.cacheScope],
     queryFn: () => getProjects(client!),
     enabled: !!client,
     staleTime: 5 * 60 * 1000,

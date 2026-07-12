@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildApiUrl,
+  createKimaiClient,
   expectArrayResponse,
   expectObjectResponse,
   isInsecureUrl,
@@ -33,6 +34,40 @@ describe("Kimai URL helpers", () => {
     expect(isInsecureUrl("http://127.0.0.1:8001")).toBe(false);
     expect(isInsecureUrl("https://kimai.example.test")).toBe(false);
     expect(isInsecureUrl("not a URL")).toBe(true);
+  });
+
+  it("keeps cache identity separate from credentials", () => {
+    const client = createKimaiClient(
+      "https://kimai.example.test",
+      "secret-token",
+      "connection-a",
+    );
+
+    expect(client.connectionId).toBe("connection-a");
+    expect(client.cacheScope).toContain("connection-a:");
+    expect(client.cacheScope).not.toContain("secret-token");
+  });
+
+  it("rotates automatic cache identity only when the session changes", () => {
+    const first = createKimaiClient(
+      "https://scope.example.test",
+      "token-a",
+      "scoped-connection",
+    );
+    const sameSession = createKimaiClient(
+      "https://scope.example.test/",
+      "token-a",
+      "scoped-connection",
+    );
+    const rotated = createKimaiClient(
+      "https://scope.example.test",
+      "token-b",
+      "scoped-connection",
+    );
+
+    expect(sameSession.cacheScope).toBe(first.cacheScope);
+    expect(rotated.cacheScope).not.toBe(first.cacheScope);
+    expect(rotated.cacheScope).not.toContain("token-b");
   });
 
   it("rejects malformed array responses at the API boundary", () => {

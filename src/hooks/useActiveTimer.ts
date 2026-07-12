@@ -37,7 +37,7 @@ export function useActiveTimer(
   const enabled = !!client;
 
   const activeQ = useQuery({
-    queryKey: ["active-timesheets", client?.connectionId],
+    queryKey: ["active-timesheets", client?.cacheScope],
     queryFn: () => getActiveTimesheets(client!),
     enabled,
     refetchInterval: refreshIntervalSec * 1000,

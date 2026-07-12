@@ -206,10 +206,38 @@ export interface KimaiClient {
    *  React Query caches so two connections to the same server (same baseUrl)
    *  but different tokens/options don't share cached data. */
   readonly connectionId: string;
+  /** Never-secret session identity used to isolate cached data after a URL or
+   *  credential rotation within the same saved connection. */
+  readonly cacheScope: string;
   get<T>(path: string, params?: QueryParamLike): Promise<T>;
   post<T>(path: string, body?: unknown): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
   del(path: string): Promise<void>;
+}
+
+interface CacheSession {
+  baseUrl: string;
+  token: string;
+  scope: string;
+}
+
+const cacheSessions = new Map<string, CacheSession>();
+let nextCacheSession = 1;
+
+function resolveCacheScope(
+  connectionId: string,
+  baseUrl: string,
+  token: string,
+): string {
+  const identity = connectionId || `unsaved:${baseUrl}`;
+  const current = cacheSessions.get(identity);
+  if (current?.baseUrl === baseUrl && current.token === token) {
+    return current.scope;
+  }
+
+  const scope = `${identity}:${nextCacheSession++}`;
+  cacheSessions.set(identity, { baseUrl, token, scope });
+  return scope;
 }
 
 export function expectArrayResponse<T>(
@@ -258,6 +286,7 @@ export function createKimaiClient(
   return {
     baseUrl,
     connectionId,
+    cacheScope: resolveCacheScope(connectionId, baseUrl, token),
     get: <T>(path: string, params?: QueryParamLike) =>
       request<T>(baseUrl, token, "GET", path, undefined, params as QueryParams),
     post: <T>(path: string, body?: unknown) =>

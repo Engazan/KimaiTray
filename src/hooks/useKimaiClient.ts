@@ -257,6 +257,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     if (!settingsRequestsRef.current.isCurrent(generation)) return;
 
     baseUrlRef.current = conn.url;
+    activeIdRef.current = id;
     setBaseUrl(conn.url);
     setToken(t);
     setActiveConnectionId(id);

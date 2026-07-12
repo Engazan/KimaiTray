@@ -95,7 +95,7 @@ export default function CategoryModePanel({
   }, [hasActiveTimer, connectionId]);
 
   const projectsQ = useQuery({
-    queryKey: ["projects", client.connectionId],
+    queryKey: ["projects", client.cacheScope],
     queryFn: () => getProjects(client),
     enabled: view === "project",
     staleTime: 5 * 60 * 1000,
