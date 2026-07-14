@@ -787,6 +787,13 @@ pub fn is_detached() -> bool {
     DISPLAY_MODE.load(Ordering::SeqCst) == 1
 }
 
+fn restore_and_focus_popup(popup: &WebviewWindow) {
+    // Focusing an iconified window is a no-op on several Linux compositors.
+    // Restore it first so a detached popup can always be recovered from tray.
+    let _ = popup.unminimize();
+    let _ = popup.set_focus();
+}
+
 #[tauri::command]
 pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
     let detached = mode == "detached";
@@ -821,7 +828,7 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
     if detached {
         let _ = window.center();
         let _ = window.show();
-        let _ = window.set_focus();
+        restore_and_focus_popup(&window);
     }
     Ok(())
 }
@@ -1356,14 +1363,14 @@ pub fn toggle_popup_window(app: &AppHandle) {
     if let Some(popup) = app.get_webview_window("tray-popup") {
         if popup.is_visible().unwrap_or(false) {
             if is_detached() {
-                let _ = popup.set_focus();
+                restore_and_focus_popup(&popup);
             } else {
                 let _ = popup.hide();
             }
         } else {
             if is_detached() {
                 let _ = popup.show();
-                let _ = popup.set_focus();
+                restore_and_focus_popup(&popup);
             } else {
                 if POPUP_MONITOR_MODE.load(Ordering::SeqCst) == 1 {
                     let idx = POPUP_MONITOR_INDEX.load(Ordering::SeqCst);
@@ -1389,7 +1396,7 @@ pub fn toggle_popup_window(app: &AppHandle) {
                     }
                 }
                 let _ = popup.show();
-                let _ = popup.set_focus();
+                restore_and_focus_popup(&popup);
             }
         }
     }
@@ -1741,7 +1748,7 @@ fn create_tauri_tray(app: &AppHandle) -> tauri::Result<()> {
                         if let Some(popup) = app.get_webview_window("tray-popup") {
                             if popup.is_visible().unwrap_or(false) {
                                 if is_detached() {
-                                    let _ = popup.set_focus();
+                                    restore_and_focus_popup(&popup);
                                 } else {
                                     let _ = popup.hide();
                                 }
@@ -1753,11 +1760,11 @@ fn create_tauri_tray(app: &AppHandle) -> tauri::Result<()> {
                                 }
                                 if is_detached() {
                                     let _ = popup.show();
-                                    let _ = popup.set_focus();
+                                    restore_and_focus_popup(&popup);
                                 } else {
                                     let _ = position_popup(&popup, &rect);
                                     let _ = popup.show();
-                                    let _ = popup.set_focus();
+                                    restore_and_focus_popup(&popup);
                                 }
                             }
                         }
