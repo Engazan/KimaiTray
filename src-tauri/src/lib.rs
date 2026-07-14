@@ -145,7 +145,7 @@ pub fn run() {
         default_hook(info);
     }));
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
@@ -165,8 +165,18 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notification::init());
+
+    // global-hotkey's Linux implementation opens an X11 connection. Do not
+    // initialize it in a native Wayland session where its key grabs cannot
+    // receive global keyboard events.
+    let builder = if platform::supports_global_shortcuts() {
+        builder.plugin(tauri_plugin_global_shortcut::Builder::new().build())
+    } else {
+        builder
+    };
+
+    builder
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -221,7 +231,9 @@ pub fn run() {
             if tray::is_detached() {
                 if let Some(w) = app.handle().get_webview_window("tray-popup") {
                     let _ = w.set_resizable(true);
-                    let _ = w.set_always_on_top(false);
+                    if platform::supports_always_on_top() {
+                        let _ = w.set_always_on_top(false);
+                    }
                     #[cfg(not(target_os = "linux"))]
                     let _ = w.set_skip_taskbar(false);
                     let _ = w.center();

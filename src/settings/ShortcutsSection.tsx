@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
 import { ShortcutInput } from "./Controls";
 import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
+import { usePlatform } from "../platform";
 
 interface Props {
   settings: AppSettings;
@@ -31,9 +32,15 @@ function findConflict(
 
 export default function ShortcutsSection({ settings, update }: Props) {
   const { t } = useTranslation();
+  const platform = usePlatform();
 
   return (
     <SettingsPage title={t("shortcuts.title")} description={t("shortcuts.description")}>
+      {!platform.supportsGlobalShortcuts && (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400">
+          {t("shortcuts.waylandUnavailable")}
+        </div>
+      )}
       <SettingsList>
         {SHORTCUT_KEYS.map((item) => {
           const conflict = findConflict(item.key, settings[item.key], settings, t);
@@ -53,6 +60,7 @@ export default function ShortcutsSection({ settings, update }: Props) {
               }
             >
               <ShortcutInput
+                disabled={!platform.supportsGlobalShortcuts}
                 value={settings[item.key]}
                 onChange={(v) => update(item.key, v)}
               />

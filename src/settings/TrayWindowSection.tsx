@@ -298,12 +298,18 @@ export default function TrayWindowSection({ settings, update }: Props) {
 
         {isLinux && (
           <div className="mt-4 space-y-4">
+            {!platform.supportsWindowPositioning && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400">
+                {t("traySettings.waylandPositioningUnavailable")}
+              </div>
+            )}
             <SettingsRow
               inset
               label={t("traySettings.popupMonitorMode")}
               description={t("traySettings.popupMonitorModeDescription")}
             >
               <Select
+                disabled={!platform.supportsWindowPositioning}
                 value={settings.popupMonitorMode}
                 onChange={(v) => {
                   const val = v as AppSettings["popupMonitorMode"];
@@ -325,6 +331,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                   description={t("traySettings.popupMonitorIndexDescription")}
                 >
                   <Select
+                    disabled={!platform.supportsWindowPositioning}
                     value={settings.popupMonitorIndex}
                     onChange={(v) => {
                       const val = Number(v);
@@ -348,6 +355,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                   description={t("traySettings.popupMonitorPositionDescription")}
                 >
                   <Select
+                    disabled={!platform.supportsWindowPositioning}
                     value={settings.popupMonitorPosition}
                     onChange={(v) => {
                       const val = v as AppSettings["popupMonitorPosition"];

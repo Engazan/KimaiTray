@@ -132,6 +132,7 @@
     "macOnly": "Підписи в панелі меню доступні лише на macOS.",
     "popupMonitorMode": "Монітор для popup вікна",
     "popupMonitorModeDescription": "Оберіть, на якому моніторі з'являтиметься popup вікно.",
+    "waylandPositioningUnavailable": "Розташуванням вікон керує композитор Wayland, тому вибір монітора та кута недоступний.",
     "popupMonitorModeActive": "Активний монітор",
     "popupMonitorModeSpecific": "Конкретний монітор",
     "popupMonitorIndex": "Монітор",
@@ -213,7 +214,8 @@
     "notSet": "Не встановлено",
     "clearShortcut": "Очистити скорочення",
     "conflict": "Вже використовується для «{{action}}»",
-    "invalid": "Недійсне скорочення"
+    "invalid": "Недійсне скорочення",
+    "waylandUnavailable": "Глобальні комбінації клавіш недоступні в цьому сеансі Wayland. Натомість налаштуйте відповідні комбінації в середовищі робочого столу."
   },
   "updateSettings": {
     "title": "Оновлення",

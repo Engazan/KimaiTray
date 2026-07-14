@@ -132,6 +132,7 @@
     "macOnly": "Popis v liště je dostupný pouze na macOS.",
     "popupMonitorMode": "Monitor pro popup okno",
     "popupMonitorModeDescription": "Zvolte, na kterém monitoru se zobrazí popup okno.",
+    "waylandPositioningUnavailable": "Umístění oken řídí kompozitor Wayland, proto není výběr monitoru a rohu dostupný.",
     "popupMonitorModeActive": "Aktivní monitor",
     "popupMonitorModeSpecific": "Konkrétní monitor",
     "popupMonitorIndex": "Monitor",
@@ -213,7 +214,8 @@
     "notSet": "Nenastaveno",
     "clearShortcut": "Vymazat zkratku",
     "conflict": "Již se používá pro \"{{action}}\"",
-    "invalid": "Neplatná zkratka"
+    "invalid": "Neplatná zkratka",
+    "waylandUnavailable": "Globální zkratky nejsou v této relaci Wayland dostupné. Místo nich nastavte odpovídající zkratky v prostředí pracovní plochy."
   },
   "updateSettings": {
     "title": "Aktualizace",

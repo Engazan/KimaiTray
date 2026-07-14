@@ -132,6 +132,7 @@
     "macOnly": "Menu bar labels are only available on macOS.",
     "popupMonitorMode": "Popup monitor",
     "popupMonitorModeDescription": "Choose which monitor the popup window appears on.",
+    "waylandPositioningUnavailable": "Window positioning is controlled by the Wayland compositor, so monitor and corner selection is unavailable.",
     "popupMonitorModeActive": "Active monitor",
     "popupMonitorModeSpecific": "Specific monitor",
     "popupMonitorIndex": "Monitor",
@@ -255,7 +256,8 @@
     "notSet": "Not set",
     "clearShortcut": "Clear shortcut",
     "conflict": "Already used for \"{{action}}\"",
-    "invalid": "Invalid shortcut"
+    "invalid": "Invalid shortcut",
+    "waylandUnavailable": "Global shortcuts are unavailable in this Wayland session. Configure equivalent shortcuts in your desktop environment instead."
   },
   "updateSettings": {
     "title": "Update",

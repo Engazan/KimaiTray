@@ -8,6 +8,9 @@ pub struct PlatformInfo {
     tray_backend: &'static str,
     supports_tray_click_actions: bool,
     supports_native_popup_corners: bool,
+    supports_global_shortcuts: bool,
+    supports_window_positioning: bool,
+    supports_always_on_top: bool,
 }
 
 #[cfg(target_os = "linux")]
@@ -29,6 +32,29 @@ fn linux_session() -> &'static str {
     "unknown"
 }
 
+pub fn is_wayland() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        linux_session() == "wayland"
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
+}
+
+pub fn supports_global_shortcuts() -> bool {
+    !is_wayland()
+}
+
+pub fn supports_window_positioning() -> bool {
+    !is_wayland()
+}
+
+pub fn supports_always_on_top() -> bool {
+    !is_wayland()
+}
+
 #[tauri::command]
 pub fn get_platform_info() -> PlatformInfo {
     #[cfg(target_os = "linux")]
@@ -40,6 +66,9 @@ pub fn get_platform_info() -> PlatformInfo {
             tray_backend,
             supports_tray_click_actions: tray_backend == "legacy-gtk",
             supports_native_popup_corners: false,
+            supports_global_shortcuts: supports_global_shortcuts(),
+            supports_window_positioning: supports_window_positioning(),
+            supports_always_on_top: supports_always_on_top(),
         }
     }
 
@@ -51,6 +80,9 @@ pub fn get_platform_info() -> PlatformInfo {
             tray_backend: "native",
             supports_tray_click_actions: true,
             supports_native_popup_corners: true,
+            supports_global_shortcuts: true,
+            supports_window_positioning: true,
+            supports_always_on_top: true,
         }
     }
 
@@ -62,6 +94,9 @@ pub fn get_platform_info() -> PlatformInfo {
             tray_backend: "native",
             supports_tray_click_actions: true,
             supports_native_popup_corners: false,
+            supports_global_shortcuts: true,
+            supports_window_positioning: true,
+            supports_always_on_top: true,
         }
     }
 
@@ -73,6 +108,9 @@ pub fn get_platform_info() -> PlatformInfo {
             tray_backend: "native",
             supports_tray_click_actions: false,
             supports_native_popup_corners: false,
+            supports_global_shortcuts: false,
+            supports_window_positioning: false,
+            supports_always_on_top: false,
         }
     }
 }

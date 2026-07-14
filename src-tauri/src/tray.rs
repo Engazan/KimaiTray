@@ -825,9 +825,11 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
     }
 
     window.set_resizable(detached).map_err(|e| e.to_string())?;
-    window
-        .set_always_on_top(!detached)
-        .map_err(|e| e.to_string())?;
+    if crate::platform::supports_always_on_top() {
+        window
+            .set_always_on_top(!detached)
+            .map_err(|e| e.to_string())?;
+    }
 
     #[cfg(not(target_os = "linux"))]
     window
@@ -844,6 +846,9 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn set_always_on_top(app: AppHandle, pinned: bool) -> Result<(), String> {
+    if !crate::platform::supports_always_on_top() {
+        return Ok(());
+    }
     let window = app
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
@@ -875,6 +880,9 @@ pub fn apply_true_tray_from_store(app: &AppHandle) {
 /// Position the popup on a specific monitor at the given corner/center.
 /// `pos`: 0=bottom-right, 1=bottom-left, 2=top-right, 3=top-left, 4=center
 fn position_on_monitor(window: &WebviewWindow, monitor_index: u8, pos: u8) -> tauri::Result<()> {
+    if !crate::platform::supports_window_positioning() {
+        return Ok(());
+    }
     let monitors = window.available_monitors()?;
     let win_size = window.outer_size()?;
     const MARGIN: i32 = 8;
@@ -970,6 +978,9 @@ pub fn set_popup_monitor(mode: String, index: u8, position: String) -> Result<()
 }
 
 fn position_popup(window: &WebviewWindow, tray_rect: &tauri::Rect) -> tauri::Result<()> {
+    if !crate::platform::supports_window_positioning() {
+        return Ok(());
+    }
     let scale = window.scale_factor().unwrap_or(1.0);
     let win_size = window.outer_size()?;
 
@@ -990,6 +1001,9 @@ fn position_popup(window: &WebviewWindow, tray_rect: &tauri::Rect) -> tauri::Res
 
 #[cfg(target_os = "linux")]
 fn position_legacy_popup(window: &WebviewWindow) -> tauri::Result<()> {
+    if !crate::platform::supports_window_positioning() {
+        return Ok(());
+    }
     let geometry = LEGACY_TRAY.with(|slot| {
         slot.borrow().as_ref().and_then(|tray| unsafe {
             let mut screen = std::ptr::null_mut();

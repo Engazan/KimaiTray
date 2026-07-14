@@ -77,6 +77,9 @@ pub fn register_shortcuts(
     open_settings: String,
 ) -> Result<(), String> {
     validate_shortcuts([&toggle_popup, &start_stop_timer, &open_settings])?;
+    if !crate::platform::supports_global_shortcuts() {
+        return Ok(());
+    }
     let next = [toggle_popup, start_stop_timer, open_settings];
     let mut state = SHORTCUT_STATE
         .lock()
@@ -102,6 +105,10 @@ pub fn register_shortcuts(
 }
 
 pub fn register_from_store(app: &AppHandle) {
+    if !crate::platform::supports_global_shortcuts() {
+        info!("Global shortcuts are unavailable in this Wayland session");
+        return;
+    }
     let (toggle, timer, settings) = match app.store(STORE_PATH) {
         Ok(store) => {
             let s = store

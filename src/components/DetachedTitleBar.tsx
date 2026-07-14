@@ -90,7 +90,7 @@ export default function DetachedTitleBar({
         >
           KimaiTray
         </span>
-        <div className="ml-auto">{pinButton}</div>
+        <div className="ml-auto">{platform.supportsAlwaysOnTop && pinButton}</div>
       </div>
     );
   }
@@ -107,7 +107,7 @@ export default function DetachedTitleBar({
         KimaiTray
       </span>
       <div className="flex items-center gap-0.5">
-        {pinButton}
+        {platform.supportsAlwaysOnTop && pinButton}
         <button
           type="button"
           onClick={() => win.minimize()}

@@ -7,6 +7,9 @@ export interface PlatformInfo {
   trayBackend: "native" | "legacy-gtk" | "appindicator";
   supportsTrayClickActions: boolean;
   supportsNativePopupCorners: boolean;
+  supportsGlobalShortcuts: boolean;
+  supportsWindowPositioning: boolean;
+  supportsAlwaysOnTop: boolean;
 }
 
 const fallbackPlatform: PlatformInfo = {
@@ -15,6 +18,9 @@ const fallbackPlatform: PlatformInfo = {
   trayBackend: "native",
   supportsTrayClickActions: false,
   supportsNativePopupCorners: false,
+  supportsGlobalShortcuts: false,
+  supportsWindowPositioning: false,
+  supportsAlwaysOnTop: false,
 };
 
 let cachedPlatform: PlatformInfo | null = null;

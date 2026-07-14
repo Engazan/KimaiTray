@@ -132,6 +132,7 @@
     "macOnly": "Menüleisten-Beschriftungen sind nur unter macOS verfügbar.",
     "popupMonitorMode": "Popup-Monitor",
     "popupMonitorModeDescription": "Wählen Sie, auf welchem Monitor das Popup-Fenster erscheint.",
+    "waylandPositioningUnavailable": "Die Fensterposition wird vom Wayland-Compositor gesteuert; die Auswahl von Monitor und Ecke ist daher nicht verfügbar.",
     "popupMonitorModeActive": "Aktiver Monitor",
     "popupMonitorModeSpecific": "Bestimmter Monitor",
     "popupMonitorIndex": "Monitor",
@@ -213,7 +214,8 @@
     "notSet": "Nicht gesetzt",
     "clearShortcut": "Kürzel löschen",
     "conflict": "Bereits verwendet für \"{{action}}\"",
-    "invalid": "Ungültiges Kürzel"
+    "invalid": "Ungültiges Kürzel",
+    "waylandUnavailable": "Globale Tastenkürzel sind in dieser Wayland-Sitzung nicht verfügbar. Richten Sie stattdessen entsprechende Kürzel in Ihrer Desktop-Umgebung ein."
   },
   "updateSettings": {
     "title": "Aktualisierung",
