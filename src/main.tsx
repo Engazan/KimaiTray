@@ -17,6 +17,11 @@ window.addEventListener("error", (event) => {
 
 const label = getCurrentWindow().label;
 document.documentElement.dataset.window = label;
+document.documentElement.dataset.os = /Macintosh|Mac OS X/.test(navigator.userAgent)
+  ? "macos"
+  : /Windows/.test(navigator.userAgent)
+    ? "windows"
+    : "linux";
 
 async function renderApp() {
   await initPromise;
