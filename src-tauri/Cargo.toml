@@ -36,6 +36,7 @@ tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSStatusItem"] }
 window-vibrancy = "0.6"
 
 [target.'cfg(target_os = "windows")'.dependencies]
