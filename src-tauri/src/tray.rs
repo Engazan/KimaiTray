@@ -1220,6 +1220,13 @@ pub fn update_tray_menu(
             })
             .map_err(|e| e.to_string());
     }
+    #[cfg(target_os = "linux")]
+    if linux_uses_appindicator() {
+        // The AppIndicator menu is only an activation bridge on desktops that
+        // do not expose tray click events. Replacing it would disconnect the
+        // show handler which opens the popup.
+        return Ok(());
+    }
     {
         let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
         let menu = build_tray_menu(
@@ -1255,7 +1262,7 @@ pub fn set_tray_click_actions(
     #[cfg(not(target_os = "linux"))]
     let configure_native_menu = true;
     #[cfg(target_os = "linux")]
-    let configure_native_menu = linux_uses_appindicator();
+    let configure_native_menu = false;
     if configure_native_menu {
         let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
         if right == 1 {
@@ -1721,6 +1728,9 @@ fn create_tauri_tray(app: &AppHandle) -> tauri::Result<()> {
         })
         .build(app)?;
 
+    #[cfg(target_os = "linux")]
+    attach_appindicator_popup_activation(app)?;
+
     // If right-click is configured to show popup, remove the attached menu
     if right_action_popup {
         if let Some(tray) = app.tray_by_id("main") {
@@ -1735,6 +1745,47 @@ fn create_tauri_tray(app: &AppHandle) -> tauri::Result<()> {
     start_background_ticker(app);
 
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn attach_appindicator_popup_activation(app: &AppHandle) -> tauri::Result<()> {
+    let tray = app
+        .tray_by_id("main")
+        .ok_or_else(|| tauri::Error::AssetNotFound("main tray icon".into()))?;
+    let handle = app.clone();
+
+    tray.with_inner_tray_icon(move |inner| {
+        // tray-icon exposes the AppIndicator wrapper but not its GTK menu.
+        // libappindicator itself does expose that menu through its C API. The
+        // Rust wrapper contains the raw AppIndicator pointer as its sole field;
+        // both crates are locked to the same 0.9 release in Cargo.lock.
+        let wrapper = unsafe { inner.app_indicator() };
+        let raw = unsafe { *(wrapper.cast::<*mut libappindicator_sys::AppIndicator>()) };
+        let menu_ptr = unsafe { libappindicator_sys::app_indicator_get_menu(raw) };
+        if menu_ptr.is_null() {
+            log::error!("AppIndicator did not expose its GTK menu");
+            return;
+        }
+
+        let menu: gtk::Menu = unsafe { from_glib_none(menu_ptr) };
+        menu.connect_show(move |menu| {
+            // GNOME/Ubuntu owns AppIndicator clicks and only tells the app to
+            // show its menu. Treat that signal as activation, close the menu,
+            // release GTK's pointer grab, and open the KimaiTray popup instead.
+            menu.popdown();
+            let handle = handle.clone();
+            glib::timeout_add_local_once(Duration::from_millis(50), move || {
+                if let Some(display) = gdk::Display::default() {
+                    if let Some(seat) = display.default_seat() {
+                        seat.ungrab();
+                    }
+                }
+                if now_ms().saturating_sub(LAST_POPUP_HIDE.load(Ordering::SeqCst)) >= 300 {
+                    toggle_popup_window(&handle);
+                }
+            });
+        });
+    })
 }
 
 #[cfg(target_os = "linux")]
