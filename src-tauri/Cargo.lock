@@ -2194,7 +2194,7 @@ dependencies = [
 
 [[package]]
 name = "kimaitray"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "gdk",
  "gdk-pixbuf",

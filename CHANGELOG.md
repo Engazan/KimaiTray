@@ -1,6 +1,27 @@
 # Changelog
 
+## [0.18.0] - 2026-07-14
+
+### New Features
+
+- **Expanded UI size range** — the UI Size control in **Appearance** is now a slider with more steps, scaling the whole interface up to 160% (85% / 100% / 115% / 130% / 145% / 160%) instead of the previous three fixed sizes. Useful on high-DPI displays or when you just want everything a bit larger
+
+### Improvements
+
 - **Reliable Linux tray clicks and rendering** — Linux now selects the tray backend for the active desktop: legacy GTK `StatusIcon` restores native left/right clicks on Cinnamon, Xfce and MATE, while GNOME, Ubuntu, Unity, Pantheon and Budgie use AppIndicator where XEmbed icons are unsupported. Popup placement follows the panel edge, the legacy menu uses the modern GDK seat-aware popup API, and the unreliable WebKitGTK DMA-BUF renderer is disabled so accepted clicks, hover states and input changes are actually repainted
+- **Adapts to the desktop's capabilities** — the app now detects the platform it runs on (OS, Wayland vs X11 session, and the active tray backend) and adjusts the interface to match. Controls a Wayland compositor doesn't allow — picking the popup's monitor or corner rounding, and registering global shortcuts — now explain why they're unavailable and point you to your desktop's own settings, instead of silently doing nothing
+
+### Bug Fixes
+
+- **Settings apply across every window** — changing a setting now takes effect immediately in all open windows (popup, settings, detached), not just the one where you changed it
+- **Rounded popup corners on Linux & Windows** — the tray popup and detached window now render with properly rounded corners on Linux and Windows, matching macOS
+- **Popup resizes correctly across UI scales** — on GTK the popup window now resizes to match the selected UI size, so it no longer clips its content or leaves an empty strip
+- **Restore a minimized popup from the tray** — clicking the tray icon restores the popup when it was minimized, instead of leaving it hidden
+- **Focus timer area can grow** — the timer area in the Focus layout expands to fit its content again
+
+### Maintenance
+
+- **Signed & notarized macOS builds** — macOS builds are now signed with a Developer ID certificate and notarized by Apple (both the `.app` and the `.dmg`), so downloaded DMGs no longer trip Gatekeeper's "damaged / Move to Trash" warning
 
 ## [0.17.2] - 2026-07-12
 
