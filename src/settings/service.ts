@@ -1,5 +1,6 @@
 import { load } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
 import type {
   AppSettings,
   FeatureSettings,
@@ -537,15 +538,27 @@ export async function patchSettings(
     "patch_settings",
     { request: { values, expected } },
   );
-  return mergeSettings(response.value);
+  const settings = mergeSettings(response.value);
+  // Persistence is authoritative; a transient window-event failure must not
+  // make callers roll back a setting that was already saved successfully.
+  await emit("kimai://settings-changed", settings).catch(() => {});
+  return settings;
 }
 
 export async function onSettingsChange(
   cb: (settings: AppSettings) => void,
 ): Promise<() => void> {
   const store = await getStore();
-  const unlisten = await store.onKeyChange<AppSettings>(SETTINGS_KEY, (val) => {
-    cb(mergeSettings(val));
-  });
-  return unlisten;
+  const [unlistenStore, unlistenEvent] = await Promise.all([
+    store.onKeyChange<AppSettings>(SETTINGS_KEY, (val) => {
+      cb(mergeSettings(val));
+    }),
+    listen<AppSettings>("kimai://settings-changed", (event) => {
+      cb(mergeSettings(event.payload));
+    }),
+  ]);
+  return () => {
+    unlistenStore();
+    unlistenEvent();
+  };
 }

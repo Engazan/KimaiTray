@@ -5,10 +5,16 @@ const storeMocks = vi.hoisted(() => ({
   load: vi.fn(),
   get: vi.fn(),
   invoke: vi.fn(),
+  emit: vi.fn(),
+  listen: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-store", () => ({ load: storeMocks.load }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: storeMocks.invoke }));
+vi.mock("@tauri-apps/api/event", () => ({
+  emit: storeMocks.emit,
+  listen: storeMocks.listen,
+}));
 
 import { defaultSettings, loadSettings, mergeSettings } from "./service";
 
