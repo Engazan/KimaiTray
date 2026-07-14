@@ -92,7 +92,7 @@ export interface AppSettings {
   showIdleNotification: boolean;
 
   theme: "light" | "dark" | "transparent";
-  uiSize: "small" | "default" | "large";
+  uiSize: "small" | "default" | "large" | "scale130" | "scale145" | "scale160";
   roundedPopupCorners: boolean;
   reduceVisualEffects: boolean;
   accentStyle: "blue" | "green" | "purple" | "orange" | "red";

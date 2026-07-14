@@ -10,6 +10,9 @@ const UI_SIZE_SCALE: Record<AppSettings["uiSize"], number> = {
   small: 0.85,
   default: 1,
   large: 1.15,
+  scale130: 1.3,
+  scale145: 1.45,
+  scale160: 1.6,
 };
 
 let mediaCleanup: (() => void) | null = null;

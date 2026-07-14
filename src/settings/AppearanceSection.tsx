@@ -320,37 +320,43 @@ export default function AppearanceSection({ settings, update }: Props) {
         title={t("appearanceSettings.uiSize")}
         description={t("appearanceSettings.uiSizeDescription")}
       >
-        <div className="flex gap-2 mt-1">
-          {([
-            { value: "small" as const, label: t("appearanceSettings.uiSizeSmall"), fontSize: "13px" },
-            { value: "default" as const, label: t("appearanceSettings.uiSizeDefault"), fontSize: "16px" },
-            { value: "large" as const, label: t("appearanceSettings.uiSizeLarge"), fontSize: "19px" },
-          ]).map((opt) => {
-            const active = settings.uiSize === opt.value;
+        <div className="mt-2 px-1">
+          {(() => {
+            const sizes: Array<{ value: AppSettings["uiSize"]; label: string }> = [
+              { value: "small", label: `${t("appearanceSettings.uiSizeSmall")} · 85%` },
+              { value: "default", label: `${t("appearanceSettings.uiSizeDefault")} · 100%` },
+              { value: "large", label: `${t("appearanceSettings.uiSizeLarge")} · 115%` },
+              { value: "scale130", label: "130%" },
+              { value: "scale145", label: "145%" },
+              { value: "scale160", label: "160%" },
+            ];
+            const selected = Math.max(0, sizes.findIndex((size) => size.value === settings.uiSize));
             return (
-              <SelectableCard
-                key={opt.value}
-                active={active}
-                onClick={() => update("uiSize", opt.value)}
-                className="flex-1 flex flex-col items-center gap-1.5 px-2 py-2"
-              >
-                <div className="w-full h-[48px] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex items-center justify-center">
-                  <span
-                    className="font-medium text-gray-500 dark:text-gray-400 select-none"
-                    style={{ fontSize: opt.fontSize }}
-                  >
-                    Aa
-                  </span>
+              <>
+                <div className="mb-2 text-center text-[13px] font-medium text-gray-700 dark:text-gray-200">
+                  {sizes[selected].label}
                 </div>
-                <div className="flex items-center gap-1">
-                  <RadioDot active={active} size="sm" />
-                  <span className="text-[11px] text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                    {opt.label}
-                  </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={sizes.length - 1}
+                  step={1}
+                  value={selected}
+                  aria-label={t("appearanceSettings.uiSize")}
+                  aria-valuetext={sizes[selected].label}
+                  onChange={(event) => update("uiSize", sizes[Number(event.target.value)].value)}
+                  className="h-2 w-full cursor-pointer accent-blue-500"
+                />
+                <div className="mt-1.5 flex justify-between text-[9px] text-gray-400 dark:text-gray-500">
+                  {sizes.map((size) => (
+                    <span key={size.value} className="w-8 text-center first:text-left last:text-right">
+                      {size.value === "small" ? "85%" : size.value === "default" ? "100%" : size.value === "large" ? "115%" : size.label}
+                    </span>
+                  ))}
                 </div>
-              </SelectableCard>
+              </>
             );
-          })}
+          })()}
         </div>
       </SettingsCard>
 

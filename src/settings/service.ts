@@ -354,7 +354,7 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     ),
     uiSize: enumValue(
       value.uiSize,
-      ["small", "default", "large"] as const,
+      ["small", "default", "large", "scale130", "scale145", "scale160"] as const,
       defaultSettings.uiSize,
     ),
     roundedPopupCorners: booleanValue(
