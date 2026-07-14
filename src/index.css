@@ -78,7 +78,7 @@ html, body, #root {
 
 /* macOS clips the native NSWindow layer. Linux and Windows need to clip the
    web content itself so the transparent popup window has rounded corners. */
-[data-rounded-popup="true"][data-window="tray-popup"]:not([data-os="macos"]):not([data-display-mode="detached"]) #root > div {
+[data-rounded-popup="true"][data-window="tray-popup"]:not([data-os="macos"]) #root > div {
   border-radius: 10px;
   overflow: hidden;
 }
