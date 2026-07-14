@@ -7,7 +7,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{cell::RefCell, rc::Rc};
 #[cfg(not(target_os = "linux"))]
 use tauri::tray::MouseButtonState;
-#[cfg(not(target_os = "linux"))]
 use tauri::{
     image::Image,
     menu::{Menu, MenuBuilder, MenuItem},
@@ -135,7 +134,13 @@ fn tick_tray(app: &AppHandle) {
         #[cfg(target_os = "linux")]
         {
             let _ = (&label_style, show_seconds);
-            let _ = legacy_set_tooltip(app, tooltip);
+            if linux_uses_appindicator() {
+                if let Some(tray) = app.tray_by_id("main") {
+                    let _ = tray.set_tooltip(Some(&tooltip));
+                }
+            } else {
+                let _ = legacy_set_tooltip(app, tooltip);
+            }
         }
 
         #[cfg(not(target_os = "linux"))]
@@ -185,7 +190,13 @@ pub fn stop_tray_ticker(app: AppHandle) -> Result<(), String> {
     drop(state);
 
     #[cfg(target_os = "linux")]
-    let _ = legacy_set_tooltip(&app, "KimaiTray".into());
+    if linux_uses_appindicator() {
+        if let Some(tray) = app.tray_by_id("main") {
+            let _ = tray.set_tooltip(Some("KimaiTray"));
+        }
+    } else {
+        let _ = legacy_set_tooltip(&app, "KimaiTray".into());
+    }
     #[cfg(not(target_os = "linux"))]
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_title(Some(""));
@@ -199,7 +210,12 @@ pub fn set_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
     validate_text(&text, 768, "Tray tooltip")?;
     #[cfg(target_os = "linux")]
     {
-        legacy_set_tooltip(&app, text)
+        if linux_uses_appindicator() {
+            let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+            tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())
+        } else {
+            legacy_set_tooltip(&app, text)
+        }
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -284,7 +300,15 @@ fn shape_code(shape: &str) -> u8 {
 fn render_icon(app: &AppHandle, size: u8, shape: u8, color: Rgb) -> Result<(), String> {
     let rgba = generate_state_icon_with_color(size, shape, color);
     #[cfg(target_os = "linux")]
-    return legacy_set_icon(app, rgba);
+    {
+        if linux_uses_appindicator() {
+            let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+            let icon = Image::new_owned(rgba, ICON_CANVAS as u32, ICON_CANVAS as u32);
+            tray.set_icon(Some(icon)).map_err(|e| e.to_string())
+        } else {
+            legacy_set_icon(app, rgba)
+        }
+    }
     #[cfg(not(target_os = "linux"))]
     {
         let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
@@ -612,6 +636,9 @@ static POPUP_MONITOR_MODE: AtomicU8 = AtomicU8::new(0);
 static POPUP_MONITOR_INDEX: AtomicU8 = AtomicU8::new(0);
 // 0=bottom-right, 1=bottom-left, 2=top-right, 3=top-left, 4=center
 static POPUP_MONITOR_POS: AtomicU8 = AtomicU8::new(0);
+// 0 = legacy GtkStatusIcon, 1 = AppIndicator/Tauri (Linux only)
+#[cfg(target_os = "linux")]
+static LINUX_TRAY_BACKEND: AtomicU8 = AtomicU8::new(0);
 
 #[cfg(target_os = "linux")]
 struct LegacyTray {
@@ -662,6 +689,30 @@ fn legacy_set_tooltip(app: &AppHandle, text: String) -> Result<(), String> {
         });
     })
     .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn linux_uses_appindicator() -> bool {
+    LINUX_TRAY_BACKEND.load(Ordering::SeqCst) == 1
+}
+
+#[cfg(target_os = "linux")]
+fn desktop_needs_appindicator() -> bool {
+    if let Ok(backend) = std::env::var("KIMAITRAY_TRAY_BACKEND") {
+        return backend.eq_ignore_ascii_case("appindicator");
+    }
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .or_else(|_| std::env::var("XDG_SESSION_DESKTOP"))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    desktop_name_needs_appindicator(&desktop)
+}
+
+#[cfg(target_os = "linux")]
+fn desktop_name_needs_appindicator(desktop: &str) -> bool {
+    ["gnome", "ubuntu", "unity", "pantheon", "budgie"]
+        .iter()
+        .any(|name| desktop.contains(name))
 }
 
 #[cfg(target_os = "linux")]
@@ -890,7 +941,6 @@ pub fn set_popup_monitor(mode: String, index: u8, position: String) -> Result<()
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
 fn position_popup(window: &WebviewWindow, tray_rect: &tauri::Rect) -> tauri::Result<()> {
     let scale = window.scale_factor().unwrap_or(1.0);
     let win_size = window.outer_size()?;
@@ -1011,6 +1061,20 @@ pub fn set_popup_vibrancy(app: AppHandle, enabled: bool) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{parse_hex_color, tray_label_title, validate_popup_geometry, validate_text};
+
+    #[cfg(target_os = "linux")]
+    use super::desktop_name_needs_appindicator;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn selects_tray_backend_for_common_linux_desktops() {
+        assert!(desktop_name_needs_appindicator("ubuntu:gnome"));
+        assert!(desktop_name_needs_appindicator("gnome"));
+        assert!(desktop_name_needs_appindicator("budgie:gnome"));
+        assert!(!desktop_name_needs_appindicator("x-cinnamon"));
+        assert!(!desktop_name_needs_appindicator("xfce"));
+        assert!(!desktop_name_needs_appindicator("mate"));
+    }
 
     #[test]
     fn tray_label_title_supports_every_configured_style() {
@@ -1134,7 +1198,7 @@ pub fn update_tray_menu(
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     #[cfg(target_os = "linux")]
-    {
+    if !linux_uses_appindicator() {
         let labels = [
             toggle_label,
             settings_label,
@@ -1143,19 +1207,19 @@ pub fn update_tray_menu(
             quit_label,
         ];
         let handle = app.clone();
-        app.run_on_main_thread(move || {
-            LEGACY_TRAY.with(|slot| {
-                if let Some(tray) = slot.borrow_mut().as_mut() {
-                    tray.menu = legacy_menu(
-                        &handle,
-                        [&labels[0], &labels[1], &labels[2], &labels[3], &labels[4]],
-                    );
-                }
+        return app
+            .run_on_main_thread(move || {
+                LEGACY_TRAY.with(|slot| {
+                    if let Some(tray) = slot.borrow_mut().as_mut() {
+                        tray.menu = legacy_menu(
+                            &handle,
+                            [&labels[0], &labels[1], &labels[2], &labels[3], &labels[4]],
+                        );
+                    }
+                })
             })
-        })
-        .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string());
     }
-    #[cfg(not(target_os = "linux"))]
     {
         let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
         let menu = build_tray_menu(
@@ -1188,26 +1252,27 @@ pub fn set_tray_click_actions(
     let _transaction = TRAY_CONFIGURATION
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    #[cfg(not(target_os = "linux"))]
+    let configure_native_menu = true;
     #[cfg(target_os = "linux")]
-    let _ = app;
-
-    #[cfg(not(target_os = "linux"))]
-    let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
-    #[cfg(not(target_os = "linux"))]
-    if right == 1 {
-        tray.set_menu(None::<Menu<tauri::Wry>>)
+    let configure_native_menu = linux_uses_appindicator();
+    if configure_native_menu {
+        let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+        if right == 1 {
+            tray.set_menu(None::<Menu<tauri::Wry>>)
+                .map_err(|e| e.to_string())?;
+        } else {
+            let menu = build_tray_menu(
+                &app,
+                "Show/Hide",
+                "Settings",
+                "Open Kimai",
+                "Refresh",
+                "Quit",
+            )
             .map_err(|e| e.to_string())?;
-    } else {
-        let menu = build_tray_menu(
-            &app,
-            "Show/Hide",
-            "Settings",
-            "Open Kimai",
-            "Refresh",
-            "Quit",
-        )
-        .map_err(|e| e.to_string())?;
-        tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+            tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+        }
     }
 
     TRAY_LEFT_ACTION.store(left, Ordering::SeqCst);
@@ -1216,7 +1281,6 @@ pub fn set_tray_click_actions(
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
 fn build_tray_menu(
     app: &AppHandle,
     toggle_label: &str,
@@ -1261,7 +1325,15 @@ pub fn toggle_popup_window(app: &AppHandle) {
                     let _ = position_on_monitor(&popup, idx, pos);
                 } else {
                     #[cfg(target_os = "linux")]
-                    let _ = position_legacy_popup(&popup);
+                    if linux_uses_appindicator() {
+                        if let Some(tray) = app.tray_by_id("main") {
+                            if let Ok(Some(rect)) = tray.rect() {
+                                let _ = position_popup(&popup, &rect);
+                            }
+                        }
+                    } else {
+                        let _ = position_legacy_popup(&popup);
+                    }
 
                     #[cfg(not(target_os = "linux"))]
                     if let Some(tray) = app.tray_by_id("main") {
@@ -1277,12 +1349,14 @@ pub fn toggle_popup_window(app: &AppHandle) {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn refresh_popup(app: &AppHandle) {
     if let Some(popup) = app.get_webview_window("tray-popup") {
         let _ = popup.emit("kimai://refresh", ());
     }
 }
 
+#[cfg(target_os = "linux")]
 fn open_kimai(app: &AppHandle) {
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -1322,7 +1396,7 @@ fn start_background_ticker(app: &AppHandle) {
 }
 
 #[cfg(target_os = "linux")]
-pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
+fn create_legacy_tray(app: &AppHandle) -> tauri::Result<()> {
     if let Ok(store) = app.store(STORE_PATH) {
         if let Some(serde_json::Value::Object(s)) = store.get("settings") {
             let left = s
@@ -1443,8 +1517,7 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
-pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
+fn create_tauri_tray(app: &AppHandle) -> tauri::Result<()> {
     // Read initial settings from store
     let right_action_popup = if let Ok(store) = app.store(STORE_PATH) {
         if let Some(serde_json::Value::Object(s)) = store.get("settings") {
@@ -1662,4 +1735,21 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     start_background_ticker(app);
 
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
+    if desktop_needs_appindicator() {
+        LINUX_TRAY_BACKEND.store(1, Ordering::SeqCst);
+        log::info!("Using AppIndicator tray backend for this Linux desktop");
+        create_tauri_tray(app)
+    } else {
+        log::info!("Using legacy GtkStatusIcon tray backend for this Linux desktop");
+        create_legacy_tray(app)
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
+    create_tauri_tray(app)
 }

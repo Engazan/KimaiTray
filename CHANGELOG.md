@@ -1,6 +1,6 @@
 # Changelog
 
-- **Reliable Linux tray clicks and rendering** — Linux now uses the legacy GTK `StatusIcon` backend, restoring left-click popup toggling and the native right-click menu on panels such as Linux Mint Cinnamon; popup placement follows the panel edge, the menu uses the modern GDK seat-aware popup API, and the unreliable WebKitGTK DMA-BUF renderer is disabled so accepted clicks, hover states and input changes are actually repainted in popup and settings windows
+- **Reliable Linux tray clicks and rendering** — Linux now selects the tray backend for the active desktop: legacy GTK `StatusIcon` restores native left/right clicks on Cinnamon, Xfce and MATE, while GNOME, Ubuntu, Unity, Pantheon and Budgie use AppIndicator where XEmbed icons are unsupported. Popup placement follows the panel edge, the legacy menu uses the modern GDK seat-aware popup API, and the unreliable WebKitGTK DMA-BUF renderer is disabled so accepted clicks, hover states and input changes are actually repainted
 
 ## [0.17.2] - 2026-07-12
 
