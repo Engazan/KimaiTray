@@ -198,7 +198,9 @@ pub fn stop_tray_ticker(app: AppHandle) -> Result<(), String> {
 pub fn set_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
     validate_text(&text, 768, "Tray tooltip")?;
     #[cfg(target_os = "linux")]
-    return legacy_set_tooltip(&app, text);
+    {
+        legacy_set_tooltip(&app, text)
+    }
     #[cfg(not(target_os = "linux"))]
     {
         let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
@@ -212,7 +214,7 @@ pub fn set_tray_title(app: AppHandle, title: String) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         let _ = app;
-        return Ok(()); // GtkStatusIcon has no adjacent text label.
+        Ok(()) // GtkStatusIcon has no adjacent text label.
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -1141,33 +1143,32 @@ pub fn update_tray_menu(
             quit_label,
         ];
         let handle = app.clone();
-        return app
-            .run_on_main_thread(move || {
-                LEGACY_TRAY.with(|slot| {
-                    if let Some(tray) = slot.borrow_mut().as_mut() {
-                        tray.menu = legacy_menu(
-                            &handle,
-                            [&labels[0], &labels[1], &labels[2], &labels[3], &labels[4]],
-                        );
-                    }
-                })
+        app.run_on_main_thread(move || {
+            LEGACY_TRAY.with(|slot| {
+                if let Some(tray) = slot.borrow_mut().as_mut() {
+                    tray.menu = legacy_menu(
+                        &handle,
+                        [&labels[0], &labels[1], &labels[2], &labels[3], &labels[4]],
+                    );
+                }
             })
-            .map_err(|e| e.to_string());
+        })
+        .map_err(|e| e.to_string())
     }
     #[cfg(not(target_os = "linux"))]
-    let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
-    #[cfg(not(target_os = "linux"))]
-    let menu = build_tray_menu(
-        &app,
-        &toggle_label,
-        &settings_label,
-        &open_kimai_label,
-        &refresh_label,
-        &quit_label,
-    )
-    .map_err(|e| e.to_string())?;
-    #[cfg(not(target_os = "linux"))]
-    return tray.set_menu(Some(menu)).map_err(|e| e.to_string());
+    {
+        let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+        let menu = build_tray_menu(
+            &app,
+            &toggle_label,
+            &settings_label,
+            &open_kimai_label,
+            &refresh_label,
+            &quit_label,
+        )
+        .map_err(|e| e.to_string())?;
+        tray.set_menu(Some(menu)).map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
