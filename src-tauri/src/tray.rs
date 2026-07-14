@@ -796,6 +796,18 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
 
+    #[cfg(target_os = "linux")]
+    if detached {
+        // Remove the exact tray-popup geometry hints before making the
+        // detached window user-resizable.
+        window
+            .set_min_size(None::<tauri::Size>)
+            .map_err(|e| e.to_string())?;
+        window
+            .set_max_size(None::<tauri::Size>)
+            .map_err(|e| e.to_string())?;
+    }
+
     window.set_resizable(detached).map_err(|e| e.to_string())?;
     window
         .set_always_on_top(!detached)
@@ -1025,6 +1037,13 @@ fn validate_popup_geometry(width: f64, height: f64, zoom: f64) -> Result<(), Str
     Ok(())
 }
 
+fn validate_popup_zoom(zoom: f64) -> Result<(), String> {
+    if !zoom.is_finite() || !(0.5..=2.5).contains(&zoom) {
+        return Err("Popup zoom must be between 0.5 and 2.5".into());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_popup_vibrancy(app: AppHandle, enabled: bool) -> Result<(), String> {
     let window = app
@@ -1127,9 +1146,29 @@ pub fn set_popup_size(app: AppHandle, width: f64, height: f64, zoom: f64) -> Res
     let window = app
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
-    window
-        .set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }))
-        .map_err(|e| e.to_string())?;
+    let size = tauri::Size::Logical(tauri::LogicalSize { width, height });
+
+    #[cfg(target_os = "linux")]
+    {
+        // A GTK window created as non-resizable pins its initial min/max
+        // geometry hints, which makes later set_size calls ineffective. Keep
+        // the tray popup non-draggable by setting an exact min/max size while
+        // allowing GTK to accept the updated geometry.
+        window.set_resizable(true).map_err(|e| e.to_string())?;
+        window.set_min_size(Some(size)).map_err(|e| e.to_string())?;
+        window.set_max_size(Some(size)).map_err(|e| e.to_string())?;
+    }
+
+    window.set_size(size).map_err(|e| e.to_string())?;
+    window.set_zoom(zoom).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_popup_zoom(app: AppHandle, zoom: f64) -> Result<(), String> {
+    validate_popup_zoom(zoom)?;
+    let window = app
+        .get_webview_window("tray-popup")
+        .ok_or("Popup not found")?;
     window.set_zoom(zoom).map_err(|e| e.to_string())
 }
 
