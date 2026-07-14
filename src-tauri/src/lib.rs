@@ -1,6 +1,7 @@
 mod http;
 mod idle;
 mod keychain;
+mod platform;
 mod shortcuts;
 mod store;
 mod store_persistence;
@@ -176,6 +177,7 @@ pub fn run() {
             keychain::delete_api_token,
             http::http_request,
             http::cancel_http_request,
+            platform::get_platform_info,
             tray::set_tray_tooltip,
             tray::set_tray_title,
             tray::set_tray_icon,

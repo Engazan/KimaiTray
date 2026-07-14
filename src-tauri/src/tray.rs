@@ -697,6 +697,15 @@ fn linux_uses_appindicator() -> bool {
 }
 
 #[cfg(target_os = "linux")]
+pub fn platform_tray_backend() -> &'static str {
+    if linux_uses_appindicator() {
+        "appindicator"
+    } else {
+        "legacy-gtk"
+    }
+}
+
+#[cfg(target_os = "linux")]
 fn desktop_needs_appindicator() -> bool {
     if let Ok(backend) = std::env::var("KIMAITRAY_TRAY_BACKEND") {
         return backend.eq_ignore_ascii_case("appindicator");

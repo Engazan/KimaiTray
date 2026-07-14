@@ -6,6 +6,7 @@ import type { MonitorInfo } from "../api/trayApi";
 import { defaultTrayColors } from "./service";
 import ColorPicker from "./ColorPicker";
 import { Select, Toggle } from "./Controls";
+import { usePlatform } from "../platform";
 import {
   RadioDot,
   SelectableCard,
@@ -14,9 +15,6 @@ import {
   SettingsPage,
   SettingsRow,
 } from "./SettingsLayout";
-
-const isMac = navigator.platform.toUpperCase().includes("MAC");
-const isLinux = navigator.platform.toUpperCase().includes("LINUX");
 
 interface Props {
   settings: AppSettings;
@@ -80,13 +78,16 @@ function ShapeGlyph({ shape, px, color = GLYPH_FILL }: { shape: AppSettings["tra
 
 export default function TrayWindowSection({ settings, update }: Props) {
   const { t } = useTranslation();
+  const platform = usePlatform();
+  const isMac = platform.os === "macos";
+  const isLinux = platform.os === "linux";
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
 
   useEffect(() => {
     if (isLinux) {
       listMonitors().then(setMonitors);
     }
-  }, []);
+  }, [isLinux]);
 
   const trayColors: TrayStateColors = { ...defaultTrayColors, ...(settings.trayColors ?? {}) };
 
@@ -374,6 +375,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
           description={t("general.trayLeftClickDescription")}
         >
           <Select
+            disabled={!platform.supportsTrayClickActions}
             value={settings.trayLeftClickAction}
             onChange={(v) => {
               const val = v as AppSettings["trayLeftClickAction"];
@@ -392,6 +394,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
           description={t("general.trayRightClickDescription")}
         >
           <Select
+            disabled={!platform.supportsTrayClickActions}
             value={settings.trayRightClickAction}
             onChange={(v) => {
               const val = v as AppSettings["trayRightClickAction"];

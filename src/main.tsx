@@ -5,6 +5,7 @@ import { initPromise } from "./shared/i18n";
 import { logger } from "./utils/logger";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import QueryProvider from "./providers/QueryProvider";
+import { getPlatformInfo } from "./platform";
 import "./index.css";
 
 window.addEventListener("unhandledrejection", (event) => {
@@ -17,14 +18,15 @@ window.addEventListener("error", (event) => {
 
 const label = getCurrentWindow().label;
 document.documentElement.dataset.window = label;
-document.documentElement.dataset.os = /Macintosh|Mac OS X/.test(navigator.userAgent)
-  ? "macos"
-  : /Windows/.test(navigator.userAgent)
-    ? "windows"
-    : "linux";
 
 async function renderApp() {
-  await initPromise;
+  const [, platform] = await Promise.all([initPromise, getPlatformInfo()]);
+  document.documentElement.dataset.os = platform.os;
+  document.documentElement.dataset.session = platform.session;
+  document.documentElement.dataset.trayBackend = platform.trayBackend;
+  document.documentElement.dataset.nativePopupCorners = String(
+    platform.supportsNativePopupCorners,
+  );
   const WindowApp =
     label === "settings"
       ? (await import("./windows/Settings")).default

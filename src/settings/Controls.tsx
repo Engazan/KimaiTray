@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { currentPlatform } from "../platform";
 
 /* ── Field wrapper ──────────────────────────────────────────────── */
 
@@ -221,8 +222,6 @@ export function Select({ value, onChange, options, disabled }: SelectProps) {
 
 /* ── Shortcut input ────────────────────────────────────────────── */
 
-const isMac = navigator.platform.toUpperCase().includes("MAC");
-
 function keyEventToAccelerator(e: KeyboardEvent): string | null {
   if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return null;
 
@@ -245,6 +244,7 @@ function keyEventToAccelerator(e: KeyboardEvent): string | null {
 
 export function formatAcceleratorForDisplay(accel: string): string {
   if (!accel) return "";
+  const isMac = currentPlatform().os === "macos";
   return accel
     .split("+")
     .map((part) => {

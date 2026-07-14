@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTranslation } from "react-i18next";
-
-const isMac = navigator.platform.toUpperCase().includes("MAC");
+import { usePlatform } from "../platform";
 
 function TrafficLight({ color, hoverColor, onClick, label, children }: {
   color: string;
@@ -46,6 +45,7 @@ export default function DetachedTitleBar({
   transparent,
 }: DetachedTitleBarProps) {
   const { t } = useTranslation();
+  const platform = usePlatform();
   const win = getCurrentWindow();
   const barBg = transparent
     ? "bg-white/30 dark:bg-black/20 backdrop-blur-sm"
@@ -73,7 +73,7 @@ export default function DetachedTitleBar({
     </button>
   );
 
-  if (isMac) {
+  if (platform.os === "macos") {
     return (
       <div
         data-tauri-drag-region
