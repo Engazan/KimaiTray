@@ -736,7 +736,7 @@ fn tray_scale_factor(_tray: &tauri::tray::TrayIcon<tauri::Wry>) -> Option<f64> {
 fn position_popup(
     window: &WebviewWindow,
     tray_rect: &tauri::Rect,
-    tray_scale: Option<f64>,
+    _tray_scale: Option<f64>,
 ) -> tauri::Result<()> {
     #[cfg(target_os = "macos")]
     {
@@ -744,7 +744,7 @@ fn position_popup(
         // containing the icon, while NSWindow positions use screen points. The
         // popup can still be on another display, so its scale factor must not be
         // used to decode the tray rect.
-        let tray_scale = tray_scale.unwrap_or_else(|| window.scale_factor().unwrap_or(1.0));
+        let tray_scale = _tray_scale.unwrap_or_else(|| window.scale_factor().unwrap_or(1.0));
         let window_scale = window.scale_factor().unwrap_or(1.0);
         let tray_pos: tauri::LogicalPosition<f64> = tray_rect.position.to_logical(tray_scale);
         let tray_size: tauri::LogicalSize<f64> = tray_rect.size.to_logical(tray_scale);
@@ -755,7 +755,7 @@ fn position_popup(
         let position: PhysicalPosition<i32> =
             tauri::LogicalPosition::new(x, y).to_physical(window_scale);
 
-        return window.set_position(position);
+        window.set_position(position)
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -1034,23 +1034,21 @@ pub fn toggle_popup_window(app: &AppHandle) {
             } else {
                 let _ = popup.hide();
             }
+        } else if is_detached() {
+            let _ = popup.show();
+            let _ = popup.set_focus();
         } else {
-            if is_detached() {
-                let _ = popup.show();
-                let _ = popup.set_focus();
-            } else {
-                if POPUP_MONITOR_MODE.load(Ordering::SeqCst) == 1 {
-                    let idx = POPUP_MONITOR_INDEX.load(Ordering::SeqCst);
-                    let pos = POPUP_MONITOR_POS.load(Ordering::SeqCst);
-                    let _ = position_on_monitor(&popup, idx, pos);
-                } else if let Some(tray) = app.tray_by_id("main") {
-                    if let Ok(Some(rect)) = tray.rect() {
-                        let _ = position_popup(&popup, &rect, tray_scale_factor(&tray));
-                    }
+            if POPUP_MONITOR_MODE.load(Ordering::SeqCst) == 1 {
+                let idx = POPUP_MONITOR_INDEX.load(Ordering::SeqCst);
+                let pos = POPUP_MONITOR_POS.load(Ordering::SeqCst);
+                let _ = position_on_monitor(&popup, idx, pos);
+            } else if let Some(tray) = app.tray_by_id("main") {
+                if let Ok(Some(rect)) = tray.rect() {
+                    let _ = position_popup(&popup, &rect, tray_scale_factor(&tray));
                 }
-                let _ = popup.show();
-                let _ = popup.set_focus();
             }
+            let _ = popup.show();
+            let _ = popup.set_focus();
         }
     }
 }
