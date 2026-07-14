@@ -36,6 +36,9 @@ interface DetachedTitleBarProps {
   pinned: boolean;
   onTogglePin: () => void;
   pinLabel: string;
+  /** Hide the pin ("always on top") control where it has no effect, e.g. on
+      Wayland where X11 keep-above is ignored. Defaults to shown. */
+  showPin?: boolean;
   transparent?: boolean;
 }
 
@@ -43,6 +46,7 @@ export default function DetachedTitleBar({
   pinned,
   onTogglePin,
   pinLabel,
+  showPin = true,
   transparent,
 }: DetachedTitleBarProps) {
   const { t } = useTranslation();
@@ -51,7 +55,7 @@ export default function DetachedTitleBar({
     ? "bg-white/30 dark:bg-black/20 backdrop-blur-sm"
     : "bg-gray-50/80 dark:bg-[#141414]";
 
-  const pinButton = (
+  const pinButton = !showPin ? null : (
     <button
       type="button"
       onClick={onTogglePin}

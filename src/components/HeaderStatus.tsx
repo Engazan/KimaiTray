@@ -9,6 +9,9 @@ interface HeaderStatusProps {
   connections: SavedConnection[];
   activeConnectionId: string;
   onSwitchConnection: (id: string) => Promise<void>;
+  /** When set, renders an explicit close (✕) button. Used on platforms where
+      the popup can't rely on a blur event to auto-hide (Linux/Wayland). */
+  onClose?: () => void;
 }
 
 const DOT_STYLES: Record<ConnectionStatus, string> = {
@@ -33,6 +36,7 @@ export default function HeaderStatus({
   connections,
   activeConnectionId,
   onSwitchConnection,
+  onClose,
 }: HeaderStatusProps) {
   const { t } = useTranslation();
   const labelKey = STATUS_LABEL_KEYS[status];
@@ -41,7 +45,7 @@ export default function HeaderStatus({
   const hasMultiple = connections.length > 1;
 
   return (
-    <header className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+    <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-800">
       <div className="flex items-center gap-2 min-w-0">
         <span
           className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${DOT_STYLES[status]}`}
@@ -58,17 +62,32 @@ export default function HeaderStatus({
           </span>
         )}
       </div>
-      {label && (
-        <span
-          className={`text-[10px] truncate max-w-[180px] shrink-0 ${
-            status === "error"
-              ? "text-red-500"
-              : "text-gray-400 dark:text-gray-500"
-          }`}
-        >
-          {label}
-        </span>
-      )}
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
+        {label && (
+          <span
+            className={`text-[10px] truncate max-w-[180px] ${
+              status === "error"
+                ? "text-red-500"
+                : "text-gray-400 dark:text-gray-500"
+            }`}
+          >
+            {label}
+          </span>
+        )}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+            title={t("common.close")}
+            className="-mr-1 rounded p-1 text-gray-400 hover:text-red-500 hover:bg-red-100/60 dark:text-gray-500 dark:hover:text-red-400 dark:hover:bg-red-900/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
     </header>
   );
 }

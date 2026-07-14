@@ -19,6 +19,7 @@
     "showHide": "Ein-/Ausblenden",
     "show": "Anzeigen",
     "hide": "Ausblenden",
+    "close": "Schließen",
     "minimize": "Minimieren",
     "maximize": "Maximieren",
     "saving": "Wird gespeichert…",
@@ -144,6 +145,7 @@
     "popupMonitorPositionTopRight": "Rechts oben",
     "popupMonitorPositionTopLeft": "Links oben",
     "popupMonitorPositionCenter": "Mitte",
+    "popupMonitorWaylandUnavailable": "Unter Wayland steuert der Compositor die Fensterplatzierung, daher haben Monitor- und Positionseinstellungen keine Wirkung.",
     "trueTray": "True-Tray-Modus",
     "trueTrayDescription": "Blendet die App aus dem Dock und dem Cmd+Tab-Umschalter aus (nur Menüleiste).",
     "trueTrayRestartNote": "Wird nach einem Neustart der App wirksam.",
@@ -214,7 +216,8 @@
     "notSet": "Nicht gesetzt",
     "clearShortcut": "Kürzel löschen",
     "conflict": "Bereits verwendet für \"{{action}}\"",
-    "invalid": "Ungültiges Kürzel"
+    "invalid": "Ungültiges Kürzel",
+    "waylandUnavailable": "Globale Tastenkürzel sind unter Wayland nicht verfügbar — der Compositor liefert keine X11-Tastaturzugriffe."
   },
   "updateSettings": {
     "title": "Aktualisierung",

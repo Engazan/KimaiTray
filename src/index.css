@@ -60,6 +60,15 @@
   max-height: var(--focus-timer-height);
 }
 
+/* ── Rounded popup corners on non-macOS ───────────────────────── */
+/* macOS rounds the popup natively via the NSWindow layer (set_popup_corner_radius).
+   Linux/Windows have no native path, so clip the root container with CSS. Scoped
+   to the docked tray popup — detached windows keep square, decorated edges. */
+[data-rounded-popup="true"][data-window="tray-popup"]:not([data-os="macos"]):not([data-display-mode="detached"]) #root > div {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;

@@ -19,6 +19,7 @@
     "showHide": "Показати/Сховати",
     "show": "Показати",
     "hide": "Сховати",
+    "close": "Закрити",
     "minimize": "Згорнути",
     "maximize": "Розгорнути",
     "saving": "Збереження…",
@@ -144,6 +145,7 @@
     "popupMonitorPositionTopRight": "Правий верхній кут",
     "popupMonitorPositionTopLeft": "Лівий верхній кут",
     "popupMonitorPositionCenter": "Центр",
+    "popupMonitorWaylandUnavailable": "У Wayland композитор керує розташуванням вікна, тож налаштування монітора та позиції не діють.",
     "trueTray": "Режим True Tray",
     "trueTrayDescription": "Приховує застосунок з Dock і перемикача Cmd+Tab (лише в рядку меню).",
     "trueTrayRestartNote": "Набуває чинності після перезапуску застосунку.",
@@ -214,7 +216,8 @@
     "notSet": "Не встановлено",
     "clearShortcut": "Очистити скорочення",
     "conflict": "Вже використовується для «{{action}}»",
-    "invalid": "Недійсне скорочення"
+    "invalid": "Недійсне скорочення",
+    "waylandUnavailable": "Глобальні комбінації клавіш недоступні у Wayland — композитор не передає перехоплення клавіш X11."
   },
   "updateSettings": {
     "title": "Оновлення",

@@ -19,6 +19,7 @@
     "showHide": "Zobrazit/Skrýt",
     "show": "Zobrazit",
     "hide": "Skrýt",
+    "close": "Zavřít",
     "minimize": "Minimalizovat",
     "maximize": "Maximalizovat",
     "saving": "Ukládání…",
@@ -144,6 +145,7 @@
     "popupMonitorPositionTopRight": "Pravý horní roh",
     "popupMonitorPositionTopLeft": "Levý horní roh",
     "popupMonitorPositionCenter": "Střed",
+    "popupMonitorWaylandUnavailable": "Na Waylandu řídí umístění okna kompozitor, takže nastavení monitoru a pozice nemají žádný účinek.",
     "trueTray": "Režim True Tray",
     "trueTrayDescription": "Skryje aplikaci z Docku a z přepínače Cmd+Tab (jen v liště nabídek).",
     "trueTrayRestartNote": "Projeví se po opětovném spuštění aplikace.",
@@ -214,7 +216,8 @@
     "notSet": "Nenastaveno",
     "clearShortcut": "Vymazat zkratku",
     "conflict": "Již se používá pro \"{{action}}\"",
-    "invalid": "Neplatná zkratka"
+    "invalid": "Neplatná zkratka",
+    "waylandUnavailable": "Globální zkratky nejsou na Waylandu dostupné — kompozitor nedoručuje X11 zachytávání kláves."
   },
   "updateSettings": {
     "title": "Aktualizace",

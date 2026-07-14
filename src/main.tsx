@@ -18,6 +18,18 @@ window.addEventListener("error", (event) => {
 const label = getCurrentWindow().label;
 document.documentElement.dataset.window = label;
 
+// Coarse OS tag for platform-scoped CSS (e.g. rounded popup corners on
+// non-macOS). Set synchronously from navigator.platform so it is present
+// before first paint; the finer Wayland probe (usePlatform) runs later.
+const platformName = navigator.platform.toUpperCase();
+document.documentElement.dataset.os = platformName.includes("MAC")
+  ? "macos"
+  : platformName.includes("WIN")
+    ? "windows"
+    : platformName.includes("LINUX")
+      ? "linux"
+      : "unknown";
+
 async function renderApp() {
   await initPromise;
   const WindowApp =

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
+import { usePlatform } from "../hooks/usePlatform";
 import { ShortcutInput } from "./Controls";
 import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
 
@@ -31,9 +32,18 @@ function findConflict(
 
 export default function ShortcutsSection({ settings, update }: Props) {
   const { t } = useTranslation();
+  const platform = usePlatform();
+  // Global shortcuts are X11 key grabs; on Wayland the compositor never
+  // delivers them, so the keys silently do nothing. Disable and annotate.
+  const unavailable = platform?.wayland ?? false;
 
   return (
     <SettingsPage title={t("shortcuts.title")} description={t("shortcuts.description")}>
+      {unavailable && (
+        <div className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+          {t("shortcuts.waylandUnavailable")}
+        </div>
+      )}
       <SettingsList>
         {SHORTCUT_KEYS.map((item) => {
           const conflict = findConflict(item.key, settings[item.key], settings, t);
@@ -44,7 +54,7 @@ export default function ShortcutsSection({ settings, update }: Props) {
               description={
                 <>
                   {t(item.descKey)}
-                  {conflict && (
+                  {conflict && !unavailable && (
                     <span className="mt-1 block text-red-500 dark:text-red-400">
                       {conflict}
                     </span>
@@ -55,6 +65,7 @@ export default function ShortcutsSection({ settings, update }: Props) {
               <ShortcutInput
                 value={settings[item.key]}
                 onChange={(v) => update(item.key, v)}
+                disabled={unavailable}
               />
             </SettingsRow>
           );

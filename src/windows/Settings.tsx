@@ -109,6 +109,20 @@ export default function Settings() {
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        getCurrentWindow().hide();
+      }
+    };
+
+    // Listen after the event bubbles through the document so open controls can
+    // consume Escape before the settings window is hidden.
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const {
     settings,
     token,

@@ -36,6 +36,7 @@ import { useIdleDetection } from "../hooks/useIdleDetection";
 import { setTrayTooltip, setTrayTitle, setTrayIcon, startTrayTicker, stopTrayTicker, updateTrayMenu, registerShortcuts, setAlwaysOnTop } from "../api/trayApi";
 import { formatAcceleratorForDisplay } from "../settings/Controls";
 import { useAppearance } from "../hooks/useAppearance";
+import { usePlatform } from "../hooks/usePlatform";
 import { invalidateTimesheets } from "../hooks/invalidateTimesheets";
 import { useLanguageSync } from "../hooks/useLanguageSync";
 import { useUpdater } from "../hooks/useUpdater";
@@ -96,6 +97,12 @@ export default function TrayPopup() {
     issueToken,
   } = useKimaiClient();
   const isDetached = displayMode === "detached";
+  const platform = usePlatform();
+  // Linux popups can't rely on a blur event to auto-hide (GNOME/Wayland doesn't
+  // deliver it for always-on-top, skip-taskbar windows), so offer an explicit
+  // close button. Pinning ("always on top") is an X11 feature Wayland ignores.
+  const showCloseButton = !isDetached && platform?.os === "linux";
+  const canPin = !(platform?.wayland ?? false);
   const [pinned, setPinned] = useState(false);
 
   useEffect(() => {
@@ -476,7 +483,9 @@ export default function TrayPopup() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      // Let an open dropdown / modal consume Escape first (it calls
+      // preventDefault) before falling back to hiding the window.
+      if (e.key === "Escape" && !e.defaultPrevented) {
         if (showNewTask) {
           setShowNewTask(false);
         } else if (!isDetached) {
@@ -785,6 +794,7 @@ export default function TrayPopup() {
           pinned={pinned}
           onTogglePin={handleTogglePin}
           pinLabel={pinned ? t("detached.unpin") : t("detached.pin")}
+          showPin={canPin}
           transparent={document.documentElement.dataset.theme === "transparent"}
         />
       )}
@@ -794,6 +804,7 @@ export default function TrayPopup() {
         connections={connections}
         activeConnectionId={activeConnectionId}
         onSwitchConnection={switchConnection}
+        onClose={showCloseButton ? () => getCurrentWindow().hide() : undefined}
       />
 
       {updater.available && (

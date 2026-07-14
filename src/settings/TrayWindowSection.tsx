@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { AppSettings, TrayStateColors } from "../types";
+import { usePlatform } from "../hooks/usePlatform";
 import { setTrayClickActions, setDisplayMode, listMonitors, setPopupMonitor, setTrayIconSize, setTrayIconShape, setTrayColors } from "../api/trayApi";
 import type { MonitorInfo } from "../api/trayApi";
 import { defaultTrayColors } from "./service";
@@ -80,7 +81,11 @@ function ShapeGlyph({ shape, px, color = GLYPH_FILL }: { shape: AppSettings["tra
 
 export default function TrayWindowSection({ settings, update }: Props) {
   const { t } = useTranslation();
+  const platform = usePlatform();
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  // On Wayland the compositor owns window placement, so monitor/corner
+  // positioning has no effect. Annotate and disable rather than pretend it works.
+  const positioningUnavailable = platform?.wayland ?? false;
 
   useEffect(() => {
     if (isLinux) {
@@ -297,6 +302,11 @@ export default function TrayWindowSection({ settings, update }: Props) {
 
         {isLinux && (
           <div className="mt-4 space-y-4">
+            {positioningUnavailable && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-500/80">
+                {t("traySettings.popupMonitorWaylandUnavailable")}
+              </p>
+            )}
             <SettingsRow
               inset
               label={t("traySettings.popupMonitorMode")}
@@ -313,6 +323,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                   { value: "active", label: t("traySettings.popupMonitorModeActive") },
                   { value: "specific", label: t("traySettings.popupMonitorModeSpecific") },
                 ]}
+                disabled={positioningUnavailable}
               />
             </SettingsRow>
 
@@ -338,6 +349,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                           }))
                         : [{ value: 0, label: "Monitor 1" }]
                     }
+                    disabled={positioningUnavailable}
                   />
                 </SettingsRow>
 
@@ -360,6 +372,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                       { value: "top-left",     label: t("traySettings.popupMonitorPositionTopLeft") },
                       { value: "center",       label: t("traySettings.popupMonitorPositionCenter") },
                     ]}
+                    disabled={positioningUnavailable}
                   />
                 </SettingsRow>
               </>

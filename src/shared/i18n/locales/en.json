@@ -19,6 +19,7 @@
     "showHide": "Show/Hide",
     "show": "Show",
     "hide": "Hide",
+    "close": "Close",
     "minimize": "Minimize",
     "maximize": "Maximize",
     "saving": "Saving…",
@@ -144,6 +145,7 @@
     "popupMonitorPositionTopRight": "Top right",
     "popupMonitorPositionTopLeft": "Top left",
     "popupMonitorPositionCenter": "Center",
+    "popupMonitorWaylandUnavailable": "On Wayland the compositor controls window placement, so monitor and position settings have no effect.",
     "trueTray": "True Tray mode",
     "trueTrayDescription": "Hide the app from the Dock and the Cmd+Tab app switcher (menu-bar only).",
     "trueTrayRestartNote": "Takes effect after restarting the app.",
@@ -256,7 +258,8 @@
     "notSet": "Not set",
     "clearShortcut": "Clear shortcut",
     "conflict": "Already used for \"{{action}}\"",
-    "invalid": "Invalid shortcut"
+    "invalid": "Invalid shortcut",
+    "waylandUnavailable": "Global shortcuts aren't available on Wayland — the compositor doesn't deliver X11 key grabs."
   },
   "updateSettings": {
     "title": "Update",

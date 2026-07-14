@@ -557,6 +557,54 @@ pub fn is_detached() -> bool {
     DISPLAY_MODE.load(Ordering::SeqCst) == 1
 }
 
+/// Platform capabilities the frontend needs to adapt its UI. The window
+/// manager behaviors KimaiTray relies on (global shortcuts, always-on-top,
+/// explicit window placement, blur-to-dismiss) are X11/EWMH features that
+/// GNOME under Wayland does not implement, so the frontend must know when it
+/// is running on Wayland to degrade those controls gracefully.
+#[derive(serde::Serialize)]
+pub struct PlatformInfo {
+    pub os: String,
+    pub wayland: bool,
+}
+
+/// True when the current Linux session is a Wayland session. Prefers the
+/// explicit session type and falls back to the presence of a Wayland display.
+#[cfg(target_os = "linux")]
+fn detect_wayland() -> bool {
+    match std::env::var("XDG_SESSION_TYPE") {
+        Ok(t) => t.eq_ignore_ascii_case("wayland"),
+        Err(_) => std::env::var("WAYLAND_DISPLAY")
+            .map(|v| !v.is_empty())
+            .unwrap_or(false),
+    }
+}
+
+/// Report the OS and (on Linux) whether it is a Wayland session. The platform
+/// never changes at runtime, so the frontend caches this on first call.
+#[tauri::command]
+pub fn get_platform_info() -> PlatformInfo {
+    let os = if cfg!(target_os = "macos") {
+        "macos"
+    } else if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "unknown"
+    };
+
+    #[cfg(target_os = "linux")]
+    let wayland = detect_wayland();
+    #[cfg(not(target_os = "linux"))]
+    let wayland = false;
+
+    PlatformInfo {
+        os: os.to_string(),
+        wayland,
+    }
+}
+
 #[tauri::command]
 pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
     let detached = mode == "detached";
@@ -576,8 +624,21 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
         .set_skip_taskbar(!detached)
         .map_err(|e| e.to_string())?;
 
+    // In tray mode `set_popup_size` pins min==max geometry hints on Linux to
+    // force the exact popup size (GTK ignores `set_size` on a non-resizable
+    // window). Clear those hints when detaching so the window is freely
+    // resizable again.
+    #[cfg(target_os = "linux")]
+    if detached {
+        let _ = window.set_min_size(None::<tauri::Size>);
+        let _ = window.set_max_size(None::<tauri::Size>);
+    }
+
     if detached {
         let _ = window.center();
+        // A minimized window ignores `set_focus`; restore it first (GNOME has
+        // no taskbar to un-minimize it from).
+        let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
@@ -834,9 +895,35 @@ pub fn set_popup_size(app: AppHandle, width: f64, height: f64, zoom: f64) -> Res
     let window = app
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
-    window
-        .set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }))
-        .map_err(|e| e.to_string())?;
+    let size = tauri::Size::Logical(tauri::LogicalSize { width, height });
+
+    // On Linux/GTK a window created with `resizable: false` pins its min==max
+    // geometry hints to the creation size, so `set_size` alone is ignored and
+    // the UI-size setting appears to do nothing. Rewrite the hints to force the
+    // exact size while keeping the window non-draggable (min == max). Only in
+    // tray mode — detached windows must stay user-resizable.
+    #[cfg(target_os = "linux")]
+    if !is_detached() {
+        let _ = window.set_resizable(true);
+        let _ = window.set_min_size(Some(size.clone()));
+        let _ = window.set_max_size(Some(size.clone()));
+    }
+
+    window.set_size(size).map_err(|e| e.to_string())?;
+    window.set_zoom(zoom).map_err(|e| e.to_string())
+}
+
+/// Scale only the popup content, leaving the window geometry alone. Used in
+/// detached mode where the window is user-resizable, so the UI-size setting
+/// should zoom the content rather than resize the window.
+#[tauri::command]
+pub fn set_popup_zoom(app: AppHandle, zoom: f64) -> Result<(), String> {
+    if !zoom.is_finite() || !(0.5..=3.0).contains(&zoom) {
+        return Err("Zoom must be between 0.5 and 3.0".into());
+    }
+    let window = app
+        .get_webview_window("tray-popup")
+        .ok_or("Popup not found")?;
     window.set_zoom(zoom).map_err(|e| e.to_string())
 }
 
@@ -987,12 +1074,14 @@ pub fn toggle_popup_window(app: &AppHandle) {
     if let Some(popup) = app.get_webview_window("tray-popup") {
         if popup.is_visible().unwrap_or(false) {
             if is_detached() {
+                let _ = popup.unminimize();
                 let _ = popup.set_focus();
             } else {
                 let _ = popup.hide();
             }
         } else {
             if is_detached() {
+                let _ = popup.unminimize();
                 let _ = popup.show();
                 let _ = popup.set_focus();
             } else {
@@ -1197,6 +1286,7 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                         if let Some(popup) = app.get_webview_window("tray-popup") {
                             if popup.is_visible().unwrap_or(false) {
                                 if is_detached() {
+                                    let _ = popup.unminimize();
                                     let _ = popup.set_focus();
                                 } else {
                                     let _ = popup.hide();
@@ -1208,6 +1298,7 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                                     return;
                                 }
                                 if is_detached() {
+                                    let _ = popup.unminimize();
                                     let _ = popup.show();
                                     let _ = popup.set_focus();
                                 } else {

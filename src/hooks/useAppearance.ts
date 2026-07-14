@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { loadSettings, onSettingsChange } from "../settings/service";
-import { setPopupCornerRadius, setPopupSize, setPopupVibrancy, setDisplayMode, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
+import { setPopupCornerRadius, setPopupSize, setPopupZoom, setPopupVibrancy, setDisplayMode, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
 import type { AppSettings } from "../types";
 
 const POPUP_BASE_WIDTH = 360;
@@ -15,6 +15,8 @@ const UI_SIZE_SCALE: Record<AppSettings["uiSize"], number> = {
 let mediaCleanup: (() => void) | null = null;
 
 let prevSize = "";
+let prevZoom = -1;
+let prevSizeMode = "";
 let prevRadius = -1;
 let prevVibrancy = -1;
 let prevDisplayMode = "";
@@ -60,8 +62,18 @@ function apply(s: AppSettings) {
 
   const isDetached = s.displayMode === "detached";
 
+  // Switching mode swaps set_popup_size ↔ set_popup_zoom and, on Linux, rewrites
+  // the window's geometry hints. Invalidate the memoized values so the target
+  // size/zoom is re-applied after a mode change rather than skipped as unchanged.
+  const sizeMode = isDetached ? "detached" : "tray";
+  if (sizeMode !== prevSizeMode) {
+    prevSizeMode = sizeMode;
+    prevSize = "";
+    prevZoom = -1;
+  }
+
+  const scale = UI_SIZE_SCALE[s.uiSize];
   if (!isDetached) {
-    const scale = UI_SIZE_SCALE[s.uiSize];
     const w = Math.round(POPUP_BASE_WIDTH * scale);
     const h = Math.round(POPUP_BASE_HEIGHT * scale);
     const sizeKey = `${w}:${h}:${scale}`;
@@ -69,6 +81,10 @@ function apply(s: AppSettings) {
       prevSize = sizeKey;
       setPopupSize(w, h, scale);
     }
+  } else if (scale !== prevZoom) {
+    // Detached window is user-resizable, so scale the content only.
+    prevZoom = scale;
+    setPopupZoom(scale);
   }
 
   const radius = s.roundedPopupCorners && !isDetached ? 10.0 : 0.0;
