@@ -55,9 +55,7 @@
   --focus-timer-height: clamp(88px, 16vh, 112px);
   display: flex;
   flex-direction: column;
-  height: var(--focus-timer-height);
   min-height: var(--focus-timer-height);
-  max-height: var(--focus-timer-height);
 }
 
 html, body, #root {
