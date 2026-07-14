@@ -130,7 +130,6 @@
     "title": "Tray & Menüleiste",
     "description": "Konfigurieren Sie das Tray-Symbol-Verhalten, die Menüleisten-Anzeige und den Popup-Fenster-Modus.",
     "macOnly": "Menüleisten-Beschriftungen sind nur unter macOS verfügbar.",
-    "linuxOnly": "Tray-Klick-Aktionen sind unter Linux nicht verfügbar.",
     "popupMonitorMode": "Popup-Monitor",
     "popupMonitorModeDescription": "Wählen Sie, auf welchem Monitor das Popup-Fenster erscheint.",
     "popupMonitorModeActive": "Aktiver Monitor",

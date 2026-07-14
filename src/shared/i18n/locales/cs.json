@@ -130,7 +130,6 @@
     "title": "Tray a lišta",
     "description": "Nastavte chování ikony v trayi, zobrazení v liště a režim popup okna.",
     "macOnly": "Popis v liště je dostupný pouze na macOS.",
-    "linuxOnly": "Akce kliknutí na tray nejsou dostupné na Linuxu.",
     "popupMonitorMode": "Monitor pro popup okno",
     "popupMonitorModeDescription": "Zvolte, na kterém monitoru se zobrazí popup okno.",
     "popupMonitorModeActive": "Aktivní monitor",

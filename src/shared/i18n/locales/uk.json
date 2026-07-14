@@ -130,7 +130,6 @@
     "title": "Трей і панель меню",
     "description": "Налаштуйте поведінку іконки в треї, відображення в панелі меню та режим popup вікна.",
     "macOnly": "Підписи в панелі меню доступні лише на macOS.",
-    "linuxOnly": "Дії кліку на трей недоступні на Linux.",
     "popupMonitorMode": "Монітор для popup вікна",
     "popupMonitorModeDescription": "Оберіть, на якому моніторі з'являтиметься popup вікно.",
     "popupMonitorModeActive": "Активний монітор",

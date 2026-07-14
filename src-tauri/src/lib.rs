@@ -117,6 +117,15 @@ fn migrate_legacy_data(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // WebKitGTK's DMA-BUF renderer can stop presenting new frames after a
+    // Tauri window starts hidden and is later shown from a legacy GTK tray
+    // callback (especially with Cinnamon and VirtualBox/Mesa). Pointer and
+    // keyboard events still reach the page, but hover, navigation and typed
+    // text only become visible after an unrelated damage event. Keep hardware
+    // compositing, but use WebKit's non-DMA-BUF presentation path on Linux.
+    #[cfg(target_os = "linux")]
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {

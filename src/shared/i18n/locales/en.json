@@ -130,7 +130,6 @@
     "title": "Tray & Menu Bar",
     "description": "Configure tray icon behavior, menu bar display, and popup window mode.",
     "macOnly": "Menu bar labels are only available on macOS.",
-    "linuxOnly": "Tray click actions are not available on Linux.",
     "popupMonitorMode": "Popup monitor",
     "popupMonitorModeDescription": "Choose which monitor the popup window appears on.",
     "popupMonitorModeActive": "Active monitor",

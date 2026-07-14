@@ -3,16 +3,60 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+#[cfg(target_os = "linux")]
+use std::{cell::RefCell, rc::Rc};
 #[cfg(not(target_os = "linux"))]
 use tauri::tray::MouseButtonState;
+#[cfg(not(target_os = "linux"))]
 use tauri::{
     image::Image,
     menu::{Menu, MenuBuilder, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow,
 };
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_store::StoreExt;
+
+#[cfg(target_os = "linux")]
+use gdk::prelude::SeatExt;
+#[cfg(target_os = "linux")]
+use glib::translate::*;
+#[cfg(target_os = "linux")]
+use gtk::prelude::*;
+
+#[cfg(target_os = "linux")]
+glib::wrapper! {
+    /// Minimal safe owner for GTK3's deprecated StatusIcon. gtk-rs deliberately
+    /// omits the deprecated high-level binding, while GTK3 still exports it.
+    struct LegacyStatusIcon(Object<gtk_sys::GtkStatusIcon, gtk_sys::GtkStatusIconClass>);
+
+    match fn {
+        type_ => || gtk_sys::gtk_status_icon_get_type(),
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl LegacyStatusIcon {
+    fn new() -> Self {
+        unsafe { from_glib_full(gtk_sys::gtk_status_icon_new()) }
+    }
+
+    fn set_pixbuf(&self, pixbuf: &gdk_pixbuf::Pixbuf) {
+        unsafe {
+            gtk_sys::gtk_status_icon_set_from_pixbuf(self.to_glib_none().0, pixbuf.to_glib_none().0)
+        }
+    }
+
+    fn set_tooltip(&self, text: &str) {
+        unsafe {
+            gtk_sys::gtk_status_icon_set_tooltip_text(self.to_glib_none().0, text.to_glib_none().0)
+        }
+    }
+
+    fn set_visible(&self, visible: bool) {
+        unsafe { gtk_sys::gtk_status_icon_set_visible(self.to_glib_none().0, visible.into_glib()) }
+    }
+}
 
 const STORE_PATH: &str = "settings.json";
 
@@ -46,6 +90,7 @@ fn format_elapsed(secs: u64, show_seconds: bool) -> String {
     }
 }
 
+#[cfg_attr(target_os = "linux", allow(dead_code))]
 fn tray_label_title(
     label_style: &str,
     project: &str,
@@ -85,10 +130,17 @@ fn tick_tray(app: &AppHandle) {
             .as_secs();
         let secs = now.saturating_sub(begin_seconds);
 
-        if let Some(tray) = app.tray_by_id("main") {
-            let elapsed = format_elapsed(secs, true);
-            let _ = tray.set_tooltip(Some(&format!("{project} — {activity} — {elapsed}")));
+        let elapsed = format_elapsed(secs, true);
+        let tooltip = format!("{project} — {activity} — {elapsed}");
+        #[cfg(target_os = "linux")]
+        {
+            let _ = (&label_style, show_seconds);
+            let _ = legacy_set_tooltip(app, tooltip);
+        }
 
+        #[cfg(not(target_os = "linux"))]
+        if let Some(tray) = app.tray_by_id("main") {
+            let _ = tray.set_tooltip(Some(&tooltip));
             let title = tray_label_title(&label_style, &project, &activity, secs, show_seconds);
             let _ = tray.set_title(Some(&title));
         }
@@ -132,6 +184,9 @@ pub fn stop_tray_ticker(app: AppHandle) -> Result<(), String> {
     *state = TrayTickerState::Idle;
     drop(state);
 
+    #[cfg(target_os = "linux")]
+    let _ = legacy_set_tooltip(&app, "KimaiTray".into());
+    #[cfg(not(target_os = "linux"))]
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_title(Some(""));
         let _ = tray.set_tooltip(Some("KimaiTray"));
@@ -142,16 +197,29 @@ pub fn stop_tray_ticker(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn set_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
     validate_text(&text, 768, "Tray tooltip")?;
-    let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
-    tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())
+    #[cfg(target_os = "linux")]
+    return legacy_set_tooltip(&app, text);
+    #[cfg(not(target_os = "linux"))]
+    {
+        let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+        tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
 pub fn set_tray_title(app: AppHandle, title: String) -> Result<(), String> {
     validate_text(&title, 256, "Tray title")?;
-    let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
-    // Always pass Some — tray-icon's macOS impl ignores None instead of clearing
-    tray.set_title(Some(&title)).map_err(|e| e.to_string())
+    #[cfg(target_os = "linux")]
+    {
+        let _ = app;
+        return Ok(()); // GtkStatusIcon has no adjacent text label.
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+        // Always pass Some — tray-icon's macOS impl ignores None instead of clearing
+        tray.set_title(Some(&title)).map_err(|e| e.to_string())
+    }
 }
 
 // 0 = idle, 1 = running, 2 = paused, 3 = error — remembers the current dot color
@@ -212,10 +280,15 @@ fn shape_code(shape: &str) -> u8 {
 }
 
 fn render_icon(app: &AppHandle, size: u8, shape: u8, color: Rgb) -> Result<(), String> {
-    let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
     let rgba = generate_state_icon_with_color(size, shape, color);
-    let icon = Image::new_owned(rgba, ICON_CANVAS as u32, ICON_CANVAS as u32);
-    tray.set_icon(Some(icon)).map_err(|e| e.to_string())
+    #[cfg(target_os = "linux")]
+    return legacy_set_icon(app, rgba);
+    #[cfg(not(target_os = "linux"))]
+    {
+        let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+        let icon = Image::new_owned(rgba, ICON_CANVAS as u32, ICON_CANVAS as u32);
+        tray.set_icon(Some(icon)).map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
@@ -538,6 +611,110 @@ static POPUP_MONITOR_INDEX: AtomicU8 = AtomicU8::new(0);
 // 0=bottom-right, 1=bottom-left, 2=top-right, 3=top-left, 4=center
 static POPUP_MONITOR_POS: AtomicU8 = AtomicU8::new(0);
 
+#[cfg(target_os = "linux")]
+struct LegacyTray {
+    icon: LegacyStatusIcon,
+    menu: gtk::Menu,
+}
+
+#[cfg(target_os = "linux")]
+thread_local! {
+    // GTK widgets are main-thread-only; Tauri's Linux event loop is the GTK
+    // main loop, so keep the legacy tray object there instead of in Send state.
+    static LEGACY_TRAY: RefCell<Option<LegacyTray>> = const { RefCell::new(None) };
+}
+
+#[cfg(target_os = "linux")]
+fn legacy_pixbuf(rgba: Vec<u8>) -> gdk_pixbuf::Pixbuf {
+    let bytes = glib::Bytes::from_owned(rgba);
+    gdk_pixbuf::Pixbuf::from_bytes(
+        &bytes,
+        gdk_pixbuf::Colorspace::Rgb,
+        true,
+        8,
+        ICON_CANVAS as i32,
+        ICON_CANVAS as i32,
+        (ICON_CANVAS * 4) as i32,
+    )
+}
+
+#[cfg(target_os = "linux")]
+fn legacy_set_icon(app: &AppHandle, rgba: Vec<u8>) -> Result<(), String> {
+    app.run_on_main_thread(move || {
+        LEGACY_TRAY.with(|slot| {
+            if let Some(tray) = slot.borrow().as_ref() {
+                tray.icon.set_pixbuf(&legacy_pixbuf(rgba));
+            }
+        });
+    })
+    .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn legacy_set_tooltip(app: &AppHandle, text: String) -> Result<(), String> {
+    app.run_on_main_thread(move || {
+        LEGACY_TRAY.with(|slot| {
+            if let Some(tray) = slot.borrow().as_ref() {
+                tray.icon.set_tooltip(&text);
+            }
+        });
+    })
+    .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn legacy_menu(app: &AppHandle, labels: [&str; 5]) -> gtk::Menu {
+    let menu = gtk::Menu::new();
+    let add = |menu: &gtk::Menu, label: &str, action: Rc<dyn Fn()>| {
+        let item = gtk::MenuItem::with_label(label);
+        // Running the action inside MenuItem::activate shows/focuses the
+        // WebView while GTK still owns the popup-menu pointer grab. Cinnamon
+        // then keeps sending all motion and button events to the closing menu,
+        // leaving both popup and settings visible but non-interactive. Defer
+        // until the menu activation has unwound and GTK has released its grab.
+        let popup_menu = menu.clone();
+        item.connect_activate(move |_| {
+            popup_menu.popdown();
+            let action = action.clone();
+            glib::timeout_add_local_once(Duration::from_millis(50), move || {
+                // Some Cinnamon/GTK combinations retain the GDK seat grab even
+                // after Menu::popdown. Explicitly release it before focusing a
+                // WebKit window or that window receives neither hover nor click.
+                if let Some(display) = gdk::Display::default() {
+                    if let Some(seat) = display.default_seat() {
+                        seat.ungrab();
+                    }
+                }
+                action();
+            });
+        });
+        menu.append(&item);
+    };
+
+    let handle = app.clone();
+    add(
+        &menu,
+        labels[0],
+        Rc::new(move || toggle_popup_window(&handle)),
+    );
+    menu.append(&gtk::SeparatorMenuItem::new());
+    let handle = app.clone();
+    add(
+        &menu,
+        labels[1],
+        Rc::new(move || show_settings_window(&handle)),
+    );
+    let handle = app.clone();
+    add(&menu, labels[2], Rc::new(move || open_kimai(&handle)));
+    let handle = app.clone();
+    add(&menu, labels[3], Rc::new(move || refresh_popup(&handle)));
+    menu.append(&gtk::SeparatorMenuItem::new());
+    let handle = app.clone();
+    add(&menu, labels[4], Rc::new(move || handle.exit(0)));
+    menu.show_all();
+    menu
+}
+
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -711,6 +888,7 @@ pub fn set_popup_monitor(mode: String, index: u8, position: String) -> Result<()
     Ok(())
 }
 
+#[cfg(not(target_os = "linux"))]
 fn position_popup(window: &WebviewWindow, tray_rect: &tauri::Rect) -> tauri::Result<()> {
     let scale = window.scale_factor().unwrap_or(1.0);
     let win_size = window.outer_size()?;
@@ -728,6 +906,55 @@ fn position_popup(window: &WebviewWindow, tray_rect: &tauri::Rect) -> tauri::Res
 
     window.set_position(PhysicalPosition::new(x, y))?;
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn position_legacy_popup(window: &WebviewWindow) -> tauri::Result<()> {
+    let geometry = LEGACY_TRAY.with(|slot| {
+        slot.borrow().as_ref().and_then(|tray| unsafe {
+            let mut screen = std::ptr::null_mut();
+            let mut rect = std::mem::zeroed();
+            let mut orientation = std::mem::zeroed();
+            if from_glib(gtk_sys::gtk_status_icon_get_geometry(
+                tray.icon.to_glib_none().0,
+                &mut screen,
+                &mut rect,
+                &mut orientation,
+            )) {
+                Some((rect.x, rect.y, rect.width, rect.height))
+            } else {
+                None
+            }
+        })
+    });
+    let Some((icon_x, icon_y, icon_w, icon_h)) = geometry else {
+        return position_on_monitor(window, 0, 0);
+    };
+    let win = window.outer_size()?;
+    let monitors = window.available_monitors()?;
+    let monitor = monitors.iter().find(|monitor| {
+        let p = monitor.position();
+        let s = monitor.size();
+        icon_x >= p.x
+            && icon_x < p.x + s.width as i32
+            && icon_y >= p.y
+            && icon_y < p.y + s.height as i32
+    });
+    let Some(monitor) = monitor.or_else(|| monitors.first()) else {
+        return Ok(());
+    };
+    let mp = monitor.position();
+    let ms = monitor.size();
+    let min_x = mp.x;
+    let max_x = mp.x + ms.width as i32 - win.width as i32;
+    let x = (icon_x + icon_w / 2 - win.width as i32 / 2).clamp(min_x, max_x.max(min_x));
+    let monitor_mid = mp.y + ms.height as i32 / 2;
+    let y = if icon_y < monitor_mid {
+        icon_y + icon_h
+    } else {
+        icon_y - win.height as i32
+    };
+    window.set_position(PhysicalPosition::new(x, y))
 }
 
 #[cfg(target_os = "macos")]
@@ -904,7 +1131,32 @@ pub fn update_tray_menu(
     let _transaction = TRAY_CONFIGURATION
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    #[cfg(target_os = "linux")]
+    {
+        let labels = [
+            toggle_label,
+            settings_label,
+            open_kimai_label,
+            refresh_label,
+            quit_label,
+        ];
+        let handle = app.clone();
+        return app
+            .run_on_main_thread(move || {
+                LEGACY_TRAY.with(|slot| {
+                    if let Some(tray) = slot.borrow_mut().as_mut() {
+                        tray.menu = legacy_menu(
+                            &handle,
+                            [&labels[0], &labels[1], &labels[2], &labels[3], &labels[4]],
+                        );
+                    }
+                })
+            })
+            .map_err(|e| e.to_string());
+    }
+    #[cfg(not(target_os = "linux"))]
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+    #[cfg(not(target_os = "linux"))]
     let menu = build_tray_menu(
         &app,
         &toggle_label,
@@ -914,7 +1166,8 @@ pub fn update_tray_menu(
         &quit_label,
     )
     .map_err(|e| e.to_string())?;
-    tray.set_menu(Some(menu)).map_err(|e| e.to_string())
+    #[cfg(not(target_os = "linux"))]
+    return tray.set_menu(Some(menu)).map_err(|e| e.to_string());
 }
 
 #[tauri::command]
@@ -934,8 +1187,12 @@ pub fn set_tray_click_actions(
     let _transaction = TRAY_CONFIGURATION
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    #[cfg(target_os = "linux")]
+    let _ = app;
 
+    #[cfg(not(target_os = "linux"))]
     let tray = app.tray_by_id("main").ok_or("Tray icon not found")?;
+    #[cfg(not(target_os = "linux"))]
     if right == 1 {
         tray.set_menu(None::<Menu<tauri::Wry>>)
             .map_err(|e| e.to_string())?;
@@ -958,6 +1215,7 @@ pub fn set_tray_click_actions(
     Ok(())
 }
 
+#[cfg(not(target_os = "linux"))]
 fn build_tray_menu(
     app: &AppHandle,
     toggle_label: &str,
@@ -1000,9 +1258,15 @@ pub fn toggle_popup_window(app: &AppHandle) {
                     let idx = POPUP_MONITOR_INDEX.load(Ordering::SeqCst);
                     let pos = POPUP_MONITOR_POS.load(Ordering::SeqCst);
                     let _ = position_on_monitor(&popup, idx, pos);
-                } else if let Some(tray) = app.tray_by_id("main") {
-                    if let Ok(Some(rect)) = tray.rect() {
-                        let _ = position_popup(&popup, &rect);
+                } else {
+                    #[cfg(target_os = "linux")]
+                    let _ = position_legacy_popup(&popup);
+
+                    #[cfg(not(target_os = "linux"))]
+                    if let Some(tray) = app.tray_by_id("main") {
+                        if let Ok(Some(rect)) = tray.rect() {
+                            let _ = position_popup(&popup, &rect);
+                        }
                     }
                 }
                 let _ = popup.show();
@@ -1012,6 +1276,32 @@ pub fn toggle_popup_window(app: &AppHandle) {
     }
 }
 
+fn refresh_popup(app: &AppHandle) {
+    if let Some(popup) = app.get_webview_window("tray-popup") {
+        let _ = popup.emit("kimai://refresh", ());
+    }
+}
+
+fn open_kimai(app: &AppHandle) {
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Ok(store) = handle.store(STORE_PATH) {
+            if let Some(serde_json::Value::Object(s)) = store.get("settings") {
+                if let Some(serde_json::Value::String(url)) = s.get("kimaiUrl") {
+                    if let Ok(parsed) = tauri::Url::parse(url) {
+                        let allowed = matches!(parsed.scheme(), "http" | "https")
+                            && parsed.username().is_empty()
+                            && parsed.password().is_none();
+                        if allowed {
+                            let _ = handle.opener().open_url(parsed.as_str(), None::<&str>);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
 pub fn show_settings_window(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("settings") {
         let _ = w.show();
@@ -1019,6 +1309,140 @@ pub fn show_settings_window(app: &AppHandle) {
     }
 }
 
+fn start_background_ticker(app: &AppHandle) {
+    let ticker_app = app.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(1));
+        tick_tray(&ticker_app);
+        if let Some(popup) = ticker_app.get_webview_window("tray-popup") {
+            let _ = popup.emit("kimai://tick", ());
+        }
+    });
+}
+
+#[cfg(target_os = "linux")]
+pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
+    if let Ok(store) = app.store(STORE_PATH) {
+        if let Some(serde_json::Value::Object(s)) = store.get("settings") {
+            let left = s
+                .get("trayLeftClickAction")
+                .and_then(|v| v.as_str())
+                .unwrap_or("popup");
+            let right = s
+                .get("trayRightClickAction")
+                .and_then(|v| v.as_str())
+                .unwrap_or("menu");
+            let display = s
+                .get("displayMode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("tray");
+            let mon_mode = s
+                .get("popupMonitorMode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("active");
+            let mon_pos = s
+                .get("popupMonitorPosition")
+                .and_then(|v| v.as_str())
+                .unwrap_or("bottom-right");
+            TRAY_LEFT_ACTION.store(if left == "nothing" { 1 } else { 0 }, Ordering::SeqCst);
+            TRAY_RIGHT_ACTION.store(if right == "popup" { 1 } else { 0 }, Ordering::SeqCst);
+            DISPLAY_MODE.store(if display == "detached" { 1 } else { 0 }, Ordering::SeqCst);
+            POPUP_MONITOR_MODE.store(if mon_mode == "specific" { 1 } else { 0 }, Ordering::SeqCst);
+            POPUP_MONITOR_INDEX.store(
+                s.get("popupMonitorIndex")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u8,
+                Ordering::SeqCst,
+            );
+            POPUP_MONITOR_POS.store(
+                match mon_pos {
+                    "bottom-left" => 1,
+                    "top-right" => 2,
+                    "top-left" => 3,
+                    "center" => 4,
+                    _ => 0,
+                },
+                Ordering::SeqCst,
+            );
+            TRAY_ICON_SIZE.store(
+                size_code(
+                    s.get("trayIconSize")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("medium"),
+                ),
+                Ordering::SeqCst,
+            );
+            TRAY_ICON_SHAPE.store(
+                shape_code(
+                    s.get("trayIconShape")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("dot"),
+                ),
+                Ordering::SeqCst,
+            );
+            if let Some(colors) = s.get("trayColors").and_then(|v| v.as_object()) {
+                for (idx, key) in ["idle", "running", "paused", "error"].iter().enumerate() {
+                    if let Some(color) = colors
+                        .get(*key)
+                        .and_then(|v| v.as_str())
+                        .and_then(parse_hex_color)
+                    {
+                        TRAY_COLORS[idx].store(color, Ordering::SeqCst);
+                    }
+                }
+            }
+        }
+    }
+
+    let icon = LegacyStatusIcon::new();
+    icon.set_pixbuf(&legacy_pixbuf(generate_state_icon(
+        0,
+        TRAY_ICON_SIZE.load(Ordering::SeqCst),
+        TRAY_ICON_SHAPE.load(Ordering::SeqCst),
+    )));
+    icon.set_tooltip("KimaiTray");
+    icon.set_visible(true);
+
+    let handle = app.clone();
+    icon.connect_local("activate", false, move |_| {
+        if TRAY_LEFT_ACTION.load(Ordering::SeqCst) == 0
+            && now_ms().saturating_sub(LAST_POPUP_HIDE.load(Ordering::SeqCst)) >= 300
+        {
+            toggle_popup_window(&handle);
+        }
+        None
+    });
+    let handle = app.clone();
+    icon.connect_local("popup-menu", false, move |values| {
+        let button = values.get(1).and_then(|v| v.get::<u32>().ok()).unwrap_or(3);
+        let time = values.get(2).and_then(|v| v.get::<u32>().ok()).unwrap_or(0);
+        if TRAY_RIGHT_ACTION.load(Ordering::SeqCst) == 1 {
+            toggle_popup_window(&handle);
+        } else {
+            LEGACY_TRAY.with(|slot| {
+                if let Some(tray) = slot.borrow().as_ref() {
+                    // GTK 3.22+ handles the current GDK seat and releases its
+                    // grab correctly with popup_at_pointer. popup_easy uses the
+                    // old global-grab API and can leave WebKit windows unable
+                    // to receive pointer events on Cinnamon.
+                    let _ = (button, time);
+                    tray.menu.popup_at_pointer(None::<&gdk::Event>);
+                }
+            });
+        }
+        None
+    });
+
+    let menu = legacy_menu(
+        app,
+        ["Show/Hide", "Settings", "Open Kimai", "Refresh", "Quit"],
+    );
+    LEGACY_TRAY.with(|slot| *slot.borrow_mut() = Some(LegacyTray { icon, menu }));
+    start_background_ticker(app);
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
 pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     // Read initial settings from store
     let right_action_popup = if let Ok(store) = app.store(STORE_PATH) {
@@ -1234,14 +1658,7 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     // Runs natively so macOS/Linux cannot throttle it like webview JS timers.
     // Also emits kimai://tick to the popup so the JS elapsed counter stays alive
     // on Linux where WebKitGTK throttles setInterval for unfocused windows.
-    let ticker_app = app.clone();
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_secs(1));
-        tick_tray(&ticker_app);
-        if let Some(popup) = ticker_app.get_webview_window("tray-popup") {
-            let _ = popup.emit("kimai://tick", ());
-        }
-    });
+    start_background_ticker(app);
 
     Ok(())
 }

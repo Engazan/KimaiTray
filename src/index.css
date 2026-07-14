@@ -49,6 +49,15 @@
   pointer-events: none;
 }
 
+/* WebKitGTK can suspend a hidden tray webview before an entry animation has
+   advanced past its transparent first frame. When the native tray later shows
+   the window, the animation may remain frozen and make otherwise-rendered
+   cards look missing. Tray popups must always favor immediately visible
+   content; settings-window animations remain unchanged. */
+[data-window="tray-popup"] .animate-card-in {
+  animation: none;
+}
+
 
 /* ── Focus layout: enlarged timer area ──────────────────────── */
 [data-layout="focus"][data-window="tray-popup"] .timer-area {

@@ -2196,6 +2196,11 @@ dependencies = [
 name = "kimaitray"
 version = "0.17.2"
 dependencies = [
+ "gdk",
+ "gdk-pixbuf",
+ "glib",
+ "gtk",
+ "gtk-sys",
  "keyring",
  "log",
  "objc",

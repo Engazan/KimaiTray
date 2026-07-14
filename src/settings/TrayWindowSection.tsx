@@ -371,7 +371,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
       <SettingsList>
         <SettingsRow
           label={t("general.trayLeftClick")}
-          description={isLinux ? t("traySettings.linuxOnly") : t("general.trayLeftClickDescription")}
+          description={t("general.trayLeftClickDescription")}
         >
           <Select
             value={settings.trayLeftClickAction}
@@ -384,13 +384,12 @@ export default function TrayWindowSection({ settings, update }: Props) {
               { value: "popup", label: t("general.trayActionTogglePopup") },
               { value: "nothing", label: t("general.trayActionDoNothing") },
             ]}
-            disabled={isLinux}
           />
         </SettingsRow>
 
         <SettingsRow
           label={t("general.trayRightClick")}
-          description={isLinux ? t("traySettings.linuxOnly") : t("general.trayRightClickDescription")}
+          description={t("general.trayRightClickDescription")}
         >
           <Select
             value={settings.trayRightClickAction}
@@ -403,7 +402,6 @@ export default function TrayWindowSection({ settings, update }: Props) {
               { value: "menu", label: t("general.trayActionShowMenu") },
               { value: "popup", label: t("general.trayActionTogglePopup") },
             ]}
-            disabled={isLinux}
           />
         </SettingsRow>
       </SettingsList>
