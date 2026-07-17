@@ -10,6 +10,7 @@ import ApiErrorDialog from "./ApiErrorDialog";
 import IdleDialog from "./IdleDialog";
 import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
+import ChangelogDialog from "./ChangelogDialog";
 
 beforeAll(async () => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -116,6 +117,27 @@ describe("accessible custom controls", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     await new Promise((resolve) => requestAnimationFrame(resolve));
     expect(document.activeElement).toBe(returnTarget);
+  });
+
+  it("exposes the update changelog as an escapable modal dialog", async () => {
+    const onClose = vi.fn();
+    renderLocalized(
+      <ChangelogDialog
+        version="2.1.0"
+        body={"### New Features\n\n- **Faster updates** for everyone"}
+        onClose={onClose}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: /what's new/i });
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(screen.getByText("Faster updates").tagName).toBe("STRONG");
+    expect(document.activeElement).toBe(
+      screen.getAllByRole("button", { name: /close/i })[0],
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("traps keyboard focus inside the idle decision dialog", async () => {

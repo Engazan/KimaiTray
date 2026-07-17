@@ -265,6 +265,12 @@
     "checkFailed": "Update-Prüfung fehlgeschlagen",
     "updateLabel": "Auf v{{version}} aktualisieren"
   },
+  "changelog": {
+    "title": "Neuigkeiten",
+    "updatedTo": "KimaiTray wurde auf Version {{version}} aktualisiert",
+    "close": "Schließen",
+    "noDetails": "Für diese Version sind keine Details verfügbar."
+  },
   "appearanceSettings": {
     "title": "Erscheinungsbild",
     "description": "Passen Sie das Aussehen von KimaiTray an.",
@@ -569,6 +575,9 @@
     "needTwo": "Fügen Sie mindestens zwei Verbindungen hinzu, um Favoriten zu verschieben.",
     "moved": "{{count}} Favorit(en) verschoben.",
     "nothing": "Keine Favoriten auf der Quellverbindung zum Verschieben.",
-    "error": "Verschieben der Favoriten fehlgeschlagen."
+    "error": "Verschieben der Favoriten fehlgeschlagen.",
+    "changelog": "Changelog-Vorschau",
+    "changelogDescription": "Zeigt den Changelog der aktuellen Version so an, wie er nach einer Aktualisierung geöffnet wird.",
+    "showChangelog": "Changelog anzeigen"
   }
 }

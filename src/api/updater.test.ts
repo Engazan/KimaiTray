@@ -4,10 +4,16 @@ import type { Update } from "@tauri-apps/plugin-updater";
 const mocks = vi.hoisted(() => ({
   check: vi.fn(),
   relaunch: vi.fn(),
+  rememberPendingChangelog: vi.fn(),
+  forgetPendingChangelog: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: mocks.check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: mocks.relaunch }));
+vi.mock("./changelog", () => ({
+  rememberPendingChangelog: mocks.rememberPendingChangelog,
+  forgetPendingChangelog: mocks.forgetPendingChangelog,
+}));
 
 import { checkForUpdate, installUpdate } from "./updater";
 
@@ -40,7 +46,11 @@ describe("updater operation serialization", () => {
     const downloadAndInstall = vi.fn(
       () => new Promise<void>((resolve) => { resolveInstall = resolve; }),
     );
-    const update = { downloadAndInstall } as unknown as Update;
+    const update = {
+      version: "2.1.0",
+      body: "Release notes",
+      downloadAndInstall,
+    } as unknown as Update;
 
     const first = installUpdate(update);
     const second = installUpdate(update);
@@ -48,6 +58,27 @@ describe("updater operation serialization", () => {
 
     resolveInstall();
     await Promise.all([first, second]);
+    expect(mocks.rememberPendingChangelog).toHaveBeenCalledWith({
+      version: "2.1.0",
+      body: "Release notes",
+    });
     expect(mocks.relaunch).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes pending release notes when installation fails", async () => {
+    const update = {
+      version: "2.1.0",
+      body: null,
+      downloadAndInstall: vi.fn().mockRejectedValue(new Error("download failed")),
+    } as unknown as Update;
+
+    await expect(installUpdate(update)).rejects.toThrow("download failed");
+
+    expect(mocks.rememberPendingChangelog).toHaveBeenCalledWith({
+      version: "2.1.0",
+      body: "",
+    });
+    expect(mocks.forgetPendingChangelog).toHaveBeenCalledWith("2.1.0");
+    expect(mocks.relaunch).not.toHaveBeenCalled();
   });
 });

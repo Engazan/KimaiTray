@@ -249,7 +249,7 @@ pub fn run() {
                     tray::on_popup_blur(window);
                 }
             }
-            "settings" => {
+            "settings" | "changelog" => {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();

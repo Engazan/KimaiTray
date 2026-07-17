@@ -265,6 +265,12 @@
     "checkFailed": "Kontrola aktualizácií zlyhala",
     "updateLabel": "Aktualizovať na v{{version}}"
   },
+  "changelog": {
+    "title": "Čo je nové",
+    "updatedTo": "KimaiTray bol aktualizovaný na verziu {{version}}",
+    "close": "Zavrieť",
+    "noDetails": "Pre túto verziu nie sú dostupné žiadne podrobnosti."
+  },
   "appearanceSettings": {
     "title": "Vzhľad",
     "description": "Prispôsobte si vzhľad aplikácie KimaiTray.",
@@ -569,6 +575,9 @@
     "needTwo": "Na presun obľúbených pridajte aspoň dve pripojenia.",
     "moved": "Presunuté: {{count}} obľúbených.",
     "nothing": "Na zdrojovom pripojení nie sú žiadne obľúbené.",
-    "error": "Presun obľúbených zlyhal."
+    "error": "Presun obľúbených zlyhal.",
+    "changelog": "Náhľad changelogu",
+    "changelogDescription": "Zobrazí changelog aktuálnej verzie tak, ako sa otvorí po aktualizácii aplikácie.",
+    "showChangelog": "Zobraziť changelog"
   }
 }

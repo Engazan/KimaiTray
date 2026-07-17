@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
+import rawChangelog from "../../CHANGELOG.md?raw";
 import { loadFavorites, moveFavorites } from "../api/favoritesStore";
+import { extractVersionChangelog } from "../api/changelog";
+import { showChangelogWindow } from "../api/changelogWindow";
 import {
   Divider,
   FieldGroup,
@@ -12,6 +15,7 @@ import {
 
 interface Props {
   settings: AppSettings;
+  appVersion: string;
 }
 
 type MoveResult =
@@ -19,7 +23,7 @@ type MoveResult =
   | { type: "nothing" }
   | { type: "error" };
 
-export default function TestSection({ settings }: Props) {
+export default function TestSection({ settings, appVersion }: Props) {
   const { t } = useTranslation();
   const connections = settings.connections;
 
@@ -89,6 +93,7 @@ export default function TestSection({ settings }: Props) {
 
   const canMove =
     !!fromConn && !!toConn && fromConn.id !== toConn.id && !moving;
+  const previewVersion = appVersion || import.meta.env.VITE_APP_VERSION;
 
   return (
     <div>
@@ -168,6 +173,31 @@ export default function TestSection({ settings }: Props) {
           )}
         </>
       )}
+
+      <Divider />
+
+      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
+        {t("testSection.changelog")}
+      </div>
+      <div className="mb-2 text-[11px] text-gray-400 dark:text-gray-500">
+        {t("testSection.changelogDescription")}
+      </div>
+      <button
+        type="button"
+        onClick={() =>
+          void showChangelogWindow({
+            version: previewVersion,
+            body: extractVersionChangelog(rawChangelog, previewVersion) ?? "",
+          })
+        }
+        className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] font-medium
+          text-gray-700 transition-colors hover:bg-gray-100
+          focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
+          dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+      >
+        {t("testSection.showChangelog")}
+      </button>
+
     </div>
   );
 }

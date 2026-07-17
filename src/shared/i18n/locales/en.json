@@ -307,6 +307,12 @@
     "checkFailed": "Update check failed",
     "updateLabel": "Update to v{{version}}"
   },
+  "changelog": {
+    "title": "What's new",
+    "updatedTo": "KimaiTray was updated to version {{version}}",
+    "close": "Close",
+    "noDetails": "No details are available for this version."
+  },
   "featuresSettings": {
     "title": "Features",
     "description": "Toggle optional fields in the new task form and active timer card.",
@@ -569,6 +575,9 @@
     "needTwo": "Add at least two connections to move favorites.",
     "moved": "Moved {{count}} favorite(s).",
     "nothing": "No favorites to move on the source connection.",
-    "error": "Failed to move favorites."
+    "error": "Failed to move favorites.",
+    "changelog": "Changelog preview",
+    "changelogDescription": "Shows the current version changelog as it will appear after an application update.",
+    "showChangelog": "Show changelog"
   }
 }

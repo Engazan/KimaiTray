@@ -308,7 +308,9 @@ export default function Settings() {
           {section === "shortcuts" && (
             <ShortcutsSection settings={settings} update={update} />
           )}
-          {section === "test" && <TestSection settings={settings} />}
+          {section === "test" && (
+            <TestSection settings={settings} appVersion={appVersion} />
+          )}
           {section === "about" && <AboutSection />}
         </div>
       </main>

@@ -265,6 +265,12 @@
     "checkFailed": "Kontrola aktualizací selhala",
     "updateLabel": "Aktualizovat na v{{version}}"
   },
+  "changelog": {
+    "title": "Co je nového",
+    "updatedTo": "KimaiTray byl aktualizován na verzi {{version}}",
+    "close": "Zavřít",
+    "noDetails": "Pro tuto verzi nejsou k dispozici žádné podrobnosti."
+  },
   "appearanceSettings": {
     "title": "Vzhled",
     "description": "Přizpůsobte si vzhled aplikace KimaiTray.",
@@ -569,6 +575,9 @@
     "needTwo": "Pro přesun oblíbených přidejte alespoň dvě připojení.",
     "moved": "Přesunuto: {{count}} oblíbených.",
     "nothing": "Na zdrojovém připojení nejsou žádné oblíbené.",
-    "error": "Přesun oblíbených selhal."
+    "error": "Přesun oblíbených selhal.",
+    "changelog": "Náhled changelogu",
+    "changelogDescription": "Zobrazí changelog aktuální verze tak, jak se otevře po aktualizaci aplikace.",
+    "showChangelog": "Zobrazit changelog"
   }
 }
