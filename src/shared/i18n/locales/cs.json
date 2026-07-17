@@ -58,6 +58,7 @@
     "title": "Připojení",
     "tabConnection": "Připojení",
     "saveFirstForIntegrations": "Nejprve ulož připojení, abys mohl nastavit integrace",
+    "saveFirstForPlugins": "Nejprve ulož připojení, abys mohl nastavit pluginy",
     "saveFirstForFeatures": "Nejprve ulož připojení, abys mohl nastavit funkce",
     "connectionsTitle": "Připojení",
     "description": "Připojte se k instanci Kimai pomocí základní URL adresy a osobního API tokenu. Můžete uložit více připojení a přepínat mezi nimi.",
@@ -79,6 +80,11 @@
     "tokenRequired": "API token je povinný",
     "unexpectedError": "Neočekávaná chyba při testu připojení",
     "connectionFailed": "Připojení selhalo"
+  },
+  "plugins": {
+    "title": "Plugins",
+    "customFields": "Custom Fields",
+    "author": "Autor: {{author}}"
   },
   "settings": {
     "title": "Nastavení",
