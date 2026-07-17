@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
-import { getCurrentWindow, Window } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  hideFullscreenReminder,
+  showFullscreenReminder,
+} from "../api/reminderWindow";
 import { logger } from "../utils/logger";
 
 export type TimerPresence = "unknown" | "running" | "stopped";
@@ -50,8 +54,6 @@ interface UseNoTimerReminderOptions {
   presence: TimerPresence;
 }
 
-const REMINDER_WINDOW_LABEL = "timer-reminder";
-
 export function useNoTimerReminder({
   enabled,
   thresholdMinutes,
@@ -76,17 +78,11 @@ export function useNoTimerReminder({
     );
 
     if (action !== "none") {
-      void Window.getByLabel(REMINDER_WINDOW_LABEL)
-        .then(async (reminder) => {
-          if (!reminder) return;
-          if (action === "show") {
-            await reminder.setSimpleFullscreen(true);
-            await reminder.show();
-            await reminder.setFocus();
-          } else {
-            await reminder.hide();
-          }
-        })
+      const windowAction =
+        action === "show"
+          ? showFullscreenReminder({ kind: "timer" })
+          : hideFullscreenReminder();
+      void windowAction
         .catch((error) => {
           logger.error(`Failed to ${action} timer reminder: ${String(error)}`);
         });

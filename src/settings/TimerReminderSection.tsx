@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Window } from "@tauri-apps/api/window";
 import type { AppSettings } from "../types";
+import { showFullscreenReminder } from "../api/reminderWindow";
 import { logger } from "../utils/logger";
 import { NumberInput, Toggle } from "./Controls";
 import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
@@ -18,11 +18,7 @@ export default function TimerReminderSection({ settings, update }: Props) {
   const testReminder = async () => {
     setTesting(true);
     try {
-      const reminder = await Window.getByLabel("timer-reminder");
-      if (!reminder) return;
-      await reminder.setSimpleFullscreen(true);
-      await reminder.show();
-      await reminder.setFocus();
+      await showFullscreenReminder({ kind: "timer" });
     } catch (error) {
       logger.error(`Failed to test timer reminder: ${String(error)}`);
     } finally {

@@ -16,7 +16,6 @@ import {
 } from "../components/TrayLayoutControls";
 import NewTaskForm from "../components/NewTaskForm";
 import CategoryModePanel from "../categorymode/CategoryModePanel";
-import IdleDialog from "../components/IdleDialog";
 import ApiErrorDialog from "../components/ApiErrorDialog";
 import TodaySection from "../components/TodaySection";
 import DetachedTitleBar from "../components/DetachedTitleBar";
@@ -52,6 +51,13 @@ import {
   taskKeyOf,
 } from "../integrations/issues/linkedIssueStore";
 import { logger } from "../utils/logger";
+import type { IdleReminderAction } from "../api/reminderWindow";
+import {
+  hideFullscreenReminder,
+  IDLE_REMINDER_ACTION_EVENT,
+  showFullscreenReminder,
+  updateFullscreenReminder,
+} from "../api/reminderWindow";
 import { getRecordedDurationSeconds } from "../utils/timesheetDuration";
 import { toKimaiLocal } from "../utils/time";
 
@@ -66,6 +72,7 @@ export default function TrayPopup() {
   const [focusTab, setFocusTab] = useState<"recent" | "today">("recent");
   const [recentCollapsed, setRecentCollapsed] = useState(false);
   const [todayCollapsed, setTodayCollapsed] = useState(false);
+  const idleReminderVisibleRef = useRef(false);
 
   useAppearance();
   useLanguageSync();
@@ -576,6 +583,36 @@ export default function TrayPopup() {
   }, [client, timer, idleStartedAt, dismissIdle, qc, t]);
 
   useEffect(() => {
+    const unlisten = getCurrentWindow().listen<{ action: IdleReminderAction }>(
+      IDLE_REMINDER_ACTION_EVENT,
+      ({ payload }) => {
+        switch (payload.action) {
+          case "continue":
+            handleIdleContinue();
+            break;
+          case "stop-at-start":
+            void handleIdleStopAtStart();
+            break;
+          case "stop-now":
+            void handleIdleStopNow();
+            break;
+          case "stop-and-new":
+            void handleIdleStopAndNew();
+            break;
+        }
+      },
+    );
+    return () => {
+      unlisten.then((cleanup) => cleanup());
+    };
+  }, [
+    handleIdleContinue,
+    handleIdleStopAtStart,
+    handleIdleStopNow,
+    handleIdleStopAndNew,
+  ]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (showNewTask) {
@@ -873,6 +910,52 @@ export default function TrayPopup() {
     (idleSettings.idleAction === "ask" || !!idleActionError) &&
     timer &&
     idleStartedAt;
+
+  useEffect(() => {
+    if (!showIdleDialog || !timer || !idleStartedAt) {
+      if (idleReminderVisibleRef.current) {
+        idleReminderVisibleRef.current = false;
+        void hideFullscreenReminder().catch((error) => {
+          logger.error(`Failed to hide idle reminder: ${String(error)}`);
+        });
+      }
+      return;
+    }
+
+    const payload = {
+      kind: "idle" as const,
+      test: false,
+      idleStartedAtIso: idleStartedAt.toISOString(),
+      idleDurationSeconds,
+      project: timer.project,
+      activity: timer.activity,
+      processing: idleProcessing,
+      error: idleActionError,
+    };
+
+    if (!idleReminderVisibleRef.current) {
+      idleReminderVisibleRef.current = true;
+      void showFullscreenReminder(payload)
+        .then((shown) => {
+          if (!shown) idleReminderVisibleRef.current = false;
+        })
+        .catch((error) => {
+          idleReminderVisibleRef.current = false;
+          logger.error(`Failed to show idle reminder: ${String(error)}`);
+        });
+    } else {
+      void updateFullscreenReminder(payload).catch((error) => {
+        logger.error(`Failed to update idle reminder: ${String(error)}`);
+      });
+    }
+  }, [
+    showIdleDialog,
+    timer,
+    idleStartedAt,
+    idleDurationSeconds,
+    idleProcessing,
+    idleActionError,
+  ]);
 
   const handleTogglePin = useCallback(() => {
     const next = !pinned;
@@ -1291,20 +1374,6 @@ export default function TrayPopup() {
       )}
 
       <ApiErrorDialog />
-
-      {showIdleDialog && (
-        <IdleDialog
-          timer={timer}
-          idleStartedAt={idleStartedAt}
-          idleDurationSeconds={idleDurationSeconds}
-          onContinue={handleIdleContinue}
-          onStopAtIdleStart={handleIdleStopAtStart}
-          onStopNow={handleIdleStopNow}
-          onStopAndStartNew={handleIdleStopAndNew}
-          isProcessing={idleProcessing}
-          error={idleActionError}
-        />
-      )}
     </div>
   );
 }
