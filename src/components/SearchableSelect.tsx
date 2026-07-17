@@ -35,6 +35,8 @@ interface SearchableSelectProps<T extends OptionValue> {
   disabled?: boolean;
   allowEmpty?: boolean;
   emptyLabel?: string;
+  /** Opens the search input whenever this value changes to a positive number. */
+  focusRequest?: number;
 }
 
 export default function SearchableSelect<T extends OptionValue>({
@@ -46,6 +48,7 @@ export default function SearchableSelect<T extends OptionValue>({
   disabled,
   allowEmpty,
   emptyLabel,
+  focusRequest = 0,
 }: SearchableSelectProps<T>) {
   const { t } = useTranslation();
   const generatedId = useId();
@@ -57,6 +60,7 @@ export default function SearchableSelect<T extends OptionValue>({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const handledFocusRequestRef = useRef(0);
 
   const selected = useMemo(
     () => options.find((o) => o.value === value) ?? null,
@@ -98,6 +102,18 @@ export default function SearchableSelect<T extends OptionValue>({
       inputRef.current.focus();
     }
   }, [open]);
+
+  useEffect(() => {
+    if (
+      disabled ||
+      focusRequest <= 0 ||
+      handledFocusRequestRef.current === focusRequest
+    ) {
+      return;
+    }
+    handledFocusRequestRef.current = focusRequest;
+    setOpen(true);
+  }, [disabled, focusRequest]);
 
   useEffect(() => {
     if (!open || !listRef.current) return;

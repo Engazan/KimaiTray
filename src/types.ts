@@ -104,6 +104,11 @@ export interface AppSettings {
 
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;
+  shortcutNewTask: string;
+  shortcutPauseResume: string;
+  shortcutContinueLastTask: string;
+  shortcutEditNote: string;
+  shortcutOpenKimai: string;
   shortcutOpenSettings: string;
 
   trayLeftClickAction: "popup" | "nothing";

@@ -66,6 +66,11 @@ export const defaultSettings: AppSettings = {
 
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
+  shortcutNewTask: "",
+  shortcutPauseResume: "",
+  shortcutContinueLastTask: "",
+  shortcutEditNote: "",
+  shortcutOpenKimai: "",
   shortcutOpenSettings: "",
 
   trayLeftClickAction: "popup",
@@ -392,6 +397,15 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     features: normalizeFeatures(value.features),
     shortcutTogglePopup: stringValue(value.shortcutTogglePopup, "", 256),
     shortcutStartStopTimer: stringValue(value.shortcutStartStopTimer, "", 256),
+    shortcutNewTask: stringValue(value.shortcutNewTask, "", 256),
+    shortcutPauseResume: stringValue(value.shortcutPauseResume, "", 256),
+    shortcutContinueLastTask: stringValue(
+      value.shortcutContinueLastTask,
+      "",
+      256,
+    ),
+    shortcutEditNote: stringValue(value.shortcutEditNote, "", 256),
+    shortcutOpenKimai: stringValue(value.shortcutOpenKimai, "", 256),
     shortcutOpenSettings: stringValue(value.shortcutOpenSettings, "", 256),
     trayLeftClickAction: enumValue(
       value.trayLeftClickAction,

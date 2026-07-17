@@ -25,6 +25,11 @@ interface TraySettings {
 interface ShortcutSettings {
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;
+  shortcutNewTask: string;
+  shortcutPauseResume: string;
+  shortcutContinueLastTask: string;
+  shortcutEditNote: string;
+  shortcutOpenKimai: string;
   shortcutOpenSettings: string;
 }
 
@@ -77,6 +82,11 @@ const defaultTraySettings: TraySettings = {
 const defaultShortcutSettings: ShortcutSettings = {
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
+  shortcutNewTask: "",
+  shortcutPauseResume: "",
+  shortcutContinueLastTask: "",
+  shortcutEditNote: "",
+  shortcutOpenKimai: "",
   shortcutOpenSettings: "",
 };
 
@@ -162,6 +172,11 @@ export function useKimaiClient(): UseKimaiClientResult {
     setShortcutSettings({
       shortcutTogglePopup: s.shortcutTogglePopup,
       shortcutStartStopTimer: s.shortcutStartStopTimer,
+      shortcutNewTask: s.shortcutNewTask,
+      shortcutPauseResume: s.shortcutPauseResume,
+      shortcutContinueLastTask: s.shortcutContinueLastTask,
+      shortcutEditNote: s.shortcutEditNote,
+      shortcutOpenKimai: s.shortcutOpenKimai,
       shortcutOpenSettings: s.shortcutOpenSettings,
     });
     setAutoUpdate(s.autoUpdate);

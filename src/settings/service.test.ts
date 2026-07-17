@@ -61,6 +61,7 @@ describe("settings schema defaults", () => {
       popupLayout: "unknown",
       enableIdleDetection: "true",
       trayIconShape: "triangle",
+      shortcutNewTask: 42,
     } as unknown as Partial<typeof defaultSettings>);
 
     expect(merged.language).toBe(defaultSettings.language);
@@ -70,6 +71,7 @@ describe("settings schema defaults", () => {
     expect(merged.popupLayout).toBe(defaultSettings.popupLayout);
     expect(merged.enableIdleDetection).toBe(defaultSettings.enableIdleDetection);
     expect(merged.trayIconShape).toBe(defaultSettings.trayIconShape);
+    expect(merged.shortcutNewTask).toBe("");
   });
 
   it("filters malformed nested records while preserving valid settings", () => {

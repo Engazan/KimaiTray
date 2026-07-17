@@ -58,6 +58,8 @@ export default function TrayPopup() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskShortcutRequest, setNewTaskShortcutRequest] = useState(0);
+  const [editNoteRequest, setEditNoteRequest] = useState(0);
   const [idleProcessing, setIdleProcessing] = useState(false);
   const [idleActionError, setIdleActionError] = useState<string | null>(null);
   const [focusTab, setFocusTab] = useState<"recent" | "today">("recent");
@@ -74,6 +76,15 @@ export default function TrayPopup() {
     });
     return () => { unlisten.then((fn) => fn()); };
   }, [qc]);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://new-task", () => {
+      setNewTaskShortcutRequest((request) => request + 1);
+      setShowNewTask(true);
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
 
   const {
     client,
@@ -128,6 +139,10 @@ export default function TrayPopup() {
     errorMessage,
   } = useActiveTimer(client, isConfigured, refreshInterval);
 
+  useEffect(() => {
+    setEditNoteRequest(0);
+  }, [timer?.id]);
+
   const {
     pausedTimers,
     hasPausedTimers,
@@ -173,6 +188,7 @@ export default function TrayPopup() {
       client,
       (entry, payload) => {
         setShowNewTask(false);
+        setNewTaskShortcutRequest(0);
         const submitted = submittedIssueRef.current;
         submittedIssueRef.current = null;
         if (
@@ -204,6 +220,44 @@ export default function TrayPopup() {
         }
       },
     );
+
+  const pauseResumeTimerRef = useRef<() => void>(() => {});
+  pauseResumeTimerRef.current = () => {
+    if (timer) {
+      pauseTimer();
+      return;
+    }
+    const mostRecent = pausedTimers.reduce<(typeof pausedTimers)[number] | null>(
+      (latest, paused) =>
+        !latest || paused.pausedAt > latest.pausedAt ? paused : latest,
+      null,
+    );
+    if (mostRecent) resumeTimer(mostRecent.id);
+  };
+
+  const continueLastTaskRef = useRef<() => void>(() => {});
+  continueLastTaskRef.current = () => {
+    const task = tasks[0];
+    if (!task) return;
+    void startTask(
+      {
+        projectId: task.projectId,
+        activityId: task.activityId,
+        description: task.description || undefined,
+        tags: task.tags?.length ? task.tags : undefined,
+        label: task.project,
+      },
+      task.key,
+    );
+  };
+
+  const editActiveNoteRef = useRef<() => void>(() => {});
+  editActiveNoteRef.current = () => {
+    if (!timer) return;
+    setShowNewTask(false);
+    setNewTaskShortcutRequest(0);
+    setEditNoteRequest((request) => request + 1);
+  };
 
   const { editTimer, isSaving, saveError } = useEditTimer(client);
   const { hiddenKeys, hideTask, clearAll: clearHidden } = useHiddenTasks(activeConnectionId);
@@ -336,16 +390,50 @@ export default function TrayPopup() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://pause-resume-timer", () => {
+      pauseResumeTimerRef.current();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://continue-last-task", () => {
+      continueLastTaskRef.current();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://edit-active-note", () => {
+      editActiveNoteRef.current();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
   // Re-register global shortcuts when settings change
   useEffect(() => {
     registerShortcuts({
       togglePopup: shortcutSettings.shortcutTogglePopup,
       startStopTimer: shortcutSettings.shortcutStartStopTimer,
+      newTask: shortcutSettings.shortcutNewTask,
+      pauseResume: shortcutSettings.shortcutPauseResume,
+      continueLastTask: shortcutSettings.shortcutContinueLastTask,
+      editNote: shortcutSettings.shortcutEditNote,
+      openKimai: shortcutSettings.shortcutOpenKimai,
       openSettings: shortcutSettings.shortcutOpenSettings,
     }).catch(() => {});
   }, [
     shortcutSettings.shortcutTogglePopup,
     shortcutSettings.shortcutStartStopTimer,
+    shortcutSettings.shortcutNewTask,
+    shortcutSettings.shortcutPauseResume,
+    shortcutSettings.shortcutContinueLastTask,
+    shortcutSettings.shortcutEditNote,
+    shortcutSettings.shortcutOpenKimai,
     shortcutSettings.shortcutOpenSettings,
   ]);
 
@@ -470,6 +558,7 @@ export default function TrayPopup() {
     }
     if (succeeded) {
       dismissIdle();
+      setNewTaskShortcutRequest(0);
       setShowNewTask(true);
     }
   }, [client, timer, idleStartedAt, dismissIdle, qc, t]);
@@ -479,6 +568,7 @@ export default function TrayPopup() {
       if (e.key === "Escape") {
         if (showNewTask) {
           setShowNewTask(false);
+          setNewTaskShortcutRequest(0);
         } else if (!isDetached) {
           getCurrentWindow().hide();
         }
@@ -806,11 +896,14 @@ export default function TrayPopup() {
 
       {showNewTask && client ? (
         <NewTaskForm
-          key={client.connectionId}
+          key={`${client.connectionId}:${newTaskShortcutRequest}`}
           client={client}
           hasActiveTimer={!!timer}
           onSubmit={handleNewTaskSubmit}
-          onCancel={() => setShowNewTask(false)}
+          onCancel={() => {
+            setShowNewTask(false);
+            setNewTaskShortcutRequest(0);
+          }}
           isSubmitting={isStarting}
           showNote={featureFlags.featureNote}
           showTags={featureFlags.featureTags}
@@ -819,6 +912,7 @@ export default function TrayPopup() {
           showIssuePicker={issueIntegration.enabled}
           issueIntegrationConfig={issueIntegration}
           issueToken={issueToken}
+          autoFocusProject={newTaskShortcutRequest > 0}
         />
       ) : (
         <>
@@ -849,13 +943,17 @@ export default function TrayPopup() {
                     saveError={saveError}
                     compact={compactTimer}
                     focusMode={popupLayout === "focus"}
-                    showNote={featureFlags.featureNote}
+                    showNote={featureFlags.featureNote || editNoteRequest > 0}
                     showTags={featureFlags.featureTags}
                     tagSuggestions={tagSuggestions}
                     issueUrl={timerIssueUrl}
                     timeEstimate={showIssueEstimate ? estimateIssue!.timeEstimate : undefined}
                     timeSpent={showIssueEstimate ? estimateIssue!.timeSpent : undefined}
                     colorMode={colorMode}
+                    editDescriptionRequest={editNoteRequest}
+                    onEditDescriptionRequestHandled={() =>
+                      setEditNoteRequest(0)
+                    }
                   />
                 ) : (
                   <EmptyTimerState compact={compactTimer} />
@@ -1160,7 +1258,10 @@ export default function TrayPopup() {
           </div>
 
           <PopupFooterActions
-            onNewTask={() => setShowNewTask(true)}
+            onNewTask={() => {
+              setNewTaskShortcutRequest(0);
+              setShowNewTask(true);
+            }}
             showOpenKimai={openKimaiInBrowser}
             onOpenKimai={async () => {
               const { openUrl } = await import("@tauri-apps/plugin-opener");

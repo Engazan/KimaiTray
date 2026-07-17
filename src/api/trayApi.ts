@@ -117,6 +117,11 @@ export async function setPopupCornerRadius(radius: number): Promise<void> {
 export async function registerShortcuts(shortcuts: {
   togglePopup: string;
   startStopTimer: string;
+  newTask: string;
+  pauseResume: string;
+  continueLastTask: string;
+  editNote: string;
+  openKimai: string;
   openSettings: string;
 }): Promise<void> {
   await invoke("register_shortcuts", shortcuts);

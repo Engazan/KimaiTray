@@ -50,6 +50,22 @@ describe("accessible custom controls", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("opens and focuses SearchableSelect from a keyboard-flow request", async () => {
+    renderLocalized(
+      <SearchableSelect
+        options={[{ value: 1, label: "Alpha" }]}
+        value={null}
+        onChange={vi.fn()}
+        placeholder="Choose project"
+        focusRequest={1}
+      />,
+    );
+
+    const input = await screen.findByRole("combobox");
+    expect(document.activeElement).toBe(input);
+    expect(screen.getByRole("listbox")).toBeTruthy();
+  });
+
   it("associates custom select triggers with their field labels", () => {
     renderLocalized(
       <div>

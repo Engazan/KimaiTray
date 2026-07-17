@@ -1382,6 +1382,43 @@ fn build_tray_menu(
         .build()
 }
 
+pub fn show_popup_window(app: &AppHandle) {
+    if let Some(popup) = app.get_webview_window("tray-popup") {
+        if popup.is_visible().unwrap_or(false) {
+            restore_and_focus_popup(&popup);
+        } else if is_detached() {
+            let _ = popup.show();
+            restore_and_focus_popup(&popup);
+        } else {
+            if POPUP_MONITOR_MODE.load(Ordering::SeqCst) == 1 {
+                let idx = POPUP_MONITOR_INDEX.load(Ordering::SeqCst);
+                let pos = POPUP_MONITOR_POS.load(Ordering::SeqCst);
+                let _ = position_on_monitor(&popup, idx, pos);
+            } else {
+                #[cfg(target_os = "linux")]
+                if linux_uses_appindicator() {
+                    if let Some(tray) = app.tray_by_id("main") {
+                        if let Ok(Some(rect)) = tray.rect() {
+                            let _ = position_popup(&popup, &rect);
+                        }
+                    }
+                } else {
+                    let _ = position_legacy_popup(&popup);
+                }
+
+                #[cfg(not(target_os = "linux"))]
+                if let Some(tray) = app.tray_by_id("main") {
+                    if let Ok(Some(rect)) = tray.rect() {
+                        let _ = position_popup(&popup, &rect);
+                    }
+                }
+            }
+            let _ = popup.show();
+            restore_and_focus_popup(&popup);
+        }
+    }
+}
+
 pub fn toggle_popup_window(app: &AppHandle) {
     if let Some(popup) = app.get_webview_window("tray-popup") {
         if popup.is_visible().unwrap_or(false) {
@@ -1391,36 +1428,7 @@ pub fn toggle_popup_window(app: &AppHandle) {
                 let _ = popup.hide();
             }
         } else {
-            if is_detached() {
-                let _ = popup.show();
-                restore_and_focus_popup(&popup);
-            } else {
-                if POPUP_MONITOR_MODE.load(Ordering::SeqCst) == 1 {
-                    let idx = POPUP_MONITOR_INDEX.load(Ordering::SeqCst);
-                    let pos = POPUP_MONITOR_POS.load(Ordering::SeqCst);
-                    let _ = position_on_monitor(&popup, idx, pos);
-                } else {
-                    #[cfg(target_os = "linux")]
-                    if linux_uses_appindicator() {
-                        if let Some(tray) = app.tray_by_id("main") {
-                            if let Ok(Some(rect)) = tray.rect() {
-                                let _ = position_popup(&popup, &rect);
-                            }
-                        }
-                    } else {
-                        let _ = position_legacy_popup(&popup);
-                    }
-
-                    #[cfg(not(target_os = "linux"))]
-                    if let Some(tray) = app.tray_by_id("main") {
-                        if let Ok(Some(rect)) = tray.rect() {
-                            let _ = position_popup(&popup, &rect);
-                        }
-                    }
-                }
-                let _ = popup.show();
-                restore_and_focus_popup(&popup);
-            }
+            show_popup_window(app);
         }
     }
 }
@@ -1432,8 +1440,7 @@ fn refresh_popup(app: &AppHandle) {
     }
 }
 
-#[cfg(target_os = "linux")]
-fn open_kimai(app: &AppHandle) {
+pub fn open_kimai(app: &AppHandle) {
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Ok(store) = handle.store(STORE_PATH) {
