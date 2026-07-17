@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.0] - 2026-07-17
+
+### New Features
+
+- **Expanded global keyboard shortcuts** ([#24](https://github.com/Engazan/KimaiTray/issues/24)) — shortcuts can now open a new task, pause or resume the timer, continue the last task, add or edit the active timer note, and open Kimai, alongside the existing popup, stop-timer and settings actions. The new-task form can also be submitted with Ctrl/Cmd + Enter
+- **Full-screen timer reminder** — an optional configurable reminder now appears after no timer has been running for a chosen number of minutes. It fires once per timer-free period and includes a safe preview button in Settings
+- **Full-screen idle reminder** — idle detection now presents its timer choices in a prominent full-screen prompt, where you can keep the idle time, stop at the start of the idle period, stop now, or stop and create a new task. Settings include a preview that never changes the timer
+- **What's new after updates** — after an in-app update, KimaiTray opens the release changelog automatically. The same notes are now used for GitHub releases, with a preview available in Settings
+
+### Bug Fixes
+
+- **Expanded shortcuts register correctly** — the complete shortcut configuration is now sent to the native layer as one grouped request, so the newly added shortcut actions are registered reliably
+
 ## [0.18.0] - 2026-07-14
 
 ### New Features
