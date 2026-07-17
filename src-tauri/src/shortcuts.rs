@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::sync::Mutex;
 
 use log::{error, info};
+use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_plugin_store::StoreExt;
@@ -14,6 +15,19 @@ type ShortcutSet = [String; 8];
 // Protect the complete unregister/register/rollback transaction. Separate
 // snapshots allow concurrent settings windows to interleave OS registrations.
 static SHORTCUT_STATE: Mutex<Option<ShortcutSet>> = Mutex::new(None);
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShortcutRequest {
+    toggle_popup: String,
+    start_stop_timer: String,
+    new_task: String,
+    pause_resume: String,
+    continue_last_task: String,
+    edit_note: String,
+    open_kimai: String,
+    open_settings: String,
+}
 
 fn validate_shortcuts(values: [&str; 8]) -> Result<(), String> {
     let mut ids = HashSet::new();
@@ -139,17 +153,17 @@ fn register_handlers(app: &AppHandle, shortcuts: &ShortcutSet) -> Result<(), Str
 }
 
 #[tauri::command]
-pub fn register_shortcuts(
-    app: AppHandle,
-    toggle_popup: String,
-    start_stop_timer: String,
-    new_task: String,
-    pause_resume: String,
-    continue_last_task: String,
-    edit_note: String,
-    open_kimai: String,
-    open_settings: String,
-) -> Result<(), String> {
+pub fn register_shortcuts(app: AppHandle, request: ShortcutRequest) -> Result<(), String> {
+    let ShortcutRequest {
+        toggle_popup,
+        start_stop_timer,
+        new_task,
+        pause_resume,
+        continue_last_task,
+        edit_note,
+        open_kimai,
+        open_settings,
+    } = request;
     validate_shortcuts([
         &toggle_popup,
         &start_stop_timer,
@@ -240,24 +254,24 @@ pub fn register_from_store(app: &AppHandle) {
         return;
     }
 
-    if let Err(e) = register_shortcuts(
-        app.clone(),
-        toggle,
-        timer,
+    let request = ShortcutRequest {
+        toggle_popup: toggle,
+        start_stop_timer: timer,
         new_task,
         pause_resume,
-        continue_last,
+        continue_last_task: continue_last,
         edit_note,
         open_kimai,
-        settings,
-    ) {
+        open_settings: settings,
+    };
+    if let Err(e) = register_shortcuts(app.clone(), request) {
         error!("Failed to register shortcuts from store: {e}");
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::validate_shortcuts;
+    use super::{validate_shortcuts, ShortcutRequest};
 
     #[test]
     fn validates_complete_shortcut_set_before_registration() {
@@ -287,5 +301,23 @@ mod tests {
             "Alt+T", "Alt+T", "Alt+N", "Alt+P", "Alt+L", "Alt+D", "Alt+O", "",
         ])
         .is_err());
+    }
+
+    #[test]
+    fn deserializes_shortcut_request_from_frontend_fields() {
+        let request: ShortcutRequest = serde_json::from_value(serde_json::json!({
+            "togglePopup": "Alt+T",
+            "startStopTimer": "Alt+S",
+            "newTask": "Alt+N",
+            "pauseResume": "Alt+P",
+            "continueLastTask": "Alt+L",
+            "editNote": "Alt+D",
+            "openKimai": "Alt+O",
+            "openSettings": "Alt+C"
+        }))
+        .expect("frontend shortcut request should deserialize");
+
+        assert_eq!(request.toggle_popup, "Alt+T");
+        assert_eq!(request.open_settings, "Alt+C");
     }
 }

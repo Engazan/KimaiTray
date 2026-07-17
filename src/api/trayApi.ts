@@ -124,7 +124,7 @@ export async function registerShortcuts(shortcuts: {
   openKimai: string;
   openSettings: string;
 }): Promise<void> {
-  await invoke("register_shortcuts", shortcuts);
+  await invoke("register_shortcuts", { request: shortcuts });
 }
 
 export async function setDisplayMode(mode: string): Promise<void> {
