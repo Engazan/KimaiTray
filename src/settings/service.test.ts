@@ -57,6 +57,7 @@ describe("settings schema defaults", () => {
       language: "fr",
       refreshInterval: "600",
       idleThresholdMinutes: -20,
+      noTimerReminderMinutes: 2000,
       popupMonitorIndex: 999,
       popupLayout: "unknown",
       enableIdleDetection: "true",
@@ -67,6 +68,7 @@ describe("settings schema defaults", () => {
     expect(merged.language).toBe(defaultSettings.language);
     expect(merged.refreshInterval).toBe(defaultSettings.refreshInterval);
     expect(merged.idleThresholdMinutes).toBe(1);
+    expect(merged.noTimerReminderMinutes).toBe(1440);
     expect(merged.popupMonitorIndex).toBe(255);
     expect(merged.popupLayout).toBe(defaultSettings.popupLayout);
     expect(merged.enableIdleDetection).toBe(defaultSettings.enableIdleDetection);

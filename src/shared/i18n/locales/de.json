@@ -179,6 +179,22 @@
     "showSeconds": "Sekunden anzeigen",
     "showSecondsDescription": "HH:MM:SS statt HH:MM anzeigen"
   },
+  "timerReminder": {
+    "title": "Timer-Erinnerung",
+    "description": "Zeigt eine Vollbild-Erinnerung an, wenn keine Zeit erfasst wird.",
+    "enable": "Timer-Erinnerung aktivieren",
+    "enableDescription": "Warnen, wenn zu lange kein Timer aktiv ist",
+    "threshold": "Erinnern nach",
+    "thresholdDescription": "Minuten ohne aktiven Timer bis zur Anzeige der Erinnerung",
+    "test": "Erinnerung testen",
+    "testDescription": "Vollbild-Erinnerung sofort anzeigen",
+    "testButton": "Test anzeigen",
+    "testing": "Wird geöffnet…",
+    "alertTitle": "Kein Timer läuft",
+    "alertDescription": "Seit mindestens {{minutes}} Min. ist kein Timer aktiv.",
+    "dismiss": "Verstanden",
+    "escapeHint": "Zum Schließen Esc drücken"
+  },
   "idle": {
     "title": "Leerlauferkennung",
     "description": "Erkennen Sie, wenn Sie abwesend sind, und entscheiden Sie, was mit dem laufenden Timer geschieht.",

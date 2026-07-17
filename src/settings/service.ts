@@ -54,6 +54,9 @@ export const defaultSettings: AppSettings = {
   idleAction: "ask",
   showIdleNotification: true,
 
+  enableNoTimerReminder: false,
+  noTimerReminderMinutes: 15,
+
   theme: "light",
   uiSize: "default",
   roundedPopupCorners: true,
@@ -352,6 +355,16 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     showIdleNotification: booleanValue(
       value.showIdleNotification,
       defaultSettings.showIdleNotification,
+    ),
+    enableNoTimerReminder: booleanValue(
+      value.enableNoTimerReminder,
+      defaultSettings.enableNoTimerReminder,
+    ),
+    noTimerReminderMinutes: integerValue(
+      value.noTimerReminderMinutes,
+      defaultSettings.noTimerReminderMinutes,
+      1,
+      1440,
     ),
     theme: enumValue(
       value.theme,

@@ -179,6 +179,22 @@
     "showSeconds": "Show seconds",
     "showSecondsDescription": "Display HH:MM:SS instead of HH:MM"
   },
+  "timerReminder": {
+    "title": "Timer reminder",
+    "description": "Show a full-screen reminder when no time is being tracked.",
+    "enable": "Enable timer reminder",
+    "enableDescription": "Warn when there has been no active timer for too long",
+    "threshold": "Reminder after",
+    "thresholdDescription": "Minutes without an active timer before showing the reminder",
+    "test": "Test reminder",
+    "testDescription": "Show the full-screen reminder immediately",
+    "testButton": "Show test",
+    "testing": "Opening…",
+    "alertTitle": "No timer is running",
+    "alertDescription": "You have not had an active timer for at least {{minutes}} min.",
+    "dismiss": "Got it",
+    "escapeHint": "Press Esc to close"
+  },
   "idle": {
     "title": "Idle Detection",
     "description": "Detect when you step away and decide what happens to the running timer.",

@@ -37,6 +37,21 @@
         "visible": false,
         "center": true,
         "resizable": true
+      },
+      {
+        "label": "timer-reminder",
+        "title": "KimaiTray — Timer Reminder",
+        "url": "/",
+        "width": 800,
+        "height": 600,
+        "visible": false,
+        "center": true,
+        "decorations": false,
+        "closable": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "shadow": false,
+        "transparent": true
       }
     ],
     "security": {

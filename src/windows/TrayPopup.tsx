@@ -33,6 +33,7 @@ import { useFavorites } from "../hooks/useFavorites";
 import { useKimaiTags } from "../hooks/useKimaiTags";
 import { useDeleteTimesheet } from "../hooks/useDeleteTimesheet";
 import { useIdleDetection } from "../hooks/useIdleDetection";
+import { useNoTimerReminder } from "../hooks/useNoTimerReminder";
 import { setTrayTooltip, setTrayTitle, setTrayIcon, startTrayTicker, stopTrayTicker, updateTrayMenu, registerShortcuts, setAlwaysOnTop } from "../api/trayApi";
 import { formatAcceleratorForDisplay } from "../settings/Controls";
 import { useAppearance } from "../hooks/useAppearance";
@@ -93,6 +94,7 @@ export default function TrayPopup() {
     baseUrl,
     openKimaiInBrowser,
     idleSettings,
+    timerReminderSettings,
     traySettings,
     shortcutSettings,
     featureFlags,
@@ -138,6 +140,16 @@ export default function TrayPopup() {
     status,
     errorMessage,
   } = useActiveTimer(client, isConfigured, refreshInterval);
+
+  useNoTimerReminder({
+    enabled: timerReminderSettings.enabled,
+    thresholdMinutes: timerReminderSettings.thresholdMinutes,
+    presence: timer
+      ? "running"
+      : status === "connected"
+        ? "stopped"
+        : "unknown",
+  });
 
   useEffect(() => {
     setEditNoteRequest(0);

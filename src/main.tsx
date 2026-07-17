@@ -30,6 +30,8 @@ async function renderApp() {
   const WindowApp =
     label === "settings"
       ? (await import("./windows/Settings")).default
+      : label === "timer-reminder"
+        ? (await import("./windows/TimerReminder")).default
       : (await import("./windows/TrayPopup")).default;
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>

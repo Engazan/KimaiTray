@@ -91,6 +91,9 @@ export interface AppSettings {
   idleAction: "ask" | "stop" | "discard" | "continue";
   showIdleNotification: boolean;
 
+  enableNoTimerReminder: boolean;
+  noTimerReminderMinutes: number;
+
   theme: "light" | "dark" | "transparent";
   uiSize: "small" | "default" | "large" | "scale130" | "scale145" | "scale160";
   roundedPopupCorners: boolean;
@@ -169,6 +172,7 @@ export type SettingsSection =
   | "tray"
   | "features"
   | "integrations"
+  | "reminder"
   | "idle"
   | "shortcuts"
   | "test"

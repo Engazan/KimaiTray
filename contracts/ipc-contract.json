@@ -18,6 +18,8 @@
     "idleThresholdMinutes",
     "idleAction",
     "showIdleNotification",
+    "enableNoTimerReminder",
+    "noTimerReminderMinutes",
     "theme",
     "uiSize",
     "roundedPopupCorners",

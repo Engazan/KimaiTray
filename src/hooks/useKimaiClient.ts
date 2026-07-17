@@ -15,6 +15,11 @@ interface IdleSettings {
   showIdleNotification: boolean;
 }
 
+interface TimerReminderSettings {
+  enabled: boolean;
+  thresholdMinutes: number;
+}
+
 interface TraySettings {
   showElapsedInTray: boolean;
   showTaskNameInTray: boolean;
@@ -51,6 +56,7 @@ interface UseKimaiClientResult {
   baseUrl: string;
   openKimaiInBrowser: boolean;
   idleSettings: IdleSettings;
+  timerReminderSettings: TimerReminderSettings;
   traySettings: TraySettings;
   shortcutSettings: ShortcutSettings;
   featureFlags: FeatureFlags;
@@ -70,6 +76,11 @@ const defaultIdleSettings: IdleSettings = {
   idleThresholdMinutes: 5,
   idleAction: "ask",
   showIdleNotification: true,
+};
+
+const defaultTimerReminderSettings: TimerReminderSettings = {
+  enabled: false,
+  thresholdMinutes: 15,
 };
 
 const defaultTraySettings: TraySettings = {
@@ -100,6 +111,8 @@ export function useKimaiClient(): UseKimaiClientResult {
   const [activeConnectionId, setActiveConnectionId] = useState("");
   const [idleSettings, setIdleSettings] =
     useState<IdleSettings>(defaultIdleSettings);
+  const [timerReminderSettings, setTimerReminderSettings] =
+    useState<TimerReminderSettings>(defaultTimerReminderSettings);
   const [traySettings, setTraySettings] =
     useState<TraySettings>(defaultTraySettings);
   const [autoUpdate, setAutoUpdate] = useState(true);
@@ -162,6 +175,10 @@ export function useKimaiClient(): UseKimaiClientResult {
       idleThresholdMinutes: s.idleThresholdMinutes,
       idleAction: s.idleAction,
       showIdleNotification: s.showIdleNotification,
+    });
+    setTimerReminderSettings({
+      enabled: s.enableNoTimerReminder,
+      thresholdMinutes: s.noTimerReminderMinutes,
     });
     setTraySettings({
       showElapsedInTray: s.showElapsedInTray,
@@ -290,6 +307,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     baseUrl,
     openKimaiInBrowser,
     idleSettings,
+    timerReminderSettings,
     traySettings,
     shortcutSettings,
     featureFlags,

@@ -179,6 +179,22 @@
     "showSeconds": "Zobrazovat sekundy",
     "showSecondsDescription": "Zobrazovat HH:MM:SS místo HH:MM"
   },
+  "timerReminder": {
+    "title": "Upozornění na časovač",
+    "description": "Zobrazí upozornění přes celou obrazovku, když se nezaznamenává čas.",
+    "enable": "Zapnout upozornění na časovač",
+    "enableDescription": "Upozornit, když příliš dlouho není aktivní žádný časovač",
+    "threshold": "Upozornit po",
+    "thresholdDescription": "Počet minut bez aktivního časovače před zobrazením upozornění",
+    "test": "Otestovat upozornění",
+    "testDescription": "Okamžitě zobrazit upozornění přes celou obrazovku",
+    "testButton": "Zobrazit test",
+    "testing": "Otevírá se…",
+    "alertTitle": "Není spuštěný žádný časovač",
+    "alertDescription": "Čas se nezaznamenává už alespoň {{minutes}} min.",
+    "dismiss": "Rozumím",
+    "escapeHint": "Zavřete klávesou Esc"
+  },
   "idle": {
     "title": "Detekce nečinnosti",
     "description": "Zjistěte, kdy odejdete a rozhodněte co se stane s běžícím časovačem.",
