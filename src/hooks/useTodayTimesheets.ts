@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
 import { getTimesheets } from "../api/timesheetApi";
@@ -36,6 +36,19 @@ export function useTodayTimesheets(
     staleTime: 15_000,
   });
 
+  const hasRunningEntry = (timesheetsQ.data ?? []).some(
+    (entry) => entry.end === null,
+  );
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!hasRunningEntry) return;
+    const tick = () => setNowMs(Date.now());
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [hasRunningEntry]);
+
   const neededIds = useMemo(() => {
     const raw = timesheetsQ.data ?? [];
     const projectIds = [...new Set(raw.map((e) => extractId(e.project)))];
@@ -66,7 +79,7 @@ export function useTodayTimesheets(
       let duration = entry.duration;
       if (isRunning) {
         duration = Math.floor(
-          (Date.now() - parseKimaiDate(entry.begin).getTime()) / 1000,
+          (nowMs - parseKimaiDate(entry.begin).getTime()) / 1000,
         );
       }
 
@@ -102,7 +115,7 @@ export function useTodayTimesheets(
     }
 
     return { entries: sorted, totalDuration: total };
-  }, [timesheetsQ.data, projects, activities, customers, sortAsc]);
+  }, [timesheetsQ.data, projects, activities, customers, sortAsc, nowMs]);
 
   const visibleEntries = expanded
     ? entries

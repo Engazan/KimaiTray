@@ -214,6 +214,13 @@ export default function TrayPopup() {
   );
 
   const today = useTodayTimesheets(client, isConfigured, refreshInterval);
+  const dailyGoal = featureFlags.featureDailyGoal
+    ? {
+        requiredMinutes: featureFlags.dailyGoalMinutes,
+        fullMinutes: featureFlags.fullDailyGoalMinutes,
+        isTimerRunning: !!timer,
+      }
+    : undefined;
 
   const submittedIssueRef = useRef<{
     payload: StartTaskPayload;
@@ -1164,6 +1171,7 @@ export default function TrayPopup() {
                     isError={today.isError}
                     onRetry={() => today.refetch()}
                     colorMode={colorMode}
+                    dailyGoal={dailyGoal}
                   />
                 )}
               </>
@@ -1214,6 +1222,7 @@ export default function TrayPopup() {
                     isError={today.isError}
                     onRetry={() => today.refetch()}
                     colorMode={colorMode}
+                    dailyGoal={dailyGoal}
                   />
                 ) : null}
               </>
@@ -1235,6 +1244,7 @@ export default function TrayPopup() {
                       isError={today.isError}
                       onRetry={() => today.refetch()}
                       colorMode={colorMode}
+                      dailyGoal={dailyGoal}
                     />
                     <div className="mx-3 border-t border-gray-100 dark:border-gray-800" />
                   </>
@@ -1326,6 +1336,7 @@ export default function TrayPopup() {
                           isError={today.isError}
                           onRetry={() => today.refetch()}
                           colorMode={colorMode}
+                          dailyGoal={dailyGoal}
                         />
                     </CollapsibleTraySection>
                   </>
@@ -1373,6 +1384,7 @@ export default function TrayPopup() {
                       isError={today.isError}
                       onRetry={() => today.refetch()}
                       colorMode={colorMode}
+                      dailyGoal={dailyGoal}
                     />
                   </>
                 )}

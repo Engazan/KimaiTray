@@ -15,19 +15,93 @@ interface Props {
   connectionId: string;
 }
 
+function GoalTimeInput({
+  value,
+  onChange,
+  hoursLabel,
+  minutesLabel,
+  minMinutes = 15,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  hoursLabel: string;
+  minutesLabel: string;
+  minMinutes?: number;
+}) {
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  const update = (nextHours: number, nextMinutes: number) => {
+    if (!Number.isFinite(nextHours) || !Number.isFinite(nextMinutes)) return;
+    const total = Math.round(nextHours) * 60 + Math.round(nextMinutes);
+    onChange(Math.min(1440, Math.max(minMinutes, total)));
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <label className="flex items-center gap-1">
+        <span className="sr-only">{hoursLabel}</span>
+        <input
+          type="number"
+          value={hours}
+          min={0}
+          max={24}
+          aria-label={hoursLabel}
+          onChange={(event) => update(Number(event.target.value), minutes)}
+          className="w-14 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-center text-[13px] tabular-nums text-gray-800 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+        />
+        <span className="text-[11px] text-gray-400 dark:text-gray-500">h</span>
+      </label>
+      <label className="flex items-center gap-1">
+        <span className="sr-only">{minutesLabel}</span>
+        <input
+          type="number"
+          value={minutes}
+          min={0}
+          max={59}
+          aria-label={minutesLabel}
+          onChange={(event) => update(hours, Number(event.target.value))}
+          className="w-14 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-center text-[13px] tabular-nums text-gray-800 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+        />
+        <span className="text-[11px] text-gray-400 dark:text-gray-500">min</span>
+      </label>
+    </div>
+  );
+}
+
 export default function FeaturesSection({ settings, update, connectionId }: Props) {
   const { t } = useTranslation();
-  const config = settings.features[connectionId] ?? defaultFeatureSettings;
+  const config = {
+    ...defaultFeatureSettings,
+    ...(settings.features[connectionId] ?? {}),
+  };
   const conn = settings.connections.find((c) => c.id === connectionId);
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
 
   const updateFeature = useCallback(
     <K extends keyof FeatureSettings>(key: K, value: FeatureSettings[K]) => {
       if (!connectionId) return;
-      const current = settings.features[connectionId] ?? defaultFeatureSettings;
+      const current = {
+        ...defaultFeatureSettings,
+        ...(settings.features[connectionId] ?? {}),
+      };
       update("features", {
         ...settings.features,
         [connectionId]: { ...current, [key]: value },
+      });
+    },
+    [connectionId, settings.features, update],
+  );
+
+  const updateFeatures = useCallback(
+    (values: Partial<FeatureSettings>) => {
+      if (!connectionId) return;
+      const current = {
+        ...defaultFeatureSettings,
+        ...(settings.features[connectionId] ?? {}),
+      };
+      update("features", {
+        ...settings.features,
+        [connectionId]: { ...current, ...values },
       });
     },
     [connectionId, settings.features, update],
@@ -115,6 +189,58 @@ export default function FeaturesSection({ settings, update, connectionId }: Prop
           />
         </SettingsRow>
 
+      </SettingsList>
+
+      <SettingsList>
+        <SettingsRow
+          label={t("featuresSettings.dailyGoal")}
+          description={t("featuresSettings.dailyGoalDescription")}
+        >
+          <Toggle
+            checked={config.featureDailyGoal}
+            onChange={(value) => updateFeature("featureDailyGoal", value)}
+          />
+        </SettingsRow>
+        {config.featureDailyGoal && (
+          <>
+            <SettingsRow
+              label={t("featuresSettings.requiredDailyGoal")}
+              description={t("featuresSettings.requiredDailyGoalDescription")}
+            >
+              <GoalTimeInput
+                value={config.dailyGoalMinutes}
+                hoursLabel={t("featuresSettings.requiredGoalHours")}
+                minutesLabel={t("featuresSettings.requiredGoalMinutes")}
+                onChange={(dailyGoalMinutes) =>
+                  updateFeatures({
+                    dailyGoalMinutes,
+                    fullDailyGoalMinutes: Math.max(
+                      dailyGoalMinutes,
+                      config.fullDailyGoalMinutes,
+                    ),
+                  })
+                }
+              />
+            </SettingsRow>
+            <SettingsRow
+              label={t("featuresSettings.fullDailyGoal")}
+              description={t("featuresSettings.fullDailyGoalDescription")}
+            >
+              <GoalTimeInput
+                value={config.fullDailyGoalMinutes}
+                minMinutes={config.dailyGoalMinutes}
+                hoursLabel={t("featuresSettings.fullGoalHours")}
+                minutesLabel={t("featuresSettings.fullGoalMinutes")}
+                onChange={(fullDailyGoalMinutes) =>
+                  updateFeature(
+                    "fullDailyGoalMinutes",
+                    Math.max(config.dailyGoalMinutes, fullDailyGoalMinutes),
+                  )
+                }
+              />
+            </SettingsRow>
+          </>
+        )}
       </SettingsList>
 
       <SettingsList>

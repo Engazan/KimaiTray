@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createKimaiClient, type KimaiClient } from "../api/kimaiClient";
 import { getConnectionToken } from "../api/connectionTokenStore";
 import { loadSettings, onSettingsChange, patchSettings, defaultFeatureSettings } from "../settings/service";
-import type { SavedConnection, ColorMode } from "../types";
+import type { SavedConnection, ColorMode, FeatureSettings } from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
 import { getIssueToken } from "../integrations/issues/issueTokenStore";
 import { LatestRequest } from "../utils/latestRequest";
@@ -40,15 +40,6 @@ interface ShortcutSettings {
 
 type PopupLayout = "classic" | "focus" | "taskbar" | "timeline";
 
-interface FeatureFlags {
-  featureNote: boolean;
-  featureTags: boolean;
-  featurePausedTimerDescriptionHover: boolean;
-  featureCustomerSelect: boolean;
-  featureCustomStartTime: boolean;
-  featureCategoryMode: boolean;
-}
-
 interface UseKimaiClientResult {
   client: KimaiClient | null;
   isConfigured: boolean;
@@ -59,7 +50,7 @@ interface UseKimaiClientResult {
   timerReminderSettings: TimerReminderSettings;
   traySettings: TraySettings;
   shortcutSettings: ShortcutSettings;
-  featureFlags: FeatureFlags;
+  featureFlags: FeatureSettings;
   autoUpdate: boolean;
   popupLayout: PopupLayout;
   colorMode: ColorMode;
@@ -119,14 +110,8 @@ export function useKimaiClient(): UseKimaiClientResult {
   const [popupLayout, setPopupLayout] = useState<PopupLayout>("classic");
   const [colorMode, setColorMode] = useState<ColorMode>("kimai");
   const [displayMode, setDisplayMode] = useState<"tray" | "detached">("tray");
-  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
-    featureNote: true,
-    featureTags: false,
-    featurePausedTimerDescriptionHover: false,
-    featureCustomerSelect: true,
-    featureCustomStartTime: true,
-    featureCategoryMode: false,
-  });
+  const [featureFlags, setFeatureFlags] =
+    useState<FeatureSettings>(defaultFeatureSettings);
   const [shortcutSettings, setShortcutSettings] =
     useState<ShortcutSettings>(defaultShortcutSettings);
   const [issueIntegration, setIssueIntegration] =

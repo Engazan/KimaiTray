@@ -120,6 +120,9 @@ describe("settings schema defaults", () => {
       featurePausedTimerDescriptionHover: false,
       featureCustomerSelect: true,
       featureCustomStartTime: true,
+      featureDailyGoal: false,
+      dailyGoalMinutes: 450,
+      fullDailyGoalMinutes: 480,
       featureCategoryMode: false,
     });
     expect(merged.issueIntegrations["connection-a"]).toMatchObject({
@@ -128,6 +131,24 @@ describe("settings schema defaults", () => {
       baseUrl: "https://git.test",
       filterLabels: ["bug"],
       filterLabelsMode: "exclude",
+    });
+  });
+
+  it("disables daily goals by default and keeps the full goal after the required goal", () => {
+    const merged = mergeSettings({
+      features: {
+        "connection-a": {
+          featureDailyGoal: "invalid",
+          dailyGoalMinutes: 600,
+          fullDailyGoalMinutes: 300,
+        },
+      },
+    } as unknown as Partial<typeof defaultSettings>);
+
+    expect(merged.features["connection-a"]).toMatchObject({
+      featureDailyGoal: false,
+      dailyGoalMinutes: 600,
+      fullDailyGoalMinutes: 600,
     });
   });
 

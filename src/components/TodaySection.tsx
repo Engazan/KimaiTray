@@ -2,6 +2,13 @@ import { useTranslation } from "react-i18next";
 import type { TodayEntry, ColorMode } from "../types";
 import TodayEntryItem from "./TodayEntryItem";
 import { formatDuration } from "../utils/time";
+import DailyGoalProgress from "./DailyGoalProgress";
+
+export interface DailyGoalSettings {
+  requiredMinutes: number;
+  fullMinutes: number;
+  isTimerRunning: boolean;
+}
 
 interface TodaySectionProps {
   entries: TodayEntry[];
@@ -16,6 +23,7 @@ interface TodaySectionProps {
   isError: boolean;
   onRetry: () => void;
   colorMode?: ColorMode;
+  dailyGoal?: DailyGoalSettings;
 }
 
 function LoadingSkeleton() {
@@ -42,6 +50,7 @@ export default function TodaySection({
   isError,
   onRetry,
   colorMode = "kimai",
+  dailyGoal,
 }: TodaySectionProps) {
   const { t } = useTranslation();
 
@@ -69,6 +78,15 @@ export default function TodaySection({
           </button>
         )}
       </div>
+
+      {dailyGoal && !isLoading && !isError && (
+        <DailyGoalProgress
+          totalDuration={totalDuration}
+          requiredMinutes={dailyGoal.requiredMinutes}
+          fullMinutes={dailyGoal.fullMinutes}
+          isTimerRunning={dailyGoal.isTimerRunning}
+        />
+      )}
 
       {/* Content */}
       <div className="px-1.5 pb-1">

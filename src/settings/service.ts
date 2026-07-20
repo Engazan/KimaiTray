@@ -27,6 +27,9 @@ export const defaultFeatureSettings: FeatureSettings = {
   featurePausedTimerDescriptionHover: false,
   featureCustomerSelect: true,
   featureCustomStartTime: true,
+  featureDailyGoal: false,
+  dailyGoalMinutes: 7 * 60 + 30,
+  fullDailyGoalMinutes: 8 * 60,
   featureCategoryMode: false,
 };
 
@@ -191,6 +194,12 @@ function normalizeFeatures(value: unknown): Record<string, FeatureSettings> {
   const normalized: Record<string, FeatureSettings> = {};
   for (const [id, featureValue] of Object.entries(value)) {
     if (!id || id.length > 256 || !isRecord(featureValue)) continue;
+    const dailyGoalMinutes = integerValue(
+      featureValue.dailyGoalMinutes,
+      defaultFeatureSettings.dailyGoalMinutes,
+      15,
+      1440,
+    );
     normalized[id] = {
       featureNote: booleanValue(
         featureValue.featureNote,
@@ -211,6 +220,20 @@ function normalizeFeatures(value: unknown): Record<string, FeatureSettings> {
       featureCustomStartTime: booleanValue(
         featureValue.featureCustomStartTime,
         defaultFeatureSettings.featureCustomStartTime,
+      ),
+      featureDailyGoal: booleanValue(
+        featureValue.featureDailyGoal,
+        defaultFeatureSettings.featureDailyGoal,
+      ),
+      dailyGoalMinutes,
+      fullDailyGoalMinutes: Math.max(
+        dailyGoalMinutes,
+        integerValue(
+          featureValue.fullDailyGoalMinutes,
+          defaultFeatureSettings.fullDailyGoalMinutes,
+          15,
+          1440,
+        ),
       ),
       featureCategoryMode: booleanValue(
         featureValue.featureCategoryMode,
@@ -525,6 +548,9 @@ export async function loadSettings(): Promise<AppSettings> {
           rawObj.featureCustomStartTime,
           defaultFeatureSettings.featureCustomStartTime,
         ),
+        featureDailyGoal: defaultFeatureSettings.featureDailyGoal,
+        dailyGoalMinutes: defaultFeatureSettings.dailyGoalMinutes,
+        fullDailyGoalMinutes: defaultFeatureSettings.fullDailyGoalMinutes,
         featureCategoryMode: defaultFeatureSettings.featureCategoryMode,
       };
       for (const conn of settings.connections ?? []) {

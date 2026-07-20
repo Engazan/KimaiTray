@@ -62,6 +62,12 @@ export interface FeatureSettings {
   featurePausedTimerDescriptionHover: boolean;
   featureCustomerSelect: boolean;
   featureCustomStartTime: boolean;
+  /** Show configurable required/full daily work goals in the Today section. */
+  featureDailyGoal: boolean;
+  /** Required daily work duration in minutes. */
+  dailyGoalMinutes: number;
+  /** Full daily work duration in minutes; always at least the required goal. */
+  fullDailyGoalMinutes: number;
   /** Category Mode: replace the recent/favorites panel with a fixed 2-level category
    *  menu for the Customer Success / Helpdesk team. Off by default. */
   featureCategoryMode: boolean;
