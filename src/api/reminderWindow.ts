@@ -1,5 +1,6 @@
 import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
+import { currentPlatform } from "../platform";
 
 export const REMINDER_WINDOW_LABEL = "timer-reminder";
 export const REMINDER_SHOW_EVENT = "kimai://reminder-show";
@@ -79,6 +80,18 @@ export async function showFullscreenReminder(
 ): Promise<boolean> {
   const reminder = await Window.getByLabel(REMINDER_WINDOW_LABEL);
   if (!reminder) return false;
+  const platform = currentPlatform();
+  if (platform.os === "linux" && platform.session === "x11") {
+    // The previous simple-fullscreen surface is disposed when the reminder is
+    // dismissed. Map its replacement before rendering so WebKitGTK paints the
+    // new X11 surface instead of retaining translucent compositor layers.
+    await reminder.setSimpleFullscreen(true);
+    await reminder.show();
+    await reminder.setSimpleFullscreen(true);
+    await sendContentAndWaitForRender(payload);
+    await reminder.setFocus();
+    return true;
+  }
   await sendContentAndWaitForRender(payload);
   // Keep the pre-show request for macOS and Windows, where it avoids mapping
   // the configured 800x600 window before fullscreen is applied. Simple
@@ -100,5 +113,10 @@ export async function updateFullscreenReminder(
 
 export async function hideFullscreenReminder(): Promise<void> {
   const reminder = await Window.getByLabel(REMINDER_WINDOW_LABEL);
-  await reminder?.hide();
+  if (!reminder) return;
+  const platform = currentPlatform();
+  if (platform.os === "linux" && platform.session === "x11") {
+    await reminder.setSimpleFullscreen(false);
+  }
+  await reminder.hide();
 }

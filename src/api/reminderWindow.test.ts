@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   emitTo: vi.fn(),
   getCurrentWindow: vi.fn(),
   getByLabel: vi.fn(),
+  currentPlatform: vi.fn(),
   listen: vi.fn(),
   unlisten: vi.fn(),
   setSimpleFullscreen: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: mocks.getCurrentWindow,
   Window: { getByLabel: mocks.getByLabel },
 }));
+vi.mock("../platform", () => ({ currentPlatform: mocks.currentPlatform }));
 
 import {
   hideFullscreenReminder,
@@ -34,6 +36,7 @@ let acknowledgeRender:
 describe("fullscreen reminder window bridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.currentPlatform.mockReturnValue({ os: "windows", session: "native" });
     acknowledgeRender = undefined;
     mocks.listen.mockImplementation(async (_event, handler) => {
       acknowledgeRender = handler;
@@ -117,8 +120,33 @@ describe("fullscreen reminder window bridge", () => {
     expect(mocks.show).not.toHaveBeenCalled();
   });
 
+  it("renders after mapping the replacement fullscreen surface on Linux X11", async () => {
+    mocks.currentPlatform.mockReturnValue({ os: "linux", session: "x11" });
+
+    await expect(showFullscreenReminder({ kind: "timer" })).resolves.toBe(true);
+
+    expect(mocks.show).toHaveBeenCalledOnce();
+    expect(mocks.setSimpleFullscreen).toHaveBeenCalledTimes(2);
+    expect(mocks.emitTo).toHaveBeenCalledOnce();
+    expect(mocks.show.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.emitTo.mock.invocationCallOrder[0],
+    );
+  });
+
   it("hides the shared window when it exists", async () => {
     await hideFullscreenReminder();
     expect(mocks.hide).toHaveBeenCalledOnce();
+    expect(mocks.setSimpleFullscreen).not.toHaveBeenCalledWith(false);
+  });
+
+  it("disposes the fullscreen surface before hiding on Linux X11", async () => {
+    mocks.currentPlatform.mockReturnValue({ os: "linux", session: "x11" });
+
+    await hideFullscreenReminder();
+
+    expect(mocks.setSimpleFullscreen).toHaveBeenCalledWith(false);
+    expect(mocks.setSimpleFullscreen.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.hide.mock.invocationCallOrder[0],
+    );
   });
 });

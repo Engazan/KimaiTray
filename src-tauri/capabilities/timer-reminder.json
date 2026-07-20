@@ -8,6 +8,7 @@
     "core:event:allow-unlisten",
     "core:event:allow-emit-to",
     "core:window:allow-hide",
+    "core:window:allow-set-simple-fullscreen",
     "store:allow-load",
     "store:allow-get",
     "log:allow-log"

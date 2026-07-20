@@ -17,6 +17,7 @@ import {
 import { defaultSettings, loadSettings, onSettingsChange } from "../settings/service";
 import { useLanguageSync } from "../hooks/useLanguageSync";
 import { logger } from "../utils/logger";
+import { currentPlatform } from "../platform";
 
 function applyAppearance(settings: AppSettings) {
   document.documentElement.dataset.accent = settings.accentStyle;
@@ -47,6 +48,17 @@ function formatTime(iso: string): string {
 
 export default function TimerReminder() {
   const { t } = useTranslation();
+  const dismiss = useCallback(() => {
+    const dismissWindow = async () => {
+      const win = getCurrentWindow();
+      const platform = currentPlatform();
+      if (platform.os === "linux" && platform.session === "x11") {
+        await win.setSimpleFullscreen(false);
+      }
+      await win.hide();
+    };
+    void dismissWindow();
+  }, []);
   const [thresholdMinutes, setThresholdMinutes] = useState(
     defaultSettings.noTimerReminderMinutes,
   );
@@ -110,12 +122,12 @@ export default function TimerReminder() {
       if (content?.kind === "idle" && !content.test) {
         void sendIdleAction("continue");
       } else {
-        void getCurrentWindow().hide();
+        dismiss();
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [content, sendIdleAction]);
+  }, [content, dismiss, sendIdleAction]);
 
   if (!content) {
     return <main aria-hidden="true" className="h-screen w-screen bg-slate-950" />;
@@ -168,7 +180,7 @@ export default function TimerReminder() {
             <button
               type="button"
               autoFocus
-              onClick={() => void getCurrentWindow().hide()}
+              onClick={dismiss}
               className={`${buttonBase} mt-8 bg-amber-500 text-slate-950 hover:bg-amber-400`}
             >
               {t("idle.closeTest")}
@@ -221,7 +233,7 @@ export default function TimerReminder() {
         <p id="timer-reminder-description" className="mt-5 max-w-2xl text-balance text-lg leading-8 text-slate-300 sm:text-xl">
           {t("timerReminder.alertDescription", { minutes: thresholdMinutes })}
         </p>
-        <button type="button" onClick={() => void getCurrentWindow().hide()} className="mt-10 rounded-xl border-2 border-transparent bg-[var(--accent)] px-7 py-3 text-base font-semibold text-white transition hover:bg-[var(--accent-hover)] focus:outline-none focus-visible:border-white">
+        <button type="button" onClick={dismiss} className="mt-10 rounded-xl border-2 border-transparent bg-[var(--accent)] px-7 py-3 text-base font-semibold text-white transition hover:bg-[var(--accent-hover)] focus:outline-none focus-visible:border-white">
           {t("timerReminder.dismiss")}
         </button>
         <p className="mt-4 text-xs text-slate-400">{t("timerReminder.escapeHint")}</p>
