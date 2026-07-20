@@ -105,6 +105,9 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
+      # tauri-action updates the shared latest.json asset with a read/delete/upload
+      # cycle, so release targets must not publish it concurrently.
+      max-parallel: 1
       matrix:
         include:
           - platform: macos-latest
@@ -151,7 +154,7 @@ jobs:
             echo 'KIMAITRAY_CHANGELOG_EOF'
           } >> "$GITHUB_OUTPUT"
       - name: Build and create draft release
-        uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4 # v0
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -169,6 +172,7 @@ jobs:
           releaseBody: ${{ steps.release-notes.outputs.body }}
           releaseDraft: true
           prerelease: false
+          retryAttempts: 3
           args: --target ${{ matrix.target }}
       - name: Notarize, staple, and re-upload the DMG (macOS only)
         if: runner.os == 'macOS'
