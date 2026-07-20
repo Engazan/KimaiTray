@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.0] - 2026-07-20
+
+### New Features
+
+- **Configurable daily work goals** — an optional Daily Goal card in the Today section tracks progress toward separate required and full-day milestones (7h 30m and 8h by default), shows the remaining work time and estimates completion while a timer is running. The compact card expands on click for full details, both milestones are configurable per connection, and the feature is off by default
+
+### Bug Fixes
+
+- **Reliable What's New window after updates** — the changelog window is now created on demand and restored reliably after an application update instead of depending on a window that may not exist yet
+- **Stable full-screen reminders on Linux** — reminder windows now receive the correct permissions, synchronize their state before rendering, and avoid stacking duplicate windows on Linux/X11
+- **Issue fields preserved in the new-task focus flow** — opening the new-task form through a focus action now keeps the selected issue fields intact
+
 ## [0.19.0] - 2026-07-17
 
 ### New Features
