@@ -30,8 +30,12 @@ export async function showFullscreenReminder(
   const reminder = await Window.getByLabel(REMINDER_WINDOW_LABEL);
   if (!reminder) return false;
   await emitTo(REMINDER_WINDOW_LABEL, REMINDER_SHOW_EVENT, payload);
-  await reminder.setSimpleFullscreen(true);
   await reminder.show();
+  // X11 window managers can ignore fullscreen state changes made while a
+  // window is still hidden. Map the reminder first, then request native
+  // fullscreen so it covers the whole monitor instead of staying at its
+  // configured 800x600 fallback size.
+  await reminder.setFullscreen(true);
   await reminder.setFocus();
   return true;
 }

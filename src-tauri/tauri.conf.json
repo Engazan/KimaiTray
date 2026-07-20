@@ -49,7 +49,7 @@
         "decorations": false,
         "closable": false,
         "alwaysOnTop": true,
-        "resizable": false,
+        "resizable": true,
         "shadow": false,
         "transparent": true
       }

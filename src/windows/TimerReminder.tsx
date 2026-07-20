@@ -202,7 +202,7 @@ export default function TimerReminder() {
         <p id="timer-reminder-description" className="mt-5 max-w-2xl text-balance text-lg leading-8 text-slate-300 sm:text-xl">
           {t("timerReminder.alertDescription", { minutes: thresholdMinutes })}
         </p>
-        <button type="button" autoFocus onClick={() => void getCurrentWindow().hide()} className="mt-10 rounded-xl bg-[var(--accent)] px-7 py-3 text-base font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-[var(--accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-slate-950">
+        <button type="button" onClick={() => void getCurrentWindow().hide()} className="mt-10 rounded-xl border-2 border-transparent bg-[var(--accent)] px-7 py-3 text-base font-semibold text-white transition hover:bg-[var(--accent-hover)] focus:outline-none focus-visible:border-white">
           {t("timerReminder.dismiss")}
         </button>
         <p className="mt-4 text-xs text-slate-400">{t("timerReminder.escapeHint")}</p>

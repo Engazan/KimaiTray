@@ -12,7 +12,7 @@
     "core:window:allow-get-all-windows",
     "core:window:allow-show",
     "core:window:allow-set-focus",
-    "core:window:allow-set-simple-fullscreen",
+    "core:window:allow-set-fullscreen",
     "opener:allow-default-urls",
     "store:allow-load",
     "store:allow-get",

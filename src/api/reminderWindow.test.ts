@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   emitTo: vi.fn(),
   getByLabel: vi.fn(),
-  setSimpleFullscreen: vi.fn(),
+  setFullscreen: vi.fn(),
   show: vi.fn(),
   setFocus: vi.fn(),
   hide: vi.fn(),
@@ -26,12 +26,12 @@ describe("fullscreen reminder window bridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.emitTo.mockResolvedValue(undefined);
-    mocks.setSimpleFullscreen.mockResolvedValue(undefined);
+    mocks.setFullscreen.mockResolvedValue(undefined);
     mocks.show.mockResolvedValue(undefined);
     mocks.setFocus.mockResolvedValue(undefined);
     mocks.hide.mockResolvedValue(undefined);
     mocks.getByLabel.mockResolvedValue({
-      setSimpleFullscreen: mocks.setSimpleFullscreen,
+      setFullscreen: mocks.setFullscreen,
       show: mocks.show,
       setFocus: mocks.setFocus,
       hide: mocks.hide,
@@ -48,11 +48,14 @@ describe("fullscreen reminder window bridge", () => {
       REMINDER_SHOW_EVENT,
       payload,
     );
-    expect(mocks.setSimpleFullscreen).toHaveBeenCalledWith(true);
+    expect(mocks.setFullscreen).toHaveBeenCalledWith(true);
     expect(mocks.show).toHaveBeenCalledOnce();
     expect(mocks.setFocus).toHaveBeenCalledOnce();
     expect(mocks.emitTo.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.show.mock.invocationCallOrder[0],
+    );
+    expect(mocks.show.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.setFullscreen.mock.invocationCallOrder[0],
     );
   });
 
