@@ -52,18 +52,6 @@
         "resizable": false,
         "shadow": false,
         "transparent": true
-      },
-      {
-        "label": "changelog",
-        "title": "KimaiTray — What's New",
-        "url": "/",
-        "width": 620,
-        "height": 640,
-        "minWidth": 480,
-        "minHeight": 420,
-        "visible": false,
-        "center": true,
-        "resizable": true
       }
     ],
     "security": {

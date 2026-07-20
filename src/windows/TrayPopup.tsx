@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import HeaderStatus from "../components/HeaderStatus";
 import ActiveTimerCard from "../components/ActiveTimerCard";
@@ -60,6 +61,11 @@ import {
 } from "../api/reminderWindow";
 import { getRecordedDurationSeconds } from "../utils/timesheetDuration";
 import { toKimaiLocal } from "../utils/time";
+import {
+  claimInstalledChangelog,
+  rememberPendingChangelog,
+} from "../api/changelog";
+import { showChangelogWindow } from "../api/changelogWindow";
 
 export default function TrayPopup() {
   const { t, i18n } = useTranslation();
@@ -76,6 +82,29 @@ export default function TrayPopup() {
 
   useAppearance();
   useLanguageSync();
+
+  useEffect(() => {
+    let cancelled = false;
+    void getVersion()
+      .then(async (version) => {
+        if (cancelled) return;
+        const changelog = claimInstalledChangelog(version);
+        if (!changelog) return;
+        try {
+          const opened = await showChangelogWindow(changelog);
+          if (!opened) rememberPendingChangelog(changelog);
+        } catch (error) {
+          rememberPendingChangelog(changelog);
+          throw error;
+        }
+      })
+      .catch((error) => {
+        logger.error(`Failed to open installed changelog: ${String(error)}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const win = getCurrentWindow();

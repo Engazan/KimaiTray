@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   claimInstalledChangelog,
   extractVersionChangelog,
+  forgetQueuedChangelogWindow,
   forgetPendingChangelog,
+  queueChangelogWindow,
+  readQueuedChangelogWindow,
   rememberPendingChangelog,
 } from "./changelog";
 
@@ -54,5 +57,20 @@ describe("update changelog", () => {
     localStorage.setItem("kimai:pendingChangelog", "not-json");
     expect(claimInstalledChangelog("2.1.0")).toBeNull();
     expect(localStorage).toHaveLength(0);
+  });
+
+  it("stages window content until that exact content is displayed", () => {
+    const first = { version: "2.1.0", body: "First" };
+    const second = { version: "2.1.0", body: "Second" };
+
+    expect(queueChangelogWindow(first)).toBe(true);
+    expect(readQueuedChangelogWindow()).toEqual(first);
+    expect(readQueuedChangelogWindow()).toEqual(first);
+
+    forgetQueuedChangelogWindow(second);
+    expect(readQueuedChangelogWindow()).toEqual(first);
+
+    forgetQueuedChangelogWindow(first);
+    expect(readQueuedChangelogWindow()).toBeNull();
   });
 });

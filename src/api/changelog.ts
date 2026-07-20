@@ -4,6 +4,7 @@ export interface ChangelogEntry {
 }
 
 const PENDING_CHANGELOG_KEY = "kimai:pendingChangelog";
+const QUEUED_CHANGELOG_KEY = "kimai:queuedChangelogWindow";
 const MAX_VERSION_LENGTH = 64;
 const MAX_BODY_LENGTH = 100_000;
 
@@ -25,6 +26,24 @@ function removePendingChangelog(): void {
   } catch {
     // Storage is optional; callers must keep working when it is unavailable.
   }
+}
+
+function readStoredChangelog(key: string): ChangelogEntry | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (isChangelogEntry(parsed)) return parsed;
+    localStorage.removeItem(key);
+  } catch {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Storage is optional; callers must keep working when it is unavailable.
+    }
+  }
+  return null;
 }
 
 /** Persist updater metadata across the relaunch into the newly installed app. */
@@ -70,6 +89,33 @@ export function claimInstalledChangelog(
   } catch {
     removePendingChangelog();
     return null;
+  }
+}
+
+/** Stage content before its dedicated webview is created. */
+export function queueChangelogWindow(entry: ChangelogEntry): boolean {
+  if (!isChangelogEntry(entry) || typeof localStorage === "undefined") return false;
+  try {
+    localStorage.setItem(QUEUED_CHANGELOG_KEY, JSON.stringify(entry));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Read staged content without consuming it during React Strict Mode renders. */
+export function readQueuedChangelogWindow(): ChangelogEntry | null {
+  return readStoredChangelog(QUEUED_CHANGELOG_KEY);
+}
+
+/** Consume only the content that this webview successfully displayed. */
+export function forgetQueuedChangelogWindow(entry: ChangelogEntry): void {
+  const queued = readStoredChangelog(QUEUED_CHANGELOG_KEY);
+  if (!queued || queued.version !== entry.version || queued.body !== entry.body) return;
+  try {
+    localStorage.removeItem(QUEUED_CHANGELOG_KEY);
+  } catch {
+    // Storage is optional; callers must keep working when it is unavailable.
   }
 }
 

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { AppSettings } from "../types";
 import ChangelogDialog from "../components/ChangelogDialog";
 import {
-  claimInstalledChangelog,
+  forgetQueuedChangelogWindow,
+  readQueuedChangelogWindow,
   type ChangelogEntry,
 } from "../api/changelog";
 import { CHANGELOG_SHOW_EVENT } from "../api/changelogWindow";
@@ -25,7 +25,9 @@ function applyAppearance(settings: AppSettings) {
 }
 
 export default function Changelog() {
-  const [content, setContent] = useState<ChangelogEntry | null>(null);
+  const [content, setContent] = useState<ChangelogEntry | null>(
+    readQueuedChangelogWindow,
+  );
   useLanguageSync();
 
   const close = useCallback(() => {
@@ -44,34 +46,49 @@ export default function Changelog() {
   }, []);
 
   useEffect(() => {
-    const unlisten = getCurrentWindow().listen<ChangelogEntry>(
-      CHANGELOG_SHOW_EVENT,
-      (event) => setContent(event.payload),
-    );
+    let cancelled = false;
+    const unlisten = getCurrentWindow()
+      .listen<ChangelogEntry>(CHANGELOG_SHOW_EVENT, (event) => {
+        setContent(event.payload);
+      })
+      .then((cleanup) => {
+        if (cancelled) {
+          cleanup();
+          return () => {};
+        }
+        const queued = readQueuedChangelogWindow();
+        if (queued) setContent(queued);
+        return cleanup;
+      });
     return () => {
+      cancelled = true;
       unlisten.then((cleanup) => cleanup());
     };
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void getVersion()
-      .then(async (version) => {
-        if (cancelled) return;
-        const installedChangelog = claimInstalledChangelog(version);
-        if (!installedChangelog) return;
-        setContent(installedChangelog);
-        const win = getCurrentWindow();
+    const win = getCurrentWindow();
+    if (!content) {
+      void win.hide().catch((error) => {
+        logger.error(`Failed to hide empty changelog: ${String(error)}`);
+      });
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      void (async () => {
         await win.show();
         await win.setFocus();
-      })
-      .catch((error) => {
-        logger.error(`Failed to show installed changelog: ${String(error)}`);
+        forgetQueuedChangelogWindow(content);
+      })().catch((error) => {
+        logger.error(`Failed to show changelog: ${String(error)}`);
       });
+    });
+
     return () => {
-      cancelled = true;
+      window.cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [content]);
 
   if (!content) return null;
 
