@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
+import type { ComponentProps } from "react";
 import type { KimaiClient } from "../api/kimaiClient";
 import i18n, { initPromise } from "../shared/i18n";
 import NewTaskForm from "./NewTaskForm";
@@ -13,6 +14,10 @@ const apiMocks = vi.hoisted(() => ({
   getCustomers: vi.fn(),
   getProjects: vi.fn(),
   getActivities: vi.fn(),
+}));
+const integrationMocks = vi.hoisted(() => ({
+  useRepos: vi.fn(),
+  useIssues: vi.fn(),
 }));
 
 vi.mock("../api/projectApi", () => ({
@@ -23,6 +28,12 @@ vi.mock("../api/activityApi", () => ({
   getActivities: apiMocks.getActivities,
 }));
 vi.mock("../hooks/useKimaiTags", () => ({ useKimaiTags: () => [] }));
+vi.mock("../integrations/issues/useRepos", () => ({
+  useRepos: integrationMocks.useRepos,
+}));
+vi.mock("../integrations/issues/useIssues", () => ({
+  useIssues: integrationMocks.useIssues,
+}));
 
 beforeAll(async () => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -31,6 +42,17 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  integrationMocks.useRepos.mockReturnValue({
+    repos: [],
+    isLoading: false,
+    isError: false,
+  });
+  integrationMocks.useIssues.mockReturnValue({
+    issues: [],
+    isLoading: false,
+    isError: false,
+    error: null,
+  });
   apiMocks.getCustomers.mockResolvedValue([]);
   apiMocks.getProjects.mockResolvedValue([
     {
@@ -53,7 +75,9 @@ const client = {
   cacheScope: "connection-a:token",
 } as KimaiClient;
 
-function renderForm() {
+function renderForm(
+  overrides: Partial<ComponentProps<typeof NewTaskForm>> = {},
+) {
   const onSubmit = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -72,6 +96,7 @@ function renderForm() {
           showCustomerSelect={false}
           showCustomStartTime={false}
           autoFocusProject
+          {...overrides}
         />
       </QueryClientProvider>
     </I18nextProvider>,
@@ -139,6 +164,77 @@ describe("new task keyboard flow", () => {
     const activitySearch = await screen.findByRole("combobox");
     expect(document.activeElement).toBe(activitySearch);
     await user.type(activitySearch, "Review");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Start" }),
+      ),
+    );
+  });
+
+  it("includes integration repository and issue selects in the automatic focus flow", async () => {
+    apiMocks.getActivities.mockResolvedValue([
+      {
+        id: 10,
+        name: "Work",
+        project: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        comment: null,
+      },
+    ]);
+    integrationMocks.useRepos.mockReturnValue({
+      repos: [{ id: "group/repo", label: "Group / Repo" }],
+      isLoading: false,
+      isError: false,
+    });
+    integrationMocks.useIssues.mockReturnValue({
+      issues: [
+        {
+          id: 42,
+          title: "Fix focus flow",
+          state: "opened",
+          webUrl: "https://gitlab.example/group/repo/-/issues/42",
+          labels: [],
+          author: "developer",
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    const user = userEvent.setup();
+    renderForm({
+      showIssuePicker: true,
+      issueToken: "gitlab-token",
+      issueIntegrationConfig: {
+        enabled: true,
+        provider: "gitlab",
+        baseUrl: "https://gitlab.example",
+        apiBaseUrl: "https://gitlab.example/api/v4",
+        projectPathOrRepo: "group/repo",
+        defaultState: "opened",
+        assigneeOnly: false,
+        syncTime: false,
+        autoInsertUrl: false,
+        showTimeEstimate: false,
+        filterLabels: [],
+        filterLabelsMode: "include",
+      },
+    });
+
+    const projectSearch = await screen.findByRole("combobox");
+    await user.type(projectSearch, "Alpha");
+    await user.keyboard("{Enter}");
+
+    const repositorySearch = await screen.findByRole("combobox");
+    expect(document.activeElement).toBe(repositorySearch);
+    await user.keyboard("{Enter}");
+
+    const issueSearch = await screen.findByRole("combobox");
+    expect(document.activeElement).toBe(issueSearch);
     await user.keyboard("{Enter}");
 
     await waitFor(() =>

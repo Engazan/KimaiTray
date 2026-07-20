@@ -11,6 +11,8 @@ interface IssuePickerProps {
   selectedIssue: ExternalIssue | null;
   onSelectIssue: (issue: ExternalIssue | null) => void;
   disabled?: boolean;
+  /** Opens the issue search whenever this value changes to a positive number. */
+  focusRequest?: number;
   /** Name of the selected Kimai project — issues whose title contains it are
    *  highlighted as likely matches. */
   projectName?: string | null;
@@ -59,6 +61,7 @@ export default function IssuePicker({
   selectedIssue,
   onSelectIssue,
   disabled,
+  focusRequest = 0,
   projectName,
 }: IssuePickerProps) {
   const { t } = useTranslation();
@@ -71,6 +74,7 @@ export default function IssuePicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const handledFocusRequestRef = useRef(0);
 
   const { issues, isLoading } = useIssues(
     config,
@@ -116,6 +120,18 @@ export default function IssuePicker({
       inputRef.current.focus();
     }
   }, [open]);
+
+  useEffect(() => {
+    if (
+      disabled ||
+      focusRequest <= 0 ||
+      handledFocusRequestRef.current === focusRequest
+    ) {
+      return;
+    }
+    handledFocusRequestRef.current = focusRequest;
+    setOpen(true);
+  }, [disabled, focusRequest]);
 
   useEffect(() => {
     if (!open || !listRef.current) return;

@@ -91,6 +91,8 @@ export default function NewTaskForm({
   const [activityId, setActivityId] = useState<number | null>(null);
   const [pendingActivityProjectId, setPendingActivityProjectId] = useState<number | null>(null);
   const [activityFocusRequest, setActivityFocusRequest] = useState(0);
+  const [repositoryFocusRequest, setRepositoryFocusRequest] = useState(0);
+  const [issueFocusRequest, setIssueFocusRequest] = useState(0);
   const [focusSubmitWhenReady, setFocusSubmitWhenReady] = useState(false);
   const submitButtonRef = useRef<HTMLButtonElement>(null);
   const [description, setDescription] = useState("");
@@ -121,6 +123,20 @@ export default function NewTaskForm({
         : null,
     [issueIntegrationConfig, selectedRepo],
   );
+  const hasIssuePicker =
+    showIssuePicker && issueIntegrationConfig?.enabled === true && !!issueToken;
+  const hasRepositoryPicker = hasIssuePicker && repoOptions.length > 0;
+
+  const focusAfterActivity = useCallback(() => {
+    setFocusSubmitWhenReady(false);
+    if (hasRepositoryPicker) {
+      setRepositoryFocusRequest((request) => request + 1);
+    } else if (hasIssuePicker) {
+      setIssueFocusRequest((request) => request + 1);
+    } else {
+      setFocusSubmitWhenReady(true);
+    }
+  }, [hasIssuePicker, hasRepositoryPicker]);
 
   // Follow the configured default repository when the connection/default changes.
   useEffect(() => {
@@ -131,11 +147,13 @@ export default function NewTaskForm({
   const handleSelectRepo = useCallback((v: string | null) => {
     setSelectedRepo(v ?? "");
     setSelectedIssue(null);
+    setIssueFocusRequest((request) => request + 1);
   }, []);
 
   const autoInsertUrl = issueIntegrationConfig?.autoInsertUrl ?? false;
   const handleSelectIssue = (issue: ExternalIssue | null) => {
     setSelectedIssue(issue);
+    setFocusSubmitWhenReady(issue != null);
     if (issue && autoInsertUrl) {
       setDescription((prev) => {
         const trimmed = prev.trim();
@@ -219,7 +237,7 @@ export default function NewTaskForm({
 
   const handleActivityChange = (id: number | null) => {
     setActivityId(id);
-    setFocusSubmitWhenReady(id != null);
+    if (id != null) focusAfterActivity();
   };
 
   useEffect(() => {
@@ -238,11 +256,11 @@ export default function NewTaskForm({
     setPendingActivityProjectId(null);
     if (available.length === 1) {
       setActivityId(available[0].id);
-      setFocusSubmitWhenReady(true);
+      focusAfterActivity();
     } else {
       setActivityFocusRequest((request) => request + 1);
     }
-  }, [activitiesQ.data, pendingActivityProjectId, projectId]);
+  }, [activitiesQ.data, focusAfterActivity, pendingActivityProjectId, projectId]);
 
   const selectedProject = filteredProjects.find((p) => p.id === projectId);
   const customBegin = useMemo(
@@ -399,6 +417,7 @@ export default function NewTaskForm({
                   onChange={handleSelectRepo}
                   placeholder={t("integrations.projectPathOrRepoSelectPlaceholder")}
                   disabled={isSubmitting}
+                  focusRequest={repositoryFocusRequest}
                 />
               </div>
             )}
@@ -412,6 +431,7 @@ export default function NewTaskForm({
                 selectedIssue={selectedIssue}
                 onSelectIssue={handleSelectIssue}
                 disabled={isSubmitting}
+                focusRequest={issueFocusRequest}
                 projectName={selectedProject?.name ?? null}
               />
               {selectedIssue && (
