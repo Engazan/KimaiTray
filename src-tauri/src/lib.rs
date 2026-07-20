@@ -224,6 +224,13 @@ pub fn run() {
             migrate_legacy_data(app.handle());
             tray::create_tray(app.handle())?;
             info!("System tray created");
+            // GTK needs a resizable native window to honor the fullscreen
+            // request. Other platforms keep the original fixed borderless
+            // reminder configuration.
+            #[cfg(target_os = "linux")]
+            if let Some(w) = app.handle().get_webview_window("timer-reminder") {
+                let _ = w.set_resizable(true);
+            }
             // Apply the "True Tray" preference (macOS): when enabled, hide the
             // app from the Dock and the Cmd+Tab switcher.
             #[cfg(target_os = "macos")]

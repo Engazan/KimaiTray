@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   emitTo: vi.fn(),
+  getCurrentWindow: vi.fn(),
   getByLabel: vi.fn(),
-  setFullscreen: vi.fn(),
+  listen: vi.fn(),
+  unlisten: vi.fn(),
+  setSimpleFullscreen: vi.fn(),
   show: vi.fn(),
   setFocus: vi.fn(),
   hide: vi.fn(),
@@ -11,27 +14,46 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@tauri-apps/api/event", () => ({ emitTo: mocks.emitTo }));
 vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: mocks.getCurrentWindow,
   Window: { getByLabel: mocks.getByLabel },
 }));
 
 import {
   hideFullscreenReminder,
+  REMINDER_RENDERED_EVENT,
   REMINDER_SHOW_EVENT,
   REMINDER_WINDOW_LABEL,
   showFullscreenReminder,
   updateFullscreenReminder,
 } from "./reminderWindow";
 
+let acknowledgeRender:
+  | ((event: { payload: { requestId: string } }) => void)
+  | undefined;
+
 describe("fullscreen reminder window bridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.emitTo.mockResolvedValue(undefined);
-    mocks.setFullscreen.mockResolvedValue(undefined);
+    acknowledgeRender = undefined;
+    mocks.listen.mockImplementation(async (_event, handler) => {
+      acknowledgeRender = handler;
+      return mocks.unlisten;
+    });
+    mocks.getCurrentWindow.mockReturnValue({
+      label: "settings",
+      listen: mocks.listen,
+    });
+    mocks.emitTo.mockImplementation(async (_target, event, request) => {
+      if (event === REMINDER_SHOW_EVENT) {
+        acknowledgeRender?.({ payload: { requestId: request.requestId } });
+      }
+    });
+    mocks.setSimpleFullscreen.mockResolvedValue(undefined);
     mocks.show.mockResolvedValue(undefined);
     mocks.setFocus.mockResolvedValue(undefined);
     mocks.hide.mockResolvedValue(undefined);
     mocks.getByLabel.mockResolvedValue({
-      setFullscreen: mocks.setFullscreen,
+      setSimpleFullscreen: mocks.setSimpleFullscreen,
       show: mocks.show,
       setFocus: mocks.setFocus,
       hide: mocks.hide,
@@ -43,19 +65,33 @@ describe("fullscreen reminder window bridge", () => {
 
     await expect(showFullscreenReminder(payload)).resolves.toBe(true);
 
+    expect(mocks.listen).toHaveBeenCalledWith(
+      REMINDER_RENDERED_EVENT,
+      expect.any(Function),
+    );
     expect(mocks.emitTo).toHaveBeenCalledWith(
       REMINDER_WINDOW_LABEL,
       REMINDER_SHOW_EVENT,
-      payload,
+      expect.objectContaining({
+        requestId: expect.any(String),
+        replyTo: "settings",
+        payload,
+      }),
     );
-    expect(mocks.setFullscreen).toHaveBeenCalledWith(true);
+    expect(mocks.unlisten).toHaveBeenCalledOnce();
+    expect(mocks.setSimpleFullscreen).toHaveBeenCalledTimes(2);
+    expect(mocks.setSimpleFullscreen).toHaveBeenNthCalledWith(1, true);
+    expect(mocks.setSimpleFullscreen).toHaveBeenNthCalledWith(2, true);
     expect(mocks.show).toHaveBeenCalledOnce();
     expect(mocks.setFocus).toHaveBeenCalledOnce();
     expect(mocks.emitTo.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.show.mock.invocationCallOrder[0],
     );
+    expect(mocks.setSimpleFullscreen.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.show.mock.invocationCallOrder[0],
+    );
     expect(mocks.show.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.setFullscreen.mock.invocationCallOrder[0],
+      mocks.setSimpleFullscreen.mock.invocationCallOrder[1],
     );
   });
 
@@ -76,7 +112,7 @@ describe("fullscreen reminder window bridge", () => {
     expect(mocks.emitTo).toHaveBeenCalledWith(
       REMINDER_WINDOW_LABEL,
       REMINDER_SHOW_EVENT,
-      payload,
+      expect.objectContaining({ payload }),
     );
     expect(mocks.show).not.toHaveBeenCalled();
   });

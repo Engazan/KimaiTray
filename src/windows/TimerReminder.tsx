@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { AppSettings } from "../types";
 import type {
   IdleReminderAction,
+  ReminderShowRequest,
   ReminderShowPayload,
 } from "../api/reminderWindow";
 import {
   IDLE_REMINDER_ACTION_EVENT,
+  REMINDER_RENDERED_EVENT,
   REMINDER_SHOW_EVENT,
 } from "../api/reminderWindow";
 import { defaultSettings, loadSettings, onSettingsChange } from "../settings/service";
@@ -47,7 +50,7 @@ export default function TimerReminder() {
   const [thresholdMinutes, setThresholdMinutes] = useState(
     defaultSettings.noTimerReminderMinutes,
   );
-  const [content, setContent] = useState<ReminderShowPayload>({ kind: "timer" });
+  const [content, setContent] = useState<ReminderShowPayload | null>(null);
   useLanguageSync();
 
   useEffect(() => {
@@ -64,9 +67,19 @@ export default function TimerReminder() {
   }, []);
 
   useEffect(() => {
-    const unlisten = getCurrentWindow().listen<ReminderShowPayload>(
+    const unlisten = getCurrentWindow().listen<ReminderShowRequest>(
       REMINDER_SHOW_EVENT,
-      (event) => setContent(event.payload),
+      ({ payload: request }) => {
+        // Tauri event delivery does not wait for React to commit the update.
+        // Commit synchronously so the sender can safely show this window only
+        // after the new reminder has replaced the previous frame.
+        flushSync(() => setContent(request.payload));
+        void emitTo(request.replyTo, REMINDER_RENDERED_EVENT, {
+          requestId: request.requestId,
+        }).catch((error) => {
+          logger.error(`Failed to acknowledge reminder render: ${String(error)}`);
+        });
+      },
     );
     return () => {
       unlisten.then((cleanup) => cleanup());
@@ -75,14 +88,16 @@ export default function TimerReminder() {
 
   const sendIdleAction = useCallback(async (action: IdleReminderAction) => {
     setContent((current) =>
-      current.kind === "idle" ? { ...current, processing: true, error: null } : current,
+      current?.kind === "idle"
+        ? { ...current, processing: true, error: null }
+        : current,
     );
     try {
       await emitTo("tray-popup", IDLE_REMINDER_ACTION_EVENT, { action });
     } catch (error) {
       logger.error(`Failed to send idle reminder action: ${String(error)}`);
       setContent((current) =>
-        current.kind === "idle"
+        current?.kind === "idle"
           ? { ...current, processing: false, error: t("common.somethingWentWrong") }
           : current,
       );
@@ -92,7 +107,7 @@ export default function TimerReminder() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (content.kind === "idle" && !content.test) {
+      if (content?.kind === "idle" && !content.test) {
         void sendIdleAction("continue");
       } else {
         void getCurrentWindow().hide();
@@ -101,6 +116,10 @@ export default function TimerReminder() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [content, sendIdleAction]);
+
+  if (!content) {
+    return <main aria-hidden="true" className="h-screen w-screen bg-slate-950" />;
+  }
 
   if (content.kind === "idle") {
     const idleTime = formatTime(content.idleStartedAtIso);
