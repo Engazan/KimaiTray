@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createKimaiClient, type KimaiClient } from "../api/kimaiClient";
 import { getConnectionToken } from "../api/connectionTokenStore";
 import { loadSettings, onSettingsChange, patchSettings, defaultFeatureSettings } from "../settings/service";
-import type { SavedConnection, ColorMode } from "../types";
+import type { SavedConnection, ColorMode, FeatureSettings } from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
 import { getIssueToken } from "../integrations/issues/issueTokenStore";
 import { LatestRequest } from "../utils/latestRequest";
@@ -13,6 +13,11 @@ interface IdleSettings {
   idleThresholdMinutes: number;
   idleAction: "ask" | "stop" | "discard" | "continue";
   showIdleNotification: boolean;
+}
+
+interface TimerReminderSettings {
+  enabled: boolean;
+  thresholdMinutes: number;
 }
 
 interface TraySettings {
@@ -25,19 +30,15 @@ interface TraySettings {
 interface ShortcutSettings {
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;
+  shortcutNewTask: string;
+  shortcutPauseResume: string;
+  shortcutContinueLastTask: string;
+  shortcutEditNote: string;
+  shortcutOpenKimai: string;
   shortcutOpenSettings: string;
 }
 
 type PopupLayout = "classic" | "focus" | "taskbar" | "timeline";
-
-interface FeatureFlags {
-  featureNote: boolean;
-  featureTags: boolean;
-  featurePausedTimerDescriptionHover: boolean;
-  featureCustomerSelect: boolean;
-  featureCustomStartTime: boolean;
-  featureCategoryMode: boolean;
-}
 
 interface UseKimaiClientResult {
   client: KimaiClient | null;
@@ -46,9 +47,10 @@ interface UseKimaiClientResult {
   baseUrl: string;
   openKimaiInBrowser: boolean;
   idleSettings: IdleSettings;
+  timerReminderSettings: TimerReminderSettings;
   traySettings: TraySettings;
   shortcutSettings: ShortcutSettings;
-  featureFlags: FeatureFlags;
+  featureFlags: FeatureSettings;
   autoUpdate: boolean;
   popupLayout: PopupLayout;
   colorMode: ColorMode;
@@ -67,6 +69,11 @@ const defaultIdleSettings: IdleSettings = {
   showIdleNotification: true,
 };
 
+const defaultTimerReminderSettings: TimerReminderSettings = {
+  enabled: false,
+  thresholdMinutes: 15,
+};
+
 const defaultTraySettings: TraySettings = {
   showElapsedInTray: true,
   showTaskNameInTray: false,
@@ -77,6 +84,11 @@ const defaultTraySettings: TraySettings = {
 const defaultShortcutSettings: ShortcutSettings = {
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
+  shortcutNewTask: "",
+  shortcutPauseResume: "",
+  shortcutContinueLastTask: "",
+  shortcutEditNote: "",
+  shortcutOpenKimai: "",
   shortcutOpenSettings: "",
 };
 
@@ -90,20 +102,16 @@ export function useKimaiClient(): UseKimaiClientResult {
   const [activeConnectionId, setActiveConnectionId] = useState("");
   const [idleSettings, setIdleSettings] =
     useState<IdleSettings>(defaultIdleSettings);
+  const [timerReminderSettings, setTimerReminderSettings] =
+    useState<TimerReminderSettings>(defaultTimerReminderSettings);
   const [traySettings, setTraySettings] =
     useState<TraySettings>(defaultTraySettings);
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [popupLayout, setPopupLayout] = useState<PopupLayout>("classic");
   const [colorMode, setColorMode] = useState<ColorMode>("kimai");
   const [displayMode, setDisplayMode] = useState<"tray" | "detached">("tray");
-  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
-    featureNote: true,
-    featureTags: false,
-    featurePausedTimerDescriptionHover: false,
-    featureCustomerSelect: true,
-    featureCustomStartTime: true,
-    featureCategoryMode: false,
-  });
+  const [featureFlags, setFeatureFlags] =
+    useState<FeatureSettings>(defaultFeatureSettings);
   const [shortcutSettings, setShortcutSettings] =
     useState<ShortcutSettings>(defaultShortcutSettings);
   const [issueIntegration, setIssueIntegration] =
@@ -153,6 +161,10 @@ export function useKimaiClient(): UseKimaiClientResult {
       idleAction: s.idleAction,
       showIdleNotification: s.showIdleNotification,
     });
+    setTimerReminderSettings({
+      enabled: s.enableNoTimerReminder,
+      thresholdMinutes: s.noTimerReminderMinutes,
+    });
     setTraySettings({
       showElapsedInTray: s.showElapsedInTray,
       showTaskNameInTray: s.showTaskNameInTray,
@@ -162,6 +174,11 @@ export function useKimaiClient(): UseKimaiClientResult {
     setShortcutSettings({
       shortcutTogglePopup: s.shortcutTogglePopup,
       shortcutStartStopTimer: s.shortcutStartStopTimer,
+      shortcutNewTask: s.shortcutNewTask,
+      shortcutPauseResume: s.shortcutPauseResume,
+      shortcutContinueLastTask: s.shortcutContinueLastTask,
+      shortcutEditNote: s.shortcutEditNote,
+      shortcutOpenKimai: s.shortcutOpenKimai,
       shortcutOpenSettings: s.shortcutOpenSettings,
     });
     setAutoUpdate(s.autoUpdate);
@@ -275,6 +292,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     baseUrl,
     openKimaiInBrowser,
     idleSettings,
+    timerReminderSettings,
     traySettings,
     shortcutSettings,
     featureFlags,

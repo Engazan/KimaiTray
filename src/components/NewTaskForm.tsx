@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useId } from "react";
+import { useState, useMemo, useCallback, useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
@@ -32,6 +32,7 @@ interface NewTaskFormProps {
   showIssuePicker?: boolean;
   issueIntegrationConfig?: IssueIntegrationSettings | null;
   issueToken?: string | null;
+  autoFocusProject?: boolean;
 }
 
 const selectCls =
@@ -73,6 +74,7 @@ export default function NewTaskForm({
   showIssuePicker = false,
   issueIntegrationConfig,
   issueToken,
+  autoFocusProject = false,
 }: NewTaskFormProps) {
   const { t } = useTranslation();
   const formId = useId();
@@ -87,6 +89,12 @@ export default function NewTaskForm({
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<number | null>(null);
   const [activityId, setActivityId] = useState<number | null>(null);
+  const [pendingActivityProjectId, setPendingActivityProjectId] = useState<number | null>(null);
+  const [activityFocusRequest, setActivityFocusRequest] = useState(0);
+  const [repositoryFocusRequest, setRepositoryFocusRequest] = useState(0);
+  const [issueFocusRequest, setIssueFocusRequest] = useState(0);
+  const [focusSubmitWhenReady, setFocusSubmitWhenReady] = useState(false);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<ExternalIssue | null>(null);
@@ -115,6 +123,20 @@ export default function NewTaskForm({
         : null,
     [issueIntegrationConfig, selectedRepo],
   );
+  const hasIssuePicker =
+    showIssuePicker && issueIntegrationConfig?.enabled === true && !!issueToken;
+  const hasRepositoryPicker = hasIssuePicker && repoOptions.length > 0;
+
+  const focusAfterActivity = useCallback(() => {
+    setFocusSubmitWhenReady(false);
+    if (hasRepositoryPicker) {
+      setRepositoryFocusRequest((request) => request + 1);
+    } else if (hasIssuePicker) {
+      setIssueFocusRequest((request) => request + 1);
+    } else {
+      setFocusSubmitWhenReady(true);
+    }
+  }, [hasIssuePicker, hasRepositoryPicker]);
 
   // Follow the configured default repository when the connection/default changes.
   useEffect(() => {
@@ -125,11 +147,13 @@ export default function NewTaskForm({
   const handleSelectRepo = useCallback((v: string | null) => {
     setSelectedRepo(v ?? "");
     setSelectedIssue(null);
+    setIssueFocusRequest((request) => request + 1);
   }, []);
 
   const autoInsertUrl = issueIntegrationConfig?.autoInsertUrl ?? false;
   const handleSelectIssue = (issue: ExternalIssue | null) => {
     setSelectedIssue(issue);
+    setFocusSubmitWhenReady(issue != null);
     if (issue && autoInsertUrl) {
       setDescription((prev) => {
         const trimmed = prev.trim();
@@ -207,7 +231,36 @@ export default function NewTaskForm({
   const handleProjectChange = (id: number | null) => {
     setProjectId(id);
     setActivityId(null);
+    setFocusSubmitWhenReady(false);
+    setPendingActivityProjectId(id);
   };
+
+  const handleActivityChange = (id: number | null) => {
+    setActivityId(id);
+    if (id != null) focusAfterActivity();
+  };
+
+  useEffect(() => {
+    if (
+      pendingActivityProjectId == null ||
+      pendingActivityProjectId !== projectId ||
+      activitiesQ.data === undefined
+    ) {
+      return;
+    }
+
+    const available = activitiesQ.data.filter(
+      (activity) =>
+        activity.project === null || activity.project === pendingActivityProjectId,
+    );
+    setPendingActivityProjectId(null);
+    if (available.length === 1) {
+      setActivityId(available[0].id);
+      focusAfterActivity();
+    } else {
+      setActivityFocusRequest((request) => request + 1);
+    }
+  }, [activitiesQ.data, focusAfterActivity, pendingActivityProjectId, projectId]);
 
   const selectedProject = filteredProjects.find((p) => p.id === projectId);
   const customBegin = useMemo(
@@ -219,6 +272,12 @@ export default function NewTaskForm({
     activityId != null &&
     !isSubmitting &&
     (!useCustomTime || customBegin != null);
+
+  useEffect(() => {
+    if (!focusSubmitWhenReady || !canSubmit) return;
+    submitButtonRef.current?.focus();
+    setFocusSubmitWhenReady(false);
+  }, [canSubmit, focusSubmitWhenReady]);
 
   // "More options" holds the low-frequency fields (tags, custom start time).
   const hasMoreSection = showTags || showCustomStartTime;
@@ -242,7 +301,15 @@ export default function NewTaskForm({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div
+      className="flex-1 flex flex-col min-h-0"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          handleSubmit();
+        }
+      }}
+    >
       <div className="flex items-center gap-2 px-2.5 h-11 shrink-0 border-b border-gray-100 dark:border-white/[0.06]">
         <button
           onClick={onCancel}
@@ -321,6 +388,7 @@ export default function NewTaskForm({
             onChange={handleProjectChange}
             placeholder={t("newTask.selectProject")}
             disabled={isSubmitting}
+            focusRequest={autoFocusProject ? 1 : 0}
           />
         </div>
 
@@ -330,9 +398,10 @@ export default function NewTaskForm({
             id={activityControlId}
             options={filteredActivities.map((a) => ({ value: a.id, label: a.name, color: a.color }))}
             value={activityId}
-            onChange={setActivityId}
+            onChange={handleActivityChange}
             placeholder={projectId == null ? t("newTask.selectProjectFirst") : t("newTask.selectActivity")}
             disabled={isSubmitting || projectId == null}
+            focusRequest={activityFocusRequest}
           />
         </div>
 
@@ -348,6 +417,7 @@ export default function NewTaskForm({
                   onChange={handleSelectRepo}
                   placeholder={t("integrations.projectPathOrRepoSelectPlaceholder")}
                   disabled={isSubmitting}
+                  focusRequest={repositoryFocusRequest}
                 />
               </div>
             )}
@@ -361,6 +431,7 @@ export default function NewTaskForm({
                 selectedIssue={selectedIssue}
                 onSelectIssue={handleSelectIssue}
                 disabled={isSubmitting}
+                focusRequest={issueFocusRequest}
                 projectName={selectedProject?.name ?? null}
               />
               {selectedIssue && (
@@ -476,8 +547,10 @@ export default function NewTaskForm({
           {t("common.cancel")}
         </button>
         <button
+          ref={submitButtonRef}
           onClick={handleSubmit}
           disabled={!canSubmit}
+          title={t("shortcuts.formSubmitHint")}
           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-semibold
             bg-[var(--accent)] text-white shadow-sm
             hover:bg-[var(--accent-hover)] active:brightness-90

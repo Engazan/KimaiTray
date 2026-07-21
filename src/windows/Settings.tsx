@@ -11,6 +11,7 @@ import GeneralSection from "../settings/GeneralSection";
 import AppearanceSection from "../settings/AppearanceSection";
 import TrayWindowSection from "../settings/TrayWindowSection";
 import IdleDetectionSection from "../settings/IdleDetectionSection";
+import TimerReminderSection from "../settings/TimerReminderSection";
 import ShortcutsSection from "../settings/ShortcutsSection";
 import TestSection from "../settings/TestSection";
 import AboutSection from "../settings/AboutSection";
@@ -32,6 +33,11 @@ const NAV_ICONS: Record<NavSection, ReactNode> = {
   tray: (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+    </svg>
+  ),
+  reminder: (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.081 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
     </svg>
   ),
   idle: (
@@ -60,6 +66,7 @@ const NAV_LABEL_KEYS: Record<NavSection, string> = {
   general: "general.title",
   appearance: "appearanceSettings.title",
   tray: "traySettings.title",
+  reminder: "timerReminder.title",
   idle: "idle.title",
   shortcuts: "shortcuts.title",
   test: "testSection.title",
@@ -70,7 +77,7 @@ const NAV_LABEL_KEYS: Record<NavSection, string> = {
 const NAV_GROUPS: { titleKey: string; items: NavSection[] }[] = [
   { titleKey: "settingsGroups.preferences", items: ["general"] },
   { titleKey: "settingsGroups.interface", items: ["appearance", "tray"] },
-  { titleKey: "settingsGroups.automation", items: ["idle", "shortcuts"] },
+  { titleKey: "settingsGroups.automation", items: ["reminder", "idle", "shortcuts"] },
   { titleKey: "settingsGroups.system", items: ["test", "about"] },
 ];
 
@@ -292,13 +299,18 @@ export default function Settings() {
           {section === "tray" && (
             <TrayWindowSection settings={settings} update={update} />
           )}
+          {section === "reminder" && (
+            <TimerReminderSection settings={settings} update={update} />
+          )}
           {section === "idle" && (
             <IdleDetectionSection settings={settings} update={update} />
           )}
           {section === "shortcuts" && (
             <ShortcutsSection settings={settings} update={update} />
           )}
-          {section === "test" && <TestSection settings={settings} />}
+          {section === "test" && (
+            <TestSection settings={settings} appVersion={appVersion} />
+          )}
           {section === "about" && <AboutSection />}
         </div>
       </main>

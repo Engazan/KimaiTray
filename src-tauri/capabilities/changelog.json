@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "changelog",
+  "description": "Least-privilege capability for the update changelog window",
+  "windows": ["changelog"],
+  "permissions": [
+    "core:app:allow-version",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "opener:allow-default-urls",
+    "store:allow-load",
+    "store:allow-get",
+    "log:allow-log"
+  ]
+}

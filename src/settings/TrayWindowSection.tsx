@@ -6,6 +6,7 @@ import type { MonitorInfo } from "../api/trayApi";
 import { defaultTrayColors } from "./service";
 import ColorPicker from "./ColorPicker";
 import { Select, Toggle } from "./Controls";
+import { usePlatform } from "../platform";
 import {
   RadioDot,
   SelectableCard,
@@ -14,9 +15,6 @@ import {
   SettingsPage,
   SettingsRow,
 } from "./SettingsLayout";
-
-const isMac = navigator.platform.toUpperCase().includes("MAC");
-const isLinux = navigator.platform.toUpperCase().includes("LINUX");
 
 interface Props {
   settings: AppSettings;
@@ -80,13 +78,16 @@ function ShapeGlyph({ shape, px, color = GLYPH_FILL }: { shape: AppSettings["tra
 
 export default function TrayWindowSection({ settings, update }: Props) {
   const { t } = useTranslation();
+  const platform = usePlatform();
+  const isMac = platform.os === "macos";
+  const isLinux = platform.os === "linux";
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
 
   useEffect(() => {
     if (isLinux) {
       listMonitors().then(setMonitors);
     }
-  }, []);
+  }, [isLinux]);
 
   const trayColors: TrayStateColors = { ...defaultTrayColors, ...(settings.trayColors ?? {}) };
 
@@ -297,12 +298,18 @@ export default function TrayWindowSection({ settings, update }: Props) {
 
         {isLinux && (
           <div className="mt-4 space-y-4">
+            {!platform.supportsWindowPositioning && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400">
+                {t("traySettings.waylandPositioningUnavailable")}
+              </div>
+            )}
             <SettingsRow
               inset
               label={t("traySettings.popupMonitorMode")}
               description={t("traySettings.popupMonitorModeDescription")}
             >
               <Select
+                disabled={!platform.supportsWindowPositioning}
                 value={settings.popupMonitorMode}
                 onChange={(v) => {
                   const val = v as AppSettings["popupMonitorMode"];
@@ -324,6 +331,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                   description={t("traySettings.popupMonitorIndexDescription")}
                 >
                   <Select
+                    disabled={!platform.supportsWindowPositioning}
                     value={settings.popupMonitorIndex}
                     onChange={(v) => {
                       const val = Number(v);
@@ -347,6 +355,7 @@ export default function TrayWindowSection({ settings, update }: Props) {
                   description={t("traySettings.popupMonitorPositionDescription")}
                 >
                   <Select
+                    disabled={!platform.supportsWindowPositioning}
                     value={settings.popupMonitorPosition}
                     onChange={(v) => {
                       const val = v as AppSettings["popupMonitorPosition"];
@@ -371,9 +380,10 @@ export default function TrayWindowSection({ settings, update }: Props) {
       <SettingsList>
         <SettingsRow
           label={t("general.trayLeftClick")}
-          description={isLinux ? t("traySettings.linuxOnly") : t("general.trayLeftClickDescription")}
+          description={t("general.trayLeftClickDescription")}
         >
           <Select
+            disabled={!platform.supportsTrayClickActions}
             value={settings.trayLeftClickAction}
             onChange={(v) => {
               const val = v as AppSettings["trayLeftClickAction"];
@@ -384,15 +394,15 @@ export default function TrayWindowSection({ settings, update }: Props) {
               { value: "popup", label: t("general.trayActionTogglePopup") },
               { value: "nothing", label: t("general.trayActionDoNothing") },
             ]}
-            disabled={isLinux}
           />
         </SettingsRow>
 
         <SettingsRow
           label={t("general.trayRightClick")}
-          description={isLinux ? t("traySettings.linuxOnly") : t("general.trayRightClickDescription")}
+          description={t("general.trayRightClickDescription")}
         >
           <Select
+            disabled={!platform.supportsTrayClickActions}
             value={settings.trayRightClickAction}
             onChange={(v) => {
               const val = v as AppSettings["trayRightClickAction"];
@@ -403,7 +413,6 @@ export default function TrayWindowSection({ settings, update }: Props) {
               { value: "menu", label: t("general.trayActionShowMenu") },
               { value: "popup", label: t("general.trayActionTogglePopup") },
             ]}
-            disabled={isLinux}
           />
         </SettingsRow>
       </SettingsList>

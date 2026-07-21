@@ -49,6 +49,15 @@
   pointer-events: none;
 }
 
+/* WebKitGTK can suspend a hidden tray webview before an entry animation has
+   advanced past its transparent first frame. When the native tray later shows
+   the window, the animation may remain frozen and make otherwise-rendered
+   cards look missing. Tray popups must always favor immediately visible
+   content; settings-window animations remain unchanged. */
+[data-window="tray-popup"] .animate-card-in {
+  animation: none;
+}
+
 
 /* ── Focus layout: enlarged timer area ──────────────────────── */
 [data-layout="focus"][data-window="tray-popup"] .timer-area {
@@ -65,6 +74,13 @@ html, body, #root {
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* macOS clips the native NSWindow layer. Linux and Windows need to clip the
+   web content itself so the transparent popup window has rounded corners. */
+[data-rounded-popup="true"][data-window="tray-popup"][data-native-popup-corners="false"] #root > div {
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 body {

@@ -5,6 +5,7 @@ import { initPromise } from "./shared/i18n";
 import { logger } from "./utils/logger";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import QueryProvider from "./providers/QueryProvider";
+import { getPlatformInfo } from "./platform";
 import "./index.css";
 
 window.addEventListener("unhandledrejection", (event) => {
@@ -19,10 +20,20 @@ const label = getCurrentWindow().label;
 document.documentElement.dataset.window = label;
 
 async function renderApp() {
-  await initPromise;
+  const [, platform] = await Promise.all([initPromise, getPlatformInfo()]);
+  document.documentElement.dataset.os = platform.os;
+  document.documentElement.dataset.session = platform.session;
+  document.documentElement.dataset.trayBackend = platform.trayBackend;
+  document.documentElement.dataset.nativePopupCorners = String(
+    platform.supportsNativePopupCorners,
+  );
   const WindowApp =
     label === "settings"
       ? (await import("./windows/Settings")).default
+      : label === "timer-reminder"
+        ? (await import("./windows/TimerReminder")).default
+        : label === "changelog"
+          ? (await import("./windows/Changelog")).default
       : (await import("./windows/TrayPopup")).default;
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>

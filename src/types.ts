@@ -62,6 +62,12 @@ export interface FeatureSettings {
   featurePausedTimerDescriptionHover: boolean;
   featureCustomerSelect: boolean;
   featureCustomStartTime: boolean;
+  /** Show configurable required/full daily work goals in the Today section. */
+  featureDailyGoal: boolean;
+  /** Required daily work duration in minutes. */
+  dailyGoalMinutes: number;
+  /** Full daily work duration in minutes; always at least the required goal. */
+  fullDailyGoalMinutes: number;
   /** Category Mode: replace the recent/favorites panel with a fixed 2-level category
    *  menu for the Customer Success / Helpdesk team. Off by default. */
   featureCategoryMode: boolean;
@@ -91,8 +97,11 @@ export interface AppSettings {
   idleAction: "ask" | "stop" | "discard" | "continue";
   showIdleNotification: boolean;
 
+  enableNoTimerReminder: boolean;
+  noTimerReminderMinutes: number;
+
   theme: "light" | "dark" | "transparent";
-  uiSize: "small" | "default" | "large";
+  uiSize: "small" | "default" | "large" | "scale130" | "scale145" | "scale160";
   roundedPopupCorners: boolean;
   reduceVisualEffects: boolean;
   accentStyle: "blue" | "green" | "purple" | "orange" | "red";
@@ -104,6 +113,11 @@ export interface AppSettings {
 
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;
+  shortcutNewTask: string;
+  shortcutPauseResume: string;
+  shortcutContinueLastTask: string;
+  shortcutEditNote: string;
+  shortcutOpenKimai: string;
   shortcutOpenSettings: string;
 
   trayLeftClickAction: "popup" | "nothing";
@@ -164,6 +178,7 @@ export type SettingsSection =
   | "tray"
   | "features"
   | "integrations"
+  | "reminder"
   | "idle"
   | "shortcuts"
   | "test"

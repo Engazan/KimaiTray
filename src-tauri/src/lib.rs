@@ -1,6 +1,7 @@
 mod http;
 mod idle;
 mod keychain;
+mod platform;
 mod shortcuts;
 mod store;
 mod store_persistence;
@@ -117,6 +118,15 @@ fn migrate_legacy_data(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // WebKitGTK's DMA-BUF renderer can stop presenting new frames after a
+    // Tauri window starts hidden and is later shown from a legacy GTK tray
+    // callback (especially with Cinnamon and VirtualBox/Mesa). Pointer and
+    // keyboard events still reach the page, but hover, navigation and typed
+    // text only become visible after an unrelated damage event. Keep hardware
+    // compositing, but use WebKit's non-DMA-BUF presentation path on Linux.
+    #[cfg(target_os = "linux")]
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
@@ -135,7 +145,7 @@ pub fn run() {
         default_hook(info);
     }));
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
@@ -155,8 +165,18 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notification::init());
+
+    // global-hotkey's Linux implementation opens an X11 connection. Do not
+    // initialize it in a native Wayland session where its key grabs cannot
+    // receive global keyboard events.
+    let builder = if platform::supports_global_shortcuts() {
+        builder.plugin(tauri_plugin_global_shortcut::Builder::new().build())
+    } else {
+        builder
+    };
+
+    builder
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -167,6 +187,7 @@ pub fn run() {
             keychain::delete_api_token,
             http::http_request,
             http::cancel_http_request,
+            platform::get_platform_info,
             tray::set_tray_tooltip,
             tray::set_tray_title,
             tray::set_tray_icon,
@@ -175,6 +196,7 @@ pub fn run() {
             tray::set_tray_colors,
             tray::set_popup_vibrancy,
             tray::set_popup_size,
+            tray::set_popup_zoom,
             tray::set_popup_corner_radius,
             tray::update_tray_menu,
             tray::set_tray_click_actions,
@@ -202,6 +224,13 @@ pub fn run() {
             migrate_legacy_data(app.handle());
             tray::create_tray(app.handle())?;
             info!("System tray created");
+            // GTK needs a resizable native window to honor the fullscreen
+            // request. Other platforms keep the original fixed borderless
+            // reminder configuration.
+            #[cfg(target_os = "linux")]
+            if let Some(w) = app.handle().get_webview_window("timer-reminder") {
+                let _ = w.set_resizable(true);
+            }
             // Apply the "True Tray" preference (macOS): when enabled, hide the
             // app from the Dock and the Cmd+Tab switcher.
             #[cfg(target_os = "macos")]
@@ -209,7 +238,9 @@ pub fn run() {
             if tray::is_detached() {
                 if let Some(w) = app.handle().get_webview_window("tray-popup") {
                     let _ = w.set_resizable(true);
-                    let _ = w.set_always_on_top(false);
+                    if platform::supports_always_on_top() {
+                        let _ = w.set_always_on_top(false);
+                    }
                     #[cfg(not(target_os = "linux"))]
                     let _ = w.set_skip_taskbar(false);
                     let _ = w.center();
@@ -225,7 +256,7 @@ pub fn run() {
                     tray::on_popup_blur(window);
                 }
             }
-            "settings" => {
+            "settings" | "changelog" => {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();

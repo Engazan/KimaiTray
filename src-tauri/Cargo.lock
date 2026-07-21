@@ -2194,9 +2194,16 @@ dependencies = [
 
 [[package]]
 name = "kimaitray"
-version = "0.17.2"
+version = "0.20.0"
 dependencies = [
+ "gdk",
+ "gdk-pixbuf",
+ "glib",
+ "gtk",
+ "gtk-sys",
  "keyring",
+ "libappindicator",
+ "libappindicator-sys",
  "log",
  "objc",
  "objc2-app-kit",

@@ -1,5 +1,6 @@
 import { load } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
 import type {
   AppSettings,
   FeatureSettings,
@@ -26,6 +27,9 @@ export const defaultFeatureSettings: FeatureSettings = {
   featurePausedTimerDescriptionHover: false,
   featureCustomerSelect: true,
   featureCustomStartTime: true,
+  featureDailyGoal: false,
+  dailyGoalMinutes: 7 * 60 + 30,
+  fullDailyGoalMinutes: 8 * 60,
   featureCategoryMode: false,
 };
 
@@ -53,6 +57,9 @@ export const defaultSettings: AppSettings = {
   idleAction: "ask",
   showIdleNotification: true,
 
+  enableNoTimerReminder: false,
+  noTimerReminderMinutes: 15,
+
   theme: "light",
   uiSize: "default",
   roundedPopupCorners: true,
@@ -65,6 +72,11 @@ export const defaultSettings: AppSettings = {
 
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
+  shortcutNewTask: "",
+  shortcutPauseResume: "",
+  shortcutContinueLastTask: "",
+  shortcutEditNote: "",
+  shortcutOpenKimai: "",
   shortcutOpenSettings: "",
 
   trayLeftClickAction: "popup",
@@ -182,6 +194,12 @@ function normalizeFeatures(value: unknown): Record<string, FeatureSettings> {
   const normalized: Record<string, FeatureSettings> = {};
   for (const [id, featureValue] of Object.entries(value)) {
     if (!id || id.length > 256 || !isRecord(featureValue)) continue;
+    const dailyGoalMinutes = integerValue(
+      featureValue.dailyGoalMinutes,
+      defaultFeatureSettings.dailyGoalMinutes,
+      15,
+      1440,
+    );
     normalized[id] = {
       featureNote: booleanValue(
         featureValue.featureNote,
@@ -202,6 +220,20 @@ function normalizeFeatures(value: unknown): Record<string, FeatureSettings> {
       featureCustomStartTime: booleanValue(
         featureValue.featureCustomStartTime,
         defaultFeatureSettings.featureCustomStartTime,
+      ),
+      featureDailyGoal: booleanValue(
+        featureValue.featureDailyGoal,
+        defaultFeatureSettings.featureDailyGoal,
+      ),
+      dailyGoalMinutes,
+      fullDailyGoalMinutes: Math.max(
+        dailyGoalMinutes,
+        integerValue(
+          featureValue.fullDailyGoalMinutes,
+          defaultFeatureSettings.fullDailyGoalMinutes,
+          15,
+          1440,
+        ),
       ),
       featureCategoryMode: booleanValue(
         featureValue.featureCategoryMode,
@@ -347,6 +379,16 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
       value.showIdleNotification,
       defaultSettings.showIdleNotification,
     ),
+    enableNoTimerReminder: booleanValue(
+      value.enableNoTimerReminder,
+      defaultSettings.enableNoTimerReminder,
+    ),
+    noTimerReminderMinutes: integerValue(
+      value.noTimerReminderMinutes,
+      defaultSettings.noTimerReminderMinutes,
+      1,
+      1440,
+    ),
     theme: enumValue(
       value.theme,
       ["light", "dark", "transparent"] as const,
@@ -354,7 +396,7 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     ),
     uiSize: enumValue(
       value.uiSize,
-      ["small", "default", "large"] as const,
+      ["small", "default", "large", "scale130", "scale145", "scale160"] as const,
       defaultSettings.uiSize,
     ),
     roundedPopupCorners: booleanValue(
@@ -391,6 +433,15 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     features: normalizeFeatures(value.features),
     shortcutTogglePopup: stringValue(value.shortcutTogglePopup, "", 256),
     shortcutStartStopTimer: stringValue(value.shortcutStartStopTimer, "", 256),
+    shortcutNewTask: stringValue(value.shortcutNewTask, "", 256),
+    shortcutPauseResume: stringValue(value.shortcutPauseResume, "", 256),
+    shortcutContinueLastTask: stringValue(
+      value.shortcutContinueLastTask,
+      "",
+      256,
+    ),
+    shortcutEditNote: stringValue(value.shortcutEditNote, "", 256),
+    shortcutOpenKimai: stringValue(value.shortcutOpenKimai, "", 256),
     shortcutOpenSettings: stringValue(value.shortcutOpenSettings, "", 256),
     trayLeftClickAction: enumValue(
       value.trayLeftClickAction,
@@ -497,6 +548,9 @@ export async function loadSettings(): Promise<AppSettings> {
           rawObj.featureCustomStartTime,
           defaultFeatureSettings.featureCustomStartTime,
         ),
+        featureDailyGoal: defaultFeatureSettings.featureDailyGoal,
+        dailyGoalMinutes: defaultFeatureSettings.dailyGoalMinutes,
+        fullDailyGoalMinutes: defaultFeatureSettings.fullDailyGoalMinutes,
         featureCategoryMode: defaultFeatureSettings.featureCategoryMode,
       };
       for (const conn of settings.connections ?? []) {
@@ -537,15 +591,27 @@ export async function patchSettings(
     "patch_settings",
     { request: { values, expected } },
   );
-  return mergeSettings(response.value);
+  const settings = mergeSettings(response.value);
+  // Persistence is authoritative; a transient window-event failure must not
+  // make callers roll back a setting that was already saved successfully.
+  await emit("kimai://settings-changed", settings).catch(() => {});
+  return settings;
 }
 
 export async function onSettingsChange(
   cb: (settings: AppSettings) => void,
 ): Promise<() => void> {
   const store = await getStore();
-  const unlisten = await store.onKeyChange<AppSettings>(SETTINGS_KEY, (val) => {
-    cb(mergeSettings(val));
-  });
-  return unlisten;
+  const [unlistenStore, unlistenEvent] = await Promise.all([
+    store.onKeyChange<AppSettings>(SETTINGS_KEY, (val) => {
+      cb(mergeSettings(val));
+    }),
+    listen<AppSettings>("kimai://settings-changed", (event) => {
+      cb(mergeSettings(event.payload));
+    }),
+  ]);
+  return () => {
+    unlistenStore();
+    unlistenEvent();
+  };
 }

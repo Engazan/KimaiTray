@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import HeaderStatus from "../components/HeaderStatus";
 import ActiveTimerCard from "../components/ActiveTimerCard";
@@ -16,7 +17,6 @@ import {
 } from "../components/TrayLayoutControls";
 import NewTaskForm from "../components/NewTaskForm";
 import CategoryModePanel from "../categorymode/CategoryModePanel";
-import IdleDialog from "../components/IdleDialog";
 import ApiErrorDialog from "../components/ApiErrorDialog";
 import TodaySection from "../components/TodaySection";
 import DetachedTitleBar from "../components/DetachedTitleBar";
@@ -33,6 +33,7 @@ import { useFavorites } from "../hooks/useFavorites";
 import { useKimaiTags } from "../hooks/useKimaiTags";
 import { useDeleteTimesheet } from "../hooks/useDeleteTimesheet";
 import { useIdleDetection } from "../hooks/useIdleDetection";
+import { useNoTimerReminder } from "../hooks/useNoTimerReminder";
 import { setTrayTooltip, setTrayTitle, setTrayIcon, startTrayTicker, stopTrayTicker, updateTrayMenu, registerShortcuts, setAlwaysOnTop } from "../api/trayApi";
 import { formatAcceleratorForDisplay } from "../settings/Controls";
 import { useAppearance } from "../hooks/useAppearance";
@@ -51,21 +52,59 @@ import {
   taskKeyOf,
 } from "../integrations/issues/linkedIssueStore";
 import { logger } from "../utils/logger";
+import type { IdleReminderAction } from "../api/reminderWindow";
+import {
+  hideFullscreenReminder,
+  IDLE_REMINDER_ACTION_EVENT,
+  showFullscreenReminder,
+  updateFullscreenReminder,
+} from "../api/reminderWindow";
 import { getRecordedDurationSeconds } from "../utils/timesheetDuration";
 import { toKimaiLocal } from "../utils/time";
+import {
+  claimInstalledChangelog,
+  rememberPendingChangelog,
+} from "../api/changelog";
+import { showChangelogWindow } from "../api/changelogWindow";
 
 export default function TrayPopup() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskShortcutRequest, setNewTaskShortcutRequest] = useState(0);
+  const [editNoteRequest, setEditNoteRequest] = useState(0);
   const [idleProcessing, setIdleProcessing] = useState(false);
   const [idleActionError, setIdleActionError] = useState<string | null>(null);
   const [focusTab, setFocusTab] = useState<"recent" | "today">("recent");
   const [recentCollapsed, setRecentCollapsed] = useState(false);
   const [todayCollapsed, setTodayCollapsed] = useState(false);
+  const idleReminderVisibleRef = useRef(false);
 
   useAppearance();
   useLanguageSync();
+
+  useEffect(() => {
+    let cancelled = false;
+    void getVersion()
+      .then(async (version) => {
+        if (cancelled) return;
+        const changelog = claimInstalledChangelog(version);
+        if (!changelog) return;
+        try {
+          const opened = await showChangelogWindow(changelog);
+          if (!opened) rememberPendingChangelog(changelog);
+        } catch (error) {
+          rememberPendingChangelog(changelog);
+          throw error;
+        }
+      })
+      .catch((error) => {
+        logger.error(`Failed to open installed changelog: ${String(error)}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const win = getCurrentWindow();
@@ -75,6 +114,15 @@ export default function TrayPopup() {
     return () => { unlisten.then((fn) => fn()); };
   }, [qc]);
 
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://new-task", () => {
+      setNewTaskShortcutRequest((request) => request + 1);
+      setShowNewTask(true);
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
   const {
     client,
     isConfigured,
@@ -82,6 +130,7 @@ export default function TrayPopup() {
     baseUrl,
     openKimaiInBrowser,
     idleSettings,
+    timerReminderSettings,
     traySettings,
     shortcutSettings,
     featureFlags,
@@ -128,6 +177,20 @@ export default function TrayPopup() {
     errorMessage,
   } = useActiveTimer(client, isConfigured, refreshInterval);
 
+  useNoTimerReminder({
+    enabled: timerReminderSettings.enabled,
+    thresholdMinutes: timerReminderSettings.thresholdMinutes,
+    presence: timer
+      ? "running"
+      : status === "connected"
+        ? "stopped"
+        : "unknown",
+  });
+
+  useEffect(() => {
+    setEditNoteRequest(0);
+  }, [timer?.id]);
+
   const {
     pausedTimers,
     hasPausedTimers,
@@ -151,6 +214,13 @@ export default function TrayPopup() {
   );
 
   const today = useTodayTimesheets(client, isConfigured, refreshInterval);
+  const dailyGoal = featureFlags.featureDailyGoal
+    ? {
+        requiredMinutes: featureFlags.dailyGoalMinutes,
+        fullMinutes: featureFlags.fullDailyGoalMinutes,
+        isTimerRunning: !!timer,
+      }
+    : undefined;
 
   const submittedIssueRef = useRef<{
     payload: StartTaskPayload;
@@ -173,6 +243,7 @@ export default function TrayPopup() {
       client,
       (entry, payload) => {
         setShowNewTask(false);
+        setNewTaskShortcutRequest(0);
         const submitted = submittedIssueRef.current;
         submittedIssueRef.current = null;
         if (
@@ -204,6 +275,44 @@ export default function TrayPopup() {
         }
       },
     );
+
+  const pauseResumeTimerRef = useRef<() => void>(() => {});
+  pauseResumeTimerRef.current = () => {
+    if (timer) {
+      pauseTimer();
+      return;
+    }
+    const mostRecent = pausedTimers.reduce<(typeof pausedTimers)[number] | null>(
+      (latest, paused) =>
+        !latest || paused.pausedAt > latest.pausedAt ? paused : latest,
+      null,
+    );
+    if (mostRecent) resumeTimer(mostRecent.id);
+  };
+
+  const continueLastTaskRef = useRef<() => void>(() => {});
+  continueLastTaskRef.current = () => {
+    const task = tasks[0];
+    if (!task) return;
+    void startTask(
+      {
+        projectId: task.projectId,
+        activityId: task.activityId,
+        description: task.description || undefined,
+        tags: task.tags?.length ? task.tags : undefined,
+        label: task.project,
+      },
+      task.key,
+    );
+  };
+
+  const editActiveNoteRef = useRef<() => void>(() => {});
+  editActiveNoteRef.current = () => {
+    if (!timer) return;
+    setShowNewTask(false);
+    setNewTaskShortcutRequest(0);
+    setEditNoteRequest((request) => request + 1);
+  };
 
   const { editTimer, isSaving, saveError } = useEditTimer(client);
   const { hiddenKeys, hideTask, clearAll: clearHidden } = useHiddenTasks(activeConnectionId);
@@ -336,16 +445,50 @@ export default function TrayPopup() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://pause-resume-timer", () => {
+      pauseResumeTimerRef.current();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://continue-last-task", () => {
+      continueLastTaskRef.current();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://edit-active-note", () => {
+      editActiveNoteRef.current();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
   // Re-register global shortcuts when settings change
   useEffect(() => {
     registerShortcuts({
       togglePopup: shortcutSettings.shortcutTogglePopup,
       startStopTimer: shortcutSettings.shortcutStartStopTimer,
+      newTask: shortcutSettings.shortcutNewTask,
+      pauseResume: shortcutSettings.shortcutPauseResume,
+      continueLastTask: shortcutSettings.shortcutContinueLastTask,
+      editNote: shortcutSettings.shortcutEditNote,
+      openKimai: shortcutSettings.shortcutOpenKimai,
       openSettings: shortcutSettings.shortcutOpenSettings,
     }).catch(() => {});
   }, [
     shortcutSettings.shortcutTogglePopup,
     shortcutSettings.shortcutStartStopTimer,
+    shortcutSettings.shortcutNewTask,
+    shortcutSettings.shortcutPauseResume,
+    shortcutSettings.shortcutContinueLastTask,
+    shortcutSettings.shortcutEditNote,
+    shortcutSettings.shortcutOpenKimai,
     shortcutSettings.shortcutOpenSettings,
   ]);
 
@@ -470,15 +613,47 @@ export default function TrayPopup() {
     }
     if (succeeded) {
       dismissIdle();
+      setNewTaskShortcutRequest(0);
       setShowNewTask(true);
     }
   }, [client, timer, idleStartedAt, dismissIdle, qc, t]);
+
+  useEffect(() => {
+    const unlisten = getCurrentWindow().listen<{ action: IdleReminderAction }>(
+      IDLE_REMINDER_ACTION_EVENT,
+      ({ payload }) => {
+        switch (payload.action) {
+          case "continue":
+            handleIdleContinue();
+            break;
+          case "stop-at-start":
+            void handleIdleStopAtStart();
+            break;
+          case "stop-now":
+            void handleIdleStopNow();
+            break;
+          case "stop-and-new":
+            void handleIdleStopAndNew();
+            break;
+        }
+      },
+    );
+    return () => {
+      unlisten.then((cleanup) => cleanup());
+    };
+  }, [
+    handleIdleContinue,
+    handleIdleStopAtStart,
+    handleIdleStopNow,
+    handleIdleStopAndNew,
+  ]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (showNewTask) {
           setShowNewTask(false);
+          setNewTaskShortcutRequest(0);
         } else if (!isDetached) {
           getCurrentWindow().hide();
         }
@@ -772,6 +947,52 @@ export default function TrayPopup() {
     timer &&
     idleStartedAt;
 
+  useEffect(() => {
+    if (!showIdleDialog || !timer || !idleStartedAt) {
+      if (idleReminderVisibleRef.current) {
+        idleReminderVisibleRef.current = false;
+        void hideFullscreenReminder().catch((error) => {
+          logger.error(`Failed to hide idle reminder: ${String(error)}`);
+        });
+      }
+      return;
+    }
+
+    const payload = {
+      kind: "idle" as const,
+      test: false,
+      idleStartedAtIso: idleStartedAt.toISOString(),
+      idleDurationSeconds,
+      project: timer.project,
+      activity: timer.activity,
+      processing: idleProcessing,
+      error: idleActionError,
+    };
+
+    if (!idleReminderVisibleRef.current) {
+      idleReminderVisibleRef.current = true;
+      void showFullscreenReminder(payload)
+        .then((shown) => {
+          if (!shown) idleReminderVisibleRef.current = false;
+        })
+        .catch((error) => {
+          idleReminderVisibleRef.current = false;
+          logger.error(`Failed to show idle reminder: ${String(error)}`);
+        });
+    } else {
+      void updateFullscreenReminder(payload).catch((error) => {
+        logger.error(`Failed to update idle reminder: ${String(error)}`);
+      });
+    }
+  }, [
+    showIdleDialog,
+    timer,
+    idleStartedAt,
+    idleDurationSeconds,
+    idleProcessing,
+    idleActionError,
+  ]);
+
   const handleTogglePin = useCallback(() => {
     const next = !pinned;
     setPinned(next);
@@ -806,11 +1027,14 @@ export default function TrayPopup() {
 
       {showNewTask && client ? (
         <NewTaskForm
-          key={client.connectionId}
+          key={`${client.connectionId}:${newTaskShortcutRequest}`}
           client={client}
           hasActiveTimer={!!timer}
           onSubmit={handleNewTaskSubmit}
-          onCancel={() => setShowNewTask(false)}
+          onCancel={() => {
+            setShowNewTask(false);
+            setNewTaskShortcutRequest(0);
+          }}
           isSubmitting={isStarting}
           showNote={featureFlags.featureNote}
           showTags={featureFlags.featureTags}
@@ -819,6 +1043,7 @@ export default function TrayPopup() {
           showIssuePicker={issueIntegration.enabled}
           issueIntegrationConfig={issueIntegration}
           issueToken={issueToken}
+          autoFocusProject={newTaskShortcutRequest > 0}
         />
       ) : (
         <>
@@ -849,13 +1074,17 @@ export default function TrayPopup() {
                     saveError={saveError}
                     compact={compactTimer}
                     focusMode={popupLayout === "focus"}
-                    showNote={featureFlags.featureNote}
+                    showNote={featureFlags.featureNote || editNoteRequest > 0}
                     showTags={featureFlags.featureTags}
                     tagSuggestions={tagSuggestions}
                     issueUrl={timerIssueUrl}
                     timeEstimate={showIssueEstimate ? estimateIssue!.timeEstimate : undefined}
                     timeSpent={showIssueEstimate ? estimateIssue!.timeSpent : undefined}
                     colorMode={colorMode}
+                    editDescriptionRequest={editNoteRequest}
+                    onEditDescriptionRequestHandled={() =>
+                      setEditNoteRequest(0)
+                    }
                   />
                 ) : (
                   <EmptyTimerState compact={compactTimer} />
@@ -942,6 +1171,7 @@ export default function TrayPopup() {
                     isError={today.isError}
                     onRetry={() => today.refetch()}
                     colorMode={colorMode}
+                    dailyGoal={dailyGoal}
                   />
                 )}
               </>
@@ -992,6 +1222,7 @@ export default function TrayPopup() {
                     isError={today.isError}
                     onRetry={() => today.refetch()}
                     colorMode={colorMode}
+                    dailyGoal={dailyGoal}
                   />
                 ) : null}
               </>
@@ -1013,6 +1244,7 @@ export default function TrayPopup() {
                       isError={today.isError}
                       onRetry={() => today.refetch()}
                       colorMode={colorMode}
+                      dailyGoal={dailyGoal}
                     />
                     <div className="mx-3 border-t border-gray-100 dark:border-gray-800" />
                   </>
@@ -1104,6 +1336,7 @@ export default function TrayPopup() {
                           isError={today.isError}
                           onRetry={() => today.refetch()}
                           colorMode={colorMode}
+                          dailyGoal={dailyGoal}
                         />
                     </CollapsibleTraySection>
                   </>
@@ -1151,6 +1384,7 @@ export default function TrayPopup() {
                       isError={today.isError}
                       onRetry={() => today.refetch()}
                       colorMode={colorMode}
+                      dailyGoal={dailyGoal}
                     />
                   </>
                 )}
@@ -1160,7 +1394,10 @@ export default function TrayPopup() {
           </div>
 
           <PopupFooterActions
-            onNewTask={() => setShowNewTask(true)}
+            onNewTask={() => {
+              setNewTaskShortcutRequest(0);
+              setShowNewTask(true);
+            }}
             showOpenKimai={openKimaiInBrowser}
             onOpenKimai={async () => {
               const { openUrl } = await import("@tauri-apps/plugin-opener");
@@ -1178,20 +1415,6 @@ export default function TrayPopup() {
       )}
 
       <ApiErrorDialog />
-
-      {showIdleDialog && (
-        <IdleDialog
-          timer={timer}
-          idleStartedAt={idleStartedAt}
-          idleDurationSeconds={idleDurationSeconds}
-          onContinue={handleIdleContinue}
-          onStopAtIdleStart={handleIdleStopAtStart}
-          onStopNow={handleIdleStopNow}
-          onStopAndStartNew={handleIdleStopAndNew}
-          isProcessing={idleProcessing}
-          error={idleActionError}
-        />
-      )}
     </div>
   );
 }

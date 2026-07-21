@@ -5,10 +5,16 @@ const storeMocks = vi.hoisted(() => ({
   load: vi.fn(),
   get: vi.fn(),
   invoke: vi.fn(),
+  emit: vi.fn(),
+  listen: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-store", () => ({ load: storeMocks.load }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: storeMocks.invoke }));
+vi.mock("@tauri-apps/api/event", () => ({
+  emit: storeMocks.emit,
+  listen: storeMocks.listen,
+}));
 
 import { defaultSettings, loadSettings, mergeSettings } from "./service";
 
@@ -51,19 +57,23 @@ describe("settings schema defaults", () => {
       language: "fr",
       refreshInterval: "600",
       idleThresholdMinutes: -20,
+      noTimerReminderMinutes: 2000,
       popupMonitorIndex: 999,
       popupLayout: "unknown",
       enableIdleDetection: "true",
       trayIconShape: "triangle",
+      shortcutNewTask: 42,
     } as unknown as Partial<typeof defaultSettings>);
 
     expect(merged.language).toBe(defaultSettings.language);
     expect(merged.refreshInterval).toBe(defaultSettings.refreshInterval);
     expect(merged.idleThresholdMinutes).toBe(1);
+    expect(merged.noTimerReminderMinutes).toBe(1440);
     expect(merged.popupMonitorIndex).toBe(255);
     expect(merged.popupLayout).toBe(defaultSettings.popupLayout);
     expect(merged.enableIdleDetection).toBe(defaultSettings.enableIdleDetection);
     expect(merged.trayIconShape).toBe(defaultSettings.trayIconShape);
+    expect(merged.shortcutNewTask).toBe("");
   });
 
   it("filters malformed nested records while preserving valid settings", () => {
@@ -110,6 +120,9 @@ describe("settings schema defaults", () => {
       featurePausedTimerDescriptionHover: false,
       featureCustomerSelect: true,
       featureCustomStartTime: true,
+      featureDailyGoal: false,
+      dailyGoalMinutes: 450,
+      fullDailyGoalMinutes: 480,
       featureCategoryMode: false,
     });
     expect(merged.issueIntegrations["connection-a"]).toMatchObject({
@@ -118,6 +131,24 @@ describe("settings schema defaults", () => {
       baseUrl: "https://git.test",
       filterLabels: ["bug"],
       filterLabelsMode: "exclude",
+    });
+  });
+
+  it("disables daily goals by default and keeps the full goal after the required goal", () => {
+    const merged = mergeSettings({
+      features: {
+        "connection-a": {
+          featureDailyGoal: "invalid",
+          dailyGoalMinutes: 600,
+          fullDailyGoalMinutes: 300,
+        },
+      },
+    } as unknown as Partial<typeof defaultSettings>);
+
+    expect(merged.features["connection-a"]).toMatchObject({
+      featureDailyGoal: false,
+      dailyGoalMinutes: 600,
+      fullDailyGoalMinutes: 600,
     });
   });
 

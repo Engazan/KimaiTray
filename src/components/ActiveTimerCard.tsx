@@ -33,6 +33,8 @@ interface ActiveTimerCardProps {
   /** Time already logged on the issue before this session, in seconds. */
   timeSpent?: number;
   colorMode?: ColorMode;
+  editDescriptionRequest?: number;
+  onEditDescriptionRequestHandled?: () => void;
 }
 
 /** Compact duration formatting: "5h", "1h30m", "45m". */
@@ -84,6 +86,8 @@ export default function ActiveTimerCard({
   timeEstimate,
   timeSpent,
   colorMode = "kimai",
+  editDescriptionRequest = 0,
+  onEditDescriptionRequestHandled,
 }: ActiveTimerCardProps) {
   const { t } = useTranslation();
   const [elapsed, setElapsed] = useState(() =>
@@ -123,6 +127,7 @@ export default function ActiveTimerCard({
 
   const saveDesc = () => {
     setEditingDesc(false);
+    onEditDescriptionRequestHandled?.();
     if (descValue !== timer.description) {
       onEdit?.(timer.id, { description: descValue });
     }
@@ -135,6 +140,7 @@ export default function ActiveTimerCard({
     } else if (e.key === "Escape") {
       e.preventDefault();
       setEditingDesc(false);
+      onEditDescriptionRequestHandled?.();
     }
   };
 
@@ -205,6 +211,23 @@ export default function ActiveTimerCard({
     setBeginError("");
   }, [timer.id]);
 
+  const handledEditDescriptionRequestRef = useRef(0);
+  useEffect(() => {
+    if (editDescriptionRequest <= 0) {
+      handledEditDescriptionRequestRef.current = 0;
+      return;
+    }
+    if (
+      !onEdit ||
+      handledEditDescriptionRequestRef.current === editDescriptionRequest
+    ) {
+      return;
+    }
+    handledEditDescriptionRequestRef.current = editDescriptionRequest;
+    setDescValue(timer.description);
+    setEditingDesc(true);
+  }, [editDescriptionRequest, onEdit, timer.description]);
+
   const exiting = isStopping || isPausing;
   const cardAnim = exiting ? "animate-card-out" : "animate-card-in";
 
@@ -219,12 +242,27 @@ export default function ActiveTimerCard({
             colorMode={colorMode}
             pulse
           />
-          <span className="text-[11px] font-medium text-gray-800 dark:text-gray-200 truncate">
-            {timer.project}
-          </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
-            {timer.activity}
-          </span>
+          {editingDesc ? (
+            <input
+              ref={descRef}
+              type="text"
+              value={descValue}
+              onChange={(e) => setDescValue(e.target.value)}
+              onBlur={saveDesc}
+              onKeyDown={handleDescKey}
+              placeholder={t("timer.addNote")}
+              className="min-w-0 flex-1 rounded border border-emerald-300 bg-white px-1.5 py-0.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 dark:border-emerald-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder:text-gray-500"
+            />
+          ) : (
+            <>
+              <span className="text-[11px] font-medium text-gray-800 dark:text-gray-200 truncate">
+                {timer.project}
+              </span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                {timer.activity}
+              </span>
+            </>
+          )}
           <span className="ml-auto text-[13px] font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 tracking-tight shrink-0">
             {formatElapsed(elapsed)}
           </span>

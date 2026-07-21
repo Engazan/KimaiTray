@@ -98,6 +98,14 @@ export async function setPopupSize(width: number, height: number, zoom: number):
   }
 }
 
+export async function setPopupZoom(zoom: number): Promise<void> {
+  try {
+    await invoke("set_popup_zoom", { zoom });
+  } catch {
+    // best-effort
+  }
+}
+
 export async function setPopupCornerRadius(radius: number): Promise<void> {
   try {
     await invoke("set_popup_corner_radius", { radius });
@@ -109,9 +117,14 @@ export async function setPopupCornerRadius(radius: number): Promise<void> {
 export async function registerShortcuts(shortcuts: {
   togglePopup: string;
   startStopTimer: string;
+  newTask: string;
+  pauseResume: string;
+  continueLastTask: string;
+  editNote: string;
+  openKimai: string;
   openSettings: string;
 }): Promise<void> {
-  await invoke("register_shortcuts", shortcuts);
+  await invoke("register_shortcuts", { request: shortcuts });
 }
 
 export async function setDisplayMode(mode: string): Promise<void> {

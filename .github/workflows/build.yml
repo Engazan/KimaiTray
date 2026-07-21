@@ -64,7 +64,32 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS Developer ID signing + notarization (ignored on Linux/Windows runners)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: "Developer ID Application: Patrik Horvath (N75GT2GWKJ)"
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: N75GT2GWKJ
         run: npm run tauri build -- --target ${{ matrix.target }}
+      - name: Notarize and staple the DMG (macOS only)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: N75GT2GWKJ
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dmgs=(src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          if [ ${#dmgs[@]} -eq 0 ]; then echo "No DMG produced for ${{ matrix.target }}"; exit 1; fi
+          for dmg in "${dmgs[@]}"; do
+            echo "::group::Notarize $dmg"
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_PASSWORD" --wait
+            xcrun stapler staple "$dmg"
+            xcrun stapler validate "$dmg"
+            echo "::endgroup::"
+          done
       - name: Upload build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -80,6 +105,9 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
+      # tauri-action updates the shared latest.json asset with a read/delete/upload
+      # cycle, so release targets must not publish it concurrently.
+      max-parallel: 1
       matrix:
         include:
           - platform: macos-latest
@@ -116,16 +144,54 @@ jobs:
           workspaces: src-tauri -> target
       - run: npm ci
       - run: npm run check
+      - name: Read release notes from changelog
+        id: release-notes
+        shell: bash
+        run: |
+          {
+            echo 'body<<KIMAITRAY_CHANGELOG_EOF'
+            node scripts/extract-changelog.mjs "${GITHUB_REF_NAME#v}"
+            echo 'KIMAITRAY_CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
       - name: Build and create draft release
-        uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4 # v0
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS Developer ID signing + notarization (ignored on Linux/Windows runners)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: "Developer ID Application: Patrik Horvath (N75GT2GWKJ)"
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: N75GT2GWKJ
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "KimaiTray ${{ github.ref_name }}"
-          releaseBody: "See CHANGELOG.md for release details."
+          releaseBody: ${{ steps.release-notes.outputs.body }}
           releaseDraft: true
           prerelease: false
+          retryAttempts: 3
           args: --target ${{ matrix.target }}
+      - name: Notarize, staple, and re-upload the DMG (macOS only)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: N75GT2GWKJ
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dmgs=(src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          if [ ${#dmgs[@]} -eq 0 ]; then echo "No DMG produced for ${{ matrix.target }}"; exit 1; fi
+          for dmg in "${dmgs[@]}"; do
+            echo "::group::Notarize + re-upload $dmg"
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_PASSWORD" --wait
+            xcrun stapler staple "$dmg"
+            xcrun stapler validate "$dmg"
+            gh release upload "$TAG" "$dmg" --clobber --repo "$GITHUB_REPOSITORY"
+            echo "::endgroup::"
+          done

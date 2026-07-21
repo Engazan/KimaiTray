@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.20.0] - 2026-07-20
+
+### New Features
+
+- **Configurable daily work goals** — an optional Daily Goal card in the Today section tracks progress toward separate required and full-day milestones (7h 30m and 8h by default), shows the remaining work time and estimates completion while a timer is running. The compact card expands on click for full details, both milestones are configurable per connection, and the feature is off by default
+
+### Bug Fixes
+
+- **Reliable What's New window after updates** — the changelog window is now created on demand and restored reliably after an application update instead of depending on a window that may not exist yet
+- **Stable full-screen reminders on Linux** — reminder windows now receive the correct permissions, synchronize their state before rendering, and avoid stacking duplicate windows on Linux/X11
+- **Issue fields preserved in the new-task focus flow** — opening the new-task form through a focus action now keeps the selected issue fields intact
+
+## [0.19.0] - 2026-07-17
+
+### New Features
+
+- **Expanded global keyboard shortcuts** ([#24](https://github.com/Engazan/KimaiTray/issues/24)) — shortcuts can now open a new task, pause or resume the timer, continue the last task, add or edit the active timer note, and open Kimai, alongside the existing popup, stop-timer and settings actions. The new-task form can also be submitted with Ctrl/Cmd + Enter
+- **Full-screen timer reminder** — an optional configurable reminder now appears after no timer has been running for a chosen number of minutes. It fires once per timer-free period and includes a safe preview button in Settings
+- **Full-screen idle reminder** — idle detection now presents its timer choices in a prominent full-screen prompt, where you can keep the idle time, stop at the start of the idle period, stop now, or stop and create a new task. Settings include a preview that never changes the timer
+- **What's new after updates** — after an in-app update, KimaiTray opens the release changelog automatically. The same notes are now used for GitHub releases, with a preview available in Settings
+
+### Bug Fixes
+
+- **Expanded shortcuts register correctly** — the complete shortcut configuration is now sent to the native layer as one grouped request, so the newly added shortcut actions are registered reliably
+
+## [0.18.0] - 2026-07-14
+
+### New Features
+
+- **Expanded UI size range** — the UI Size control in **Appearance** is now a slider with more steps, scaling the whole interface up to 160% (85% / 100% / 115% / 130% / 145% / 160%) instead of the previous three fixed sizes. Useful on high-DPI displays or when you just want everything a bit larger
+
+### Improvements
+
+- **Reliable Linux tray clicks and rendering** — Linux now selects the tray backend for the active desktop: legacy GTK `StatusIcon` restores native left/right clicks on Cinnamon, Xfce and MATE, while GNOME, Ubuntu, Unity, Pantheon and Budgie use AppIndicator where XEmbed icons are unsupported. Popup placement follows the panel edge, the legacy menu uses the modern GDK seat-aware popup API, and the unreliable WebKitGTK DMA-BUF renderer is disabled so accepted clicks, hover states and input changes are actually repainted
+- **Adapts to the desktop's capabilities** — the app now detects the platform it runs on (OS, Wayland vs X11 session, and the active tray backend) and adjusts the interface to match. Controls a Wayland compositor doesn't allow — picking the popup's monitor or corner rounding, and registering global shortcuts — now explain why they're unavailable and point you to your desktop's own settings, instead of silently doing nothing
+
+### Bug Fixes
+
+- **Settings apply across every window** — changing a setting now takes effect immediately in all open windows (popup, settings, detached), not just the one where you changed it
+- **Rounded popup corners on Linux & Windows** — the tray popup and detached window now render with properly rounded corners on Linux and Windows, matching macOS
+- **Popup resizes correctly across UI scales** — on GTK the popup window now resizes to match the selected UI size, so it no longer clips its content or leaves an empty strip
+- **Restore a minimized popup from the tray** — clicking the tray icon restores the popup when it was minimized, instead of leaving it hidden
+- **Focus timer area can grow** — the timer area in the Focus layout expands to fit its content again
+
+### Maintenance
+
+- **Signed & notarized macOS builds** — macOS builds are now signed with a Developer ID certificate and notarized by Apple (both the `.app` and the `.dmg`), so downloaded DMGs no longer trip Gatekeeper's "damaged / Move to Trash" warning
+
 ## [0.17.2] - 2026-07-12
 
 ### Bug Fixes

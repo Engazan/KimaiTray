@@ -1,6 +1,6 @@
 [package]
 name = "kimaitray"
-version = "0.17.2"
+version = "0.20.0"
 description = "KimaiTray — Kimai time-tracking tray companion"
 authors = ["engazan"]
 edition = "2021"
@@ -41,3 +41,14 @@ window-vibrancy = "0.6"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_System_SystemInformation"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# GtkStatusIcon is deprecated upstream, but remains the most compatible tray
+# protocol on Cinnamon/Xfce panels where AppIndicator click events are absent.
+gtk = "0.18"
+gtk-sys = "0.18"
+gdk = "0.18"
+gdk-pixbuf = "0.18"
+glib = "0.18"
+libappindicator = "0.9"
+libappindicator-sys = "0.9"

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { loadSettings, onSettingsChange } from "../settings/service";
-import { setPopupCornerRadius, setPopupSize, setPopupVibrancy, setDisplayMode, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
+import { setPopupCornerRadius, setPopupSize, setPopupZoom, setPopupVibrancy, setDisplayMode, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
 import type { AppSettings } from "../types";
 
 const POPUP_BASE_WIDTH = 360;
@@ -10,6 +10,9 @@ const UI_SIZE_SCALE: Record<AppSettings["uiSize"], number> = {
   small: 0.85,
   default: 1,
   large: 1.15,
+  scale130: 1.3,
+  scale145: 1.45,
+  scale160: 1.6,
 };
 
 let mediaCleanup: (() => void) | null = null;
@@ -59,15 +62,21 @@ function apply(s: AppSettings) {
   document.documentElement.dataset.displayMode = s.displayMode ?? "tray";
 
   const isDetached = s.displayMode === "detached";
+  const scale = UI_SIZE_SCALE[s.uiSize];
 
   if (!isDetached) {
-    const scale = UI_SIZE_SCALE[s.uiSize];
     const w = Math.round(POPUP_BASE_WIDTH * scale);
     const h = Math.round(POPUP_BASE_HEIGHT * scale);
-    const sizeKey = `${w}:${h}:${scale}`;
+    const sizeKey = `tray:${w}:${h}:${scale}`;
     if (sizeKey !== prevSize) {
       prevSize = sizeKey;
       setPopupSize(w, h, scale);
+    }
+  } else {
+    const sizeKey = `detached:${scale}`;
+    if (sizeKey !== prevSize) {
+      prevSize = sizeKey;
+      setPopupZoom(scale);
     }
   }
 

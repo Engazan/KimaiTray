@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTranslation } from "react-i18next";
-
-const isMac = navigator.platform.toUpperCase().includes("MAC");
+import { usePlatform } from "../platform";
 
 function TrafficLight({ color, hoverColor, onClick, label, children }: {
   color: string;
@@ -46,6 +45,7 @@ export default function DetachedTitleBar({
   transparent,
 }: DetachedTitleBarProps) {
   const { t } = useTranslation();
+  const platform = usePlatform();
   const win = getCurrentWindow();
   const barBg = transparent
     ? "bg-white/30 dark:bg-black/20 backdrop-blur-sm"
@@ -73,7 +73,7 @@ export default function DetachedTitleBar({
     </button>
   );
 
-  if (isMac) {
+  if (platform.os === "macos") {
     return (
       <div
         data-tauri-drag-region
@@ -90,7 +90,7 @@ export default function DetachedTitleBar({
         >
           KimaiTray
         </span>
-        <div className="ml-auto">{pinButton}</div>
+        <div className="ml-auto">{platform.supportsAlwaysOnTop && pinButton}</div>
       </div>
     );
   }
@@ -107,7 +107,7 @@ export default function DetachedTitleBar({
         KimaiTray
       </span>
       <div className="flex items-center gap-0.5">
-        {pinButton}
+        {platform.supportsAlwaysOnTop && pinButton}
         <button
           type="button"
           onClick={() => win.minimize()}
