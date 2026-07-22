@@ -436,6 +436,8 @@
     "useNow": "Teraz",
     "custom": "Vlastný",
     "moreOptions": "Ďalšie možnosti",
+    "enableAutoFocus": "Zapnúť automatické zaostrovanie",
+    "disableAutoFocus": "Vypnúť automatické zaostrovanie",
     "refreshLists": "Obnoviť projekty, aktivity a tagy"
   },
   "status": {

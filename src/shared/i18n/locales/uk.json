@@ -436,6 +436,8 @@
     "useNow": "Зараз",
     "custom": "Вибрати",
     "moreOptions": "Більше параметрів",
+    "enableAutoFocus": "Увімкнути автофокус",
+    "disableAutoFocus": "Вимкнути автофокус",
     "refreshLists": "Оновити проєкти, активності та теги"
   },
   "status": {

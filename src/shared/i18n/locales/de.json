@@ -436,6 +436,8 @@
     "useNow": "Jetzt",
     "custom": "Benutzerdefiniert",
     "moreOptions": "Weitere Optionen",
+    "enableAutoFocus": "Autofokus aktivieren",
+    "disableAutoFocus": "Autofokus deaktivieren",
     "refreshLists": "Projekte, Aktivitäten und Tags aktualisieren"
   },
   "status": {

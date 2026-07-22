@@ -42,6 +42,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  localStorage.clear();
   integrationMocks.useRepos.mockReturnValue({
     repos: [],
     isLoading: false,
@@ -105,6 +106,55 @@ function renderForm(
 }
 
 describe("new task keyboard flow", () => {
+  it("enables autofocus by default and remembers when the focus flow is disabled", async () => {
+    apiMocks.getActivities.mockResolvedValue([
+      {
+        id: 10,
+        name: "Work",
+        project: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        comment: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderForm({ autoFocusProject: false });
+
+    const autoFocusToggle = screen.getByRole("button", {
+      name: "Disable autofocus",
+    });
+    expect(autoFocusToggle.getAttribute("aria-pressed")).toBe("true");
+
+    await user.click(autoFocusToggle);
+    expect(
+      screen
+        .getByRole("button", { name: "Enable autofocus" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
+
+    await user.click(screen.getByRole("button", { name: "Project" }));
+    const projectSearch = await screen.findByRole("combobox");
+    await user.type(projectSearch, "Alpha");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Activity").textContent).toContain("Work"),
+    );
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(document.activeElement).not.toBe(
+      screen.getByRole("button", { name: "Start" }),
+    );
+
+    cleanup();
+    renderForm({ autoFocusProject: false });
+    expect(
+      screen
+        .getByRole("button", { name: "Enable autofocus" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
   it("focuses project search and selects the only available activity", async () => {
     apiMocks.getActivities.mockResolvedValue([
       {

@@ -38,6 +38,26 @@ interface NewTaskFormProps {
 const selectCls =
   "w-full rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.08] px-3 py-2 text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none disabled:opacity-40 transition-colors";
 
+const AUTO_FOCUS_STORAGE_KEY = "kimai:newTaskAutoFocus";
+
+function loadAutoFocusPreference(): boolean {
+  if (typeof localStorage === "undefined") return true;
+  try {
+    return localStorage.getItem(AUTO_FOCUS_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function saveAutoFocusPreference(enabled: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(AUTO_FOCUS_STORAGE_KEY, String(enabled));
+  } catch {
+    // Keep the in-memory preference when storage is unavailable.
+  }
+}
+
 /** Compact field label. A small accent dot marks required fields. */
 function FieldLabel({
   children,
@@ -94,6 +114,9 @@ export default function NewTaskForm({
   const [repositoryFocusRequest, setRepositoryFocusRequest] = useState(0);
   const [issueFocusRequest, setIssueFocusRequest] = useState(0);
   const [focusSubmitWhenReady, setFocusSubmitWhenReady] = useState(false);
+  const [autoFocusEnabled, setAutoFocusEnabled] = useState(
+    loadAutoFocusPreference,
+  );
   const submitButtonRef = useRef<HTMLButtonElement>(null);
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -129,6 +152,7 @@ export default function NewTaskForm({
 
   const focusAfterActivity = useCallback(() => {
     setFocusSubmitWhenReady(false);
+    if (!autoFocusEnabled) return;
     if (hasRepositoryPicker) {
       setRepositoryFocusRequest((request) => request + 1);
     } else if (hasIssuePicker) {
@@ -136,7 +160,7 @@ export default function NewTaskForm({
     } else {
       setFocusSubmitWhenReady(true);
     }
-  }, [hasIssuePicker, hasRepositoryPicker]);
+  }, [autoFocusEnabled, hasIssuePicker, hasRepositoryPicker]);
 
   // Follow the configured default repository when the connection/default changes.
   useEffect(() => {
@@ -147,13 +171,15 @@ export default function NewTaskForm({
   const handleSelectRepo = useCallback((v: string | null) => {
     setSelectedRepo(v ?? "");
     setSelectedIssue(null);
-    setIssueFocusRequest((request) => request + 1);
-  }, []);
+    if (autoFocusEnabled) {
+      setIssueFocusRequest((request) => request + 1);
+    }
+  }, [autoFocusEnabled]);
 
   const autoInsertUrl = issueIntegrationConfig?.autoInsertUrl ?? false;
   const handleSelectIssue = (issue: ExternalIssue | null) => {
     setSelectedIssue(issue);
-    setFocusSubmitWhenReady(issue != null);
+    setFocusSubmitWhenReady(autoFocusEnabled && issue != null);
     if (issue && autoInsertUrl) {
       setDescription((prev) => {
         const trimmed = prev.trim();
@@ -257,10 +283,10 @@ export default function NewTaskForm({
     if (available.length === 1) {
       setActivityId(available[0].id);
       focusAfterActivity();
-    } else {
+    } else if (autoFocusEnabled) {
       setActivityFocusRequest((request) => request + 1);
     }
-  }, [activitiesQ.data, focusAfterActivity, pendingActivityProjectId, projectId]);
+  }, [activitiesQ.data, autoFocusEnabled, focusAfterActivity, pendingActivityProjectId, projectId]);
 
   const selectedProject = filteredProjects.find((p) => p.id === projectId);
   const customBegin = useMemo(
@@ -278,6 +304,13 @@ export default function NewTaskForm({
     submitButtonRef.current?.focus();
     setFocusSubmitWhenReady(false);
   }, [canSubmit, focusSubmitWhenReady]);
+
+  const toggleAutoFocus = () => {
+    if (autoFocusEnabled) setFocusSubmitWhenReady(false);
+    const next = !autoFocusEnabled;
+    setAutoFocusEnabled(next);
+    saveAutoFocusPreference(next);
+  };
 
   // "More options" holds the low-frequency fields (tags, custom start time).
   const hasMoreSection = showTags || showCustomStartTime;
@@ -340,11 +373,34 @@ export default function NewTaskForm({
         </span>
         <button
           type="button"
+          onClick={toggleAutoFocus}
+          title={t(autoFocusEnabled ? "newTask.disableAutoFocus" : "newTask.enableAutoFocus")}
+          aria-label={t(autoFocusEnabled ? "newTask.disableAutoFocus" : "newTask.enableAutoFocus")}
+          aria-pressed={autoFocusEnabled}
+          className={`ml-auto flex h-7 w-7 items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] ${
+            autoFocusEnabled
+              ? "bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/15"
+              : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08]"
+          }`}
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5H6A1.5 1.5 0 004.5 6v3m15 0V6A1.5 1.5 0 0018 4.5h-3m0 15h3a1.5 1.5 0 001.5-1.5v-3m-15 0v3A1.5 1.5 0 006 19.5h3" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75a2.25 2.25 0 110 4.5 2.25 2.25 0 010-4.5z" />
+          </svg>
+        </button>
+        <button
+          type="button"
           onClick={handleRefresh}
           disabled={refreshing}
           title={t("newTask.refreshLists")}
           aria-label={t("newTask.refreshLists")}
-          className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg
             className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -388,7 +444,7 @@ export default function NewTaskForm({
             onChange={handleProjectChange}
             placeholder={t("newTask.selectProject")}
             disabled={isSubmitting}
-            focusRequest={autoFocusProject ? 1 : 0}
+            focusRequest={autoFocusEnabled && autoFocusProject ? 1 : 0}
           />
         </div>
 

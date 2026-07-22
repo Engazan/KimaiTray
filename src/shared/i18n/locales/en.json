@@ -436,6 +436,8 @@
     "useNow": "Use now",
     "custom": "Custom",
     "moreOptions": "More options",
+    "enableAutoFocus": "Enable autofocus",
+    "disableAutoFocus": "Disable autofocus",
     "refreshLists": "Refresh projects, activities and tags"
   },
   "status": {
