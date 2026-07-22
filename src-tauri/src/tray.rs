@@ -977,26 +977,70 @@ pub fn set_popup_monitor(mode: String, index: u8, position: String) -> Result<()
     Ok(())
 }
 
-fn position_popup(window: &WebviewWindow, tray_rect: &tauri::Rect) -> tauri::Result<()> {
+#[cfg(target_os = "macos")]
+fn tray_scale_factor(tray: &tauri::tray::TrayIcon<tauri::Wry>) -> Option<f64> {
+    use objc::runtime::Object;
+    use objc::{msg_send, sel, sel_impl};
+
+    tray.with_inner_tray_icon(|icon| unsafe {
+        let status_item = icon.ns_status_item()?;
+        let status_item: *const objc2_app_kit::NSStatusItem = &*status_item;
+        let status_item: *mut Object = status_item.cast_mut().cast();
+        let button: *mut Object = msg_send![status_item, button];
+        let window: *mut Object = msg_send![button, window];
+        (!window.is_null()).then(|| msg_send![window, backingScaleFactor])
+    })
+    .ok()
+    .flatten()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn tray_scale_factor(_tray: &tauri::tray::TrayIcon<tauri::Wry>) -> Option<f64> {
+    None
+}
+
+fn position_popup(
+    window: &WebviewWindow,
+    tray_rect: &tauri::Rect,
+    _tray_scale: Option<f64>,
+) -> tauri::Result<()> {
     if !crate::platform::supports_window_positioning() {
         return Ok(());
     }
-    let scale = window.scale_factor().unwrap_or(1.0);
-    let win_size = window.outer_size()?;
-
-    let tray_pos: PhysicalPosition<i32> = tray_rect.position.to_physical(scale);
-    let tray_size: tauri::PhysicalSize<i32> = tray_rect.size.to_physical(scale);
-
-    let x = tray_pos.x + tray_size.width / 2 - win_size.width as i32 / 2;
 
     #[cfg(target_os = "macos")]
-    let y = tray_pos.y + tray_size.height;
+    {
+        // macOS reports the status-item rect in physical pixels of the display
+        // containing the icon, while NSWindow positions use screen points. The
+        // popup can still be on another display, so its scale factor must not be
+        // used to decode the tray rect.
+        let tray_scale = _tray_scale.unwrap_or_else(|| window.scale_factor().unwrap_or(1.0));
+        let window_scale = window.scale_factor().unwrap_or(1.0);
+        let tray_pos: tauri::LogicalPosition<f64> = tray_rect.position.to_logical(tray_scale);
+        let tray_size: tauri::LogicalSize<f64> = tray_rect.size.to_logical(tray_scale);
+        let win_size: tauri::LogicalSize<f64> = window.outer_size()?.to_logical(window_scale);
+
+        let x = tray_pos.x + tray_size.width / 2.0 - win_size.width / 2.0;
+        let y = tray_pos.y + tray_size.height;
+        let position: PhysicalPosition<i32> =
+            tauri::LogicalPosition::new(x, y).to_physical(window_scale);
+
+        window.set_position(position)
+    }
 
     #[cfg(not(target_os = "macos"))]
-    let y = tray_pos.y - win_size.height as i32;
+    {
+        // Tauri tray rectangles and window positions are already physical on
+        // Windows and Linux. Do not apply the popup window's scale a second time.
+        let tray_pos: PhysicalPosition<i32> = tray_rect.position.to_physical(1.0);
+        let tray_size: tauri::PhysicalSize<i32> = tray_rect.size.to_physical(1.0);
+        let win_size = window.outer_size()?;
 
-    window.set_position(PhysicalPosition::new(x, y))?;
-    Ok(())
+        let x = tray_pos.x + tray_size.width / 2 - win_size.width as i32 / 2;
+        let y = tray_pos.y - win_size.height as i32;
+
+        window.set_position(PhysicalPosition::new(x, y))
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -1399,7 +1443,7 @@ pub fn show_popup_window(app: &AppHandle) {
                 if linux_uses_appindicator() {
                     if let Some(tray) = app.tray_by_id("main") {
                         if let Ok(Some(rect)) = tray.rect() {
-                            let _ = position_popup(&popup, &rect);
+                            let _ = position_popup(&popup, &rect, tray_scale_factor(&tray));
                         }
                     }
                 } else {
@@ -1409,7 +1453,7 @@ pub fn show_popup_window(app: &AppHandle) {
                 #[cfg(not(target_os = "linux"))]
                 if let Some(tray) = app.tray_by_id("main") {
                     if let Ok(Some(rect)) = tray.rect() {
-                        let _ = position_popup(&popup, &rect);
+                        let _ = position_popup(&popup, &rect, tray_scale_factor(&tray));
                     }
                 }
             }
@@ -1797,7 +1841,7 @@ fn create_tauri_tray(app: &AppHandle) -> tauri::Result<()> {
                                     let _ = popup.show();
                                     restore_and_focus_popup(&popup);
                                 } else {
-                                    let _ = position_popup(&popup, &rect);
+                                    let _ = position_popup(&popup, &rect, tray_scale_factor(tray));
                                     let _ = popup.show();
                                     restore_and_focus_popup(&popup);
                                 }
