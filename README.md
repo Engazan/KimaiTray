@@ -10,7 +10,7 @@ A system tray companion for [Kimai](https://www.kimai.org/) time tracking. Start
 
 ### ⬇️ [**Download the latest release**](https://github.com/Engazan/KimaiTray/releases)
 
-![KimaiTray preview](kimai-preview.png)
+<img src="kimaitray.png" alt="KimaiTray tray popup" width="480">
 
 </div>
 
@@ -18,18 +18,64 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 
 ## Features
 
-- Tray-based timer control (start, stop, pause, resume)
-- Multiple Kimai server connections
-- Quick-start from recent tasks and favorites
-- Issue tracker integration (GitLab, GitHub, Gitea) — search and link issues to timers, browse per-repository issues, filter by state / assignee / labels, see GitLab time estimates (logged vs. estimate), and sync spent time back to the linked issue when the timer stops
-- Global keyboard shortcuts
-- Idle detection with configurable actions
-- Tag and description editing on running timers
-- Today's time entry history
-- 5 languages (English, Slovak, Czech, German, Ukrainian)
-- Customizable appearance (themes, accent colors, compact mode)
-- Launch at login
-- Cross-platform: macOS, Windows, Linux
+### Time tracking
+
+- Start, stop and switch Kimai timers directly from the tray popup
+- Pause multiple timers, resume any of them later or discard them
+- Optionally reveal paused-timer descriptions on hover
+- Quick-start tasks from per-connection favorites and recent entries
+- Searchable project, activity, customer and Kimai tag pickers with on-demand refresh
+- Optional notes, tags, customer filtering and a custom start time for new tasks
+- Edit the active timer's note, tags and start time
+- Edit the start and end time of completed entries when permitted by the Kimai API
+- Hide recent tasks locally or delete their time entries from Kimai
+- Today's time-entry timeline with sorting, durations, colors and billable status
+- Optional per-connection daily goals with required/full milestones, remaining time and an estimated finish time
+- Optional Category Mode with a configurable two-level activity tree, icons, colors, import/export and hourly remote synchronization
+
+### Issue tracker integrations
+
+- GitLab, GitHub and Gitea issue linking, configured independently for each Kimai connection
+- Browse and search accessible projects/repositories and select a repository per timer
+- Filter issues by state, assignee and included or excluded labels
+- Highlight and preselect issues matching the chosen Kimai project
+- Open or copy issue links and optionally insert an issue URL or title into the timer description
+- GitLab spent/estimated-time badges in the issue picker and active timer
+- Sync recorded time back to linked GitLab and Gitea issues when a timer stops
+
+### Automation and reminders
+
+- Configurable global shortcuts for the popup, new task, stop, pause/resume, continue last task, edit note, open Kimai and Settings
+- Idle detection with configurable threshold and actions: ask, stop at idle start, stop now or keep running
+- Full-screen idle prompt and optional desktop notification
+- Configurable full-screen reminder when no timer has been running
+- Launch at login, configurable server refresh interval and one-click opening of Kimai
+- Automatic updates, manual update checks and a localized What's New screen after updates
+
+### Connections and security
+
+- Multiple isolated Kimai connections, including separate accounts on the same server
+- Per-connection favorites, paused timers, feature settings, caches and issue integrations
+- API and integration credentials stored in the operating system's secure credential store
+- Native HTTP broker with validated origins and pinned DNS targets for Kimai and issue-tracker requests
+
+### Appearance and desktop integration
+
+- Four popup layouts: Classic, Focus, Taskbar and Timeline
+- Light, dark and transparent themes, five accent colors and configurable Kimai color indicators
+- UI scaling from 85% to 160%, optional rounded corners, animations and translucency controls
+- Tray or resizable detached-window mode; macOS True Tray mode hides the Dock and Cmd+Tab entry
+- Custom tray icon shape, size and colors for running, paused, idle and error states
+- Configurable macOS menu-bar label (timer, project, activity or icon only) and tray left/right-click actions
+- Configurable popup monitor and placement on supported Linux/X11 desktops
+- Five bundled languages: English, Slovak, Czech, German and Ukrainian, plus system-language detection
+- Native support for macOS, Windows and Linux, including X11 and supported Wayland desktops
+
+## Full-screen reminders
+
+The optional no-timer and idle reminders can take over the screen so they are difficult to miss.
+
+<img src="kimaitray_no_timer.png" alt="KimaiTray full-screen no-timer reminder" width="900">
 
 ## Prerequisites
 
@@ -112,6 +158,7 @@ Create `.env.local` or `.env.production.local` for machine-specific overrides (g
 ```
 src/                    # React frontend
   api/                  # Kimai REST API client
+  categorymode/         # Configurable category-based timer workflow
   components/           # UI components
   hooks/                # Custom React hooks
   integrations/         # Issue tracker integrations
@@ -175,10 +222,10 @@ GitHub Actions workflow at `.github/workflows/build.yml`:
 - Cross-platform matrix: macOS (ARM + Intel), Linux, Windows
 - On version tags (`v*`), creates a draft GitHub Release with all platform artifacts
 
-To release:
+To release (replace `X.Y.Z` with the version from `package.json`):
 ```sh
-git tag v0.16.0
-git push origin v0.16.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 Then review and publish the draft release on GitHub.
@@ -186,7 +233,7 @@ Then review and publish the draft release on GitHub.
 ## Troubleshooting
 
 **macOS: "app is damaged" or Gatekeeper warning**
-The app is not code-signed for distribution. Right-click -> Open, or run:
+Official release builds are signed and notarized. If macOS still quarantines a verified download, run:
 ```sh
 xattr -cr /Applications/KimaiTray.app
 ```
