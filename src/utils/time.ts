@@ -25,6 +25,15 @@ export function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
+export function toDateTimeLocalInput(iso: string): string {
+  const date = parseKimaiDate(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
 /**
  * Serializes a Date into Kimai's HTML5 datetime format (`Y-m-d\TH:i:s`, e.g.
  * "2026-07-12T14:00:00") using the LOCAL wall-clock components.

@@ -7,9 +7,14 @@ import { formatTime, formatDuration, parseKimaiDate } from "../utils/time";
 interface TodayEntryItemProps {
   entry: TodayEntry;
   colorMode?: ColorMode;
+  onEdit?: (entry: TodayEntry) => void;
 }
 
-export default function TodayEntryItem({ entry, colorMode = "kimai" }: TodayEntryItemProps) {
+export default function TodayEntryItem({
+  entry,
+  colorMode = "kimai",
+  onEdit,
+}: TodayEntryItemProps) {
   const { t } = useTranslation();
 
   const duration = entry.isRunning
@@ -20,6 +25,21 @@ export default function TodayEntryItem({ entry, colorMode = "kimai" }: TodayEntr
     .filter(Boolean)
     .join(" · ");
 
+  const timeRange = (
+    <span className="flex flex-col items-start whitespace-nowrap leading-tight">
+      <span>{formatTime(entry.beginIso)}</span>
+      {entry.isRunning ? (
+        <span className="font-medium text-emerald-500 dark:text-emerald-400">
+          {t("common.now")}
+        </span>
+      ) : entry.endIso ? (
+        <span>{formatTime(entry.endIso)}</span>
+      ) : (
+        <span>—</span>
+      )}
+    </span>
+  );
+
   return (
     <div
       className={`px-2.5 py-1.5 rounded-md transition-colors ${
@@ -28,21 +48,37 @@ export default function TodayEntryItem({ entry, colorMode = "kimai" }: TodayEntr
           : ""
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="grid grid-cols-[max-content_auto_minmax(0,1fr)_auto] items-center gap-x-2">
         {/* Time range */}
-        <div className="shrink-0 w-[72px] text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
-          <span>{formatTime(entry.beginIso)}</span>
-          <span className="mx-0.5">–</span>
-          {entry.isRunning ? (
-            <span className="text-emerald-500 dark:text-emerald-400 font-medium">
-              {t("common.now")}
-            </span>
-          ) : entry.endIso ? (
-            <span>{formatTime(entry.endIso)}</span>
-          ) : (
-            <span>—</span>
-          )}
-        </div>
+        {!entry.isRunning && onEdit ? (
+          <button
+            type="button"
+            onClick={() => onEdit(entry)}
+            aria-label={t("today.editEntryLabel", { project: entry.project })}
+            title={t("today.editEntry")}
+            className="group inline-flex items-center rounded px-0.5 py-0.5 text-[10px] tabular-nums text-gray-400 transition-colors hover:bg-gray-100 hover:text-[var(--accent)] focus:outline-none focus-visible:bg-gray-100 focus-visible:text-[var(--accent)] focus-visible:ring-1 focus-visible:ring-[var(--accent)] dark:text-gray-500 dark:hover:bg-gray-800 dark:focus-visible:bg-gray-800"
+          >
+            {timeRange}
+            <svg
+              aria-hidden="true"
+              className="ml-1 h-2.5 w-2.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.862 4.487zM19.5 7.125L16.875 4.5"
+              />
+            </svg>
+          </button>
+        ) : (
+          <div className="whitespace-nowrap px-0.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+            {timeRange}
+          </div>
+        )}
 
         {/* Color dot */}
         <ColorDots
@@ -55,7 +91,7 @@ export default function TodayEntryItem({ entry, colorMode = "kimai" }: TodayEntr
         />
 
         {/* Project + Activity */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0">
           <div className="flex items-baseline gap-1">
             <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate">
               {entry.project}
@@ -81,21 +117,21 @@ export default function TodayEntryItem({ entry, colorMode = "kimai" }: TodayEntr
             {formatDuration(duration)}
           </span>
         </div>
-      </div>
 
-      {/* Subtitle row */}
-      {(subtitle || entry.tags.length > 0) && (
-        <div className="ml-[88px] mt-0.5 flex items-center gap-2 min-w-0">
-          {subtitle && (
-            <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
-              {subtitle}
-            </span>
-          )}
-          {entry.tags.length > 0 && (
-            <TagsList tags={entry.tags} maxVisible={2} />
-          )}
-        </div>
-      )}
+        {/* Subtitle row */}
+        {(subtitle || entry.tags.length > 0) && (
+          <div className="col-span-2 col-start-3 mt-0.5 flex min-w-0 items-center gap-2">
+            {subtitle && (
+              <span className="truncate text-[10px] text-gray-400 dark:text-gray-500">
+                {subtitle}
+              </span>
+            )}
+            {entry.tags.length > 0 && (
+              <TagsList tags={entry.tags} maxVisible={2} />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

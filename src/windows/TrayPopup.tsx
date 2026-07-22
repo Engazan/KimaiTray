@@ -19,6 +19,7 @@ import NewTaskForm from "../components/NewTaskForm";
 import CategoryModePanel from "../categorymode/CategoryModePanel";
 import ApiErrorDialog from "../components/ApiErrorDialog";
 import TodaySection from "../components/TodaySection";
+import TimesheetEditDialog from "../components/TimesheetEditDialog";
 import DetachedTitleBar from "../components/DetachedTitleBar";
 import { useKimaiClient } from "../hooks/useKimaiClient";
 import { useActiveTimer } from "../hooks/useActiveTimer";
@@ -27,6 +28,7 @@ import { useTodayTimesheets } from "../hooks/useTodayTimesheets";
 import { useStartTask } from "../hooks/useStartTask";
 import type { StartTaskPayload } from "../hooks/useStartTask";
 import { useEditTimer } from "../hooks/useEditTimer";
+import { useEditTimesheet } from "../hooks/useEditTimesheet";
 import { usePauseTimer } from "../hooks/usePauseTimer";
 import { useHiddenTasks } from "../hooks/useHiddenTasks";
 import { useFavorites } from "../hooks/useFavorites";
@@ -51,7 +53,7 @@ import { invalidateTimesheets } from "../hooks/invalidateTimesheets";
 import { useLanguageSync } from "../hooks/useLanguageSync";
 import { useUpdater } from "../hooks/useUpdater";
 import { getTimesheet, updateTimesheet, stopTimesheet } from "../api/timesheetApi";
-import type { RecentTask, FavoriteTask } from "../types";
+import type { RecentTask, FavoriteTask, TodayEntry } from "../types";
 import type { ExternalIssue } from "../integrations/issues/types";
 import { createIssueProvider } from "../integrations/issues/issueProvider";
 import {
@@ -88,6 +90,7 @@ export default function TrayPopup() {
   const [focusTab, setFocusTab] = useState<"recent" | "today">("recent");
   const [recentCollapsed, setRecentCollapsed] = useState(false);
   const [todayCollapsed, setTodayCollapsed] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<TodayEntry | null>(null);
   const idleReminderVisibleRef = useRef(false);
 
   useAppearance();
@@ -325,10 +328,15 @@ export default function TrayPopup() {
   };
 
   const { editTimer, isSaving, saveError } = useEditTimer(client);
+  const { editTimesheet: editCompletedTimesheet } = useEditTimesheet(client);
   const { hiddenKeys, hideTask, clearAll: clearHidden } = useHiddenTasks(activeConnectionId);
   const { favorites, addFavorite: addFav, removeFavorite: removeFav, isFavorite } = useFavorites(activeConnectionId, baseUrl);
   const tagSuggestions = useKimaiTags(client);
   const { deleteEntry, deletingId, deleteError: timesheetDeleteError, dismissError: dismissDeleteError } = useDeleteTimesheet(client);
+
+  useEffect(() => {
+    setEditingEntry(null);
+  }, [activeConnectionId]);
 
   const {
     idleState,
@@ -1180,6 +1188,7 @@ export default function TrayPopup() {
                     isLoading={today.isLoading}
                     isError={today.isError}
                     onRetry={() => today.refetch()}
+                    onEditEntry={setEditingEntry}
                     colorMode={colorMode}
                     dailyGoal={dailyGoal}
                   />
@@ -1231,6 +1240,7 @@ export default function TrayPopup() {
                     isLoading={today.isLoading}
                     isError={today.isError}
                     onRetry={() => today.refetch()}
+                    onEditEntry={setEditingEntry}
                     colorMode={colorMode}
                     dailyGoal={dailyGoal}
                   />
@@ -1253,6 +1263,7 @@ export default function TrayPopup() {
                       isLoading={today.isLoading}
                       isError={today.isError}
                       onRetry={() => today.refetch()}
+                      onEditEntry={setEditingEntry}
                       colorMode={colorMode}
                       dailyGoal={dailyGoal}
                     />
@@ -1345,6 +1356,7 @@ export default function TrayPopup() {
                           isLoading={today.isLoading}
                           isError={today.isError}
                           onRetry={() => today.refetch()}
+                          onEditEntry={setEditingEntry}
                           colorMode={colorMode}
                           dailyGoal={dailyGoal}
                         />
@@ -1393,6 +1405,7 @@ export default function TrayPopup() {
                       isLoading={today.isLoading}
                       isError={today.isError}
                       onRetry={() => today.refetch()}
+                      onEditEntry={setEditingEntry}
                       colorMode={colorMode}
                       dailyGoal={dailyGoal}
                     />
@@ -1419,6 +1432,14 @@ export default function TrayPopup() {
             }}
           />
         </>
+      )}
+
+      {editingEntry && (
+        <TimesheetEditDialog
+          entry={editingEntry}
+          onSave={editCompletedTimesheet}
+          onClose={() => setEditingEntry(null)}
+        />
       )}
 
       <ApiErrorDialog />

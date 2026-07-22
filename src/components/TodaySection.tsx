@@ -22,6 +22,7 @@ interface TodaySectionProps {
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  onEditEntry?: (entry: TodayEntry) => void;
   colorMode?: ColorMode;
   dailyGoal?: DailyGoalSettings;
 }
@@ -49,6 +50,7 @@ export default function TodaySection({
   isLoading,
   isError,
   onRetry,
+  onEditEntry,
   colorMode = "kimai",
   dailyGoal,
 }: TodaySectionProps) {
@@ -117,7 +119,12 @@ export default function TodaySection({
         ) : (
           <>
             {entries.map((entry) => (
-              <TodayEntryItem key={entry.id} entry={entry} colorMode={colorMode} />
+              <TodayEntryItem
+                key={entry.id}
+                entry={entry}
+                colorMode={colorMode}
+                onEdit={onEditEntry}
+              />
             ))}
             {hasMore && !expanded && (
               <button

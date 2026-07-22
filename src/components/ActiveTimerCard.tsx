@@ -3,7 +3,11 @@ import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { ActiveTimer, ColorMode } from "../types";
 import type { KimaiTag } from "../api/tagApi";
-import { parseKimaiDate, toKimaiLocal } from "../utils/time";
+import {
+  parseKimaiDate,
+  toDateTimeLocalInput,
+  toKimaiLocal,
+} from "../utils/time";
 import TagsList from "./TagsList";
 import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
@@ -52,12 +56,6 @@ function formatElapsed(seconds: number, showSeconds = true): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   if (!showSeconds) return `${pad(h)}:${pad(m)}`;
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
-}
-
-function toDatetimeLocal(iso: string): string {
-  const d = parseKimaiDate(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function formatStartTime(iso: string): string {
@@ -177,7 +175,7 @@ export default function ActiveTimerCard({
   const [beginError, setBeginError] = useState("");
   const startEditBegin = () => {
     if (!onEdit) return;
-    setBeginValue(toDatetimeLocal(timer.beginIso));
+    setBeginValue(toDateTimeLocalInput(timer.beginIso));
     setBeginError("");
     setEditingBegin(true);
   };
