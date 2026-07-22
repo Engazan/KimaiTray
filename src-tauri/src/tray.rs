@@ -1460,6 +1460,11 @@ pub fn open_kimai(app: &AppHandle) {
     });
 }
 
+#[tauri::command]
+pub fn open_kimai_in_browser(app: AppHandle) {
+    open_kimai(&app);
+}
+
 pub fn show_settings_window(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("settings") {
         let _ = w.show();

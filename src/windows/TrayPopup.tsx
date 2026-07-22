@@ -34,7 +34,17 @@ import { useKimaiTags } from "../hooks/useKimaiTags";
 import { useDeleteTimesheet } from "../hooks/useDeleteTimesheet";
 import { useIdleDetection } from "../hooks/useIdleDetection";
 import { useNoTimerReminder } from "../hooks/useNoTimerReminder";
-import { setTrayTooltip, setTrayTitle, setTrayIcon, startTrayTicker, stopTrayTicker, updateTrayMenu, registerShortcuts, setAlwaysOnTop } from "../api/trayApi";
+import {
+  openKimaiInBrowser as openConfiguredKimai,
+  registerShortcuts,
+  setAlwaysOnTop,
+  setTrayIcon,
+  setTrayTitle,
+  setTrayTooltip,
+  startTrayTicker,
+  stopTrayTicker,
+  updateTrayMenu,
+} from "../api/trayApi";
 import { formatAcceleratorForDisplay } from "../settings/Controls";
 import { useAppearance } from "../hooks/useAppearance";
 import { invalidateTimesheets } from "../hooks/invalidateTimesheets";
@@ -1399,10 +1409,7 @@ export default function TrayPopup() {
               setShowNewTask(true);
             }}
             showOpenKimai={openKimaiInBrowser}
-            onOpenKimai={async () => {
-              const { openUrl } = await import("@tauri-apps/plugin-opener");
-              if (baseUrl) openUrl(baseUrl);
-            }}
+            onOpenKimai={() => void openConfiguredKimai()}
             onSettings={async () => {
               const w = await Window.getByLabel("settings");
               if (w) {

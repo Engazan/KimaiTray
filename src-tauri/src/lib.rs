@@ -206,6 +206,7 @@ pub fn run() {
             tray::stop_tray_ticker,
             tray::list_monitors,
             tray::set_popup_monitor,
+            tray::open_kimai_in_browser,
             idle::get_idle_seconds,
             shortcuts::register_shortcuts,
             store::mutate_scoped_store,

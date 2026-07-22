@@ -143,6 +143,10 @@ export async function setAlwaysOnTop(pinned: boolean): Promise<void> {
   }
 }
 
+export async function openKimaiInBrowser(): Promise<void> {
+  await invoke("open_kimai_in_browser");
+}
+
 export async function setTrayClickActions(leftAction: string, rightAction: string): Promise<void> {
   try {
     await invoke("set_tray_click_actions", { leftAction, rightAction });
