@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, useId } from "react";
 import { useTranslation } from "react-i18next";
+import { normalizeSearchText } from "../../utils/searchText";
 import type { ExternalIssue, IssueIntegrationSettings } from "./types";
 import { useIssues } from "./useIssues";
 
@@ -16,15 +17,6 @@ interface IssuePickerProps {
   /** Name of the selected Kimai project — issues whose title contains it are
    *  highlighted as likely matches. */
   projectName?: string | null;
-}
-
-// Case- and diacritic-insensitive so "eshop.siklienka.sk" matches a title like
-// "ANALYZA - eshop.siklienka.sk - Individuálne akcie".
-function normalizeText(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 }
 
 /** Format a duration in seconds to a compact "1h30m" / "5h" / "45m" string. */
@@ -86,11 +78,11 @@ export default function IssuePicker({
   // Issues whose title contains the selected project name — likely the one the
   // user wants, so we highlight them and pre-select the first match.
   const suggestedIds = useMemo(() => {
-    const needle = projectName ? normalizeText(projectName.trim()) : "";
+    const needle = projectName ? normalizeSearchText(projectName.trim()) : "";
     if (needle.length < 2) return new Set<number>();
     return new Set(
       issues
-        .filter((issue) => normalizeText(issue.title).includes(needle))
+        .filter((issue) => normalizeSearchText(issue.title).includes(needle))
         .map((issue) => issue.id),
     );
   }, [issues, projectName]);

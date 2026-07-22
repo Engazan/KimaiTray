@@ -1,6 +1,7 @@
 import { safeHttpFetch as fetch } from "../../api/safeHttp";
 import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIntegrationSettings } from "./types";
 import { logger } from "../../utils/logger";
+import { normalizeSearchText } from "../../utils/searchText";
 import { expectArrayOf, expectObject, isRecord, isStringArray } from "./responseValidation";
 
 interface GitLabIssue {
@@ -56,15 +57,6 @@ function isGitLabLabel(value: unknown): value is GitLabLabel {
 
 function isGitLabProject(value: unknown): value is GitLabProject {
   return isRecord(value) && typeof value.path_with_namespace === "string";
-}
-
-// Case- and diacritic-insensitive normalization so a query like "sik" or
-// "individualne" matches "siklienka" / "Individuálne".
-function normalizeText(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function normalize(issue: GitLabIssue): ExternalIssue {
@@ -186,9 +178,9 @@ export function createGitLabProvider(
         "GitLab issues",
       );
 
-      const needle = normalizeText(trimmed);
+      const needle = normalizeSearchText(trimmed);
       const localMatched = recent.filter((issue) =>
-        normalizeText(issue.title).includes(needle),
+        normalizeSearchText(issue.title).includes(needle),
       );
 
       const seen = new Set<number>();

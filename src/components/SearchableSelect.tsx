@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, useId } from "react";
 import { useTranslation } from "react-i18next";
+import { normalizeSearchText } from "../utils/searchText";
 
 type OptionValue = string | number;
 
@@ -74,8 +75,8 @@ export default function SearchableSelect<T extends OptionValue>({
 
   const filtered = useMemo(() => {
     if (!search) return options;
-    const q = search.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    const q = normalizeSearchText(search);
+    return options.filter((o) => normalizeSearchText(o.label).includes(q));
   }, [options, search]);
 
   useEffect(() => {

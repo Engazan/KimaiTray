@@ -9,6 +9,7 @@ import { useCategoryConfig } from "./useCategoryConfig";
 import { useCategoryActivityMapping } from "./useCategoryActivityMapping";
 import { useCategoryRemoteSync } from "./useCategoryRemoteSync";
 import { loadCategoryLastActivity, saveCategoryLastActivity } from "./categoryLastActivityStore";
+import { normalizeSearchText } from "../utils/searchText";
 import type { Category, CategoryLeaf, CategoryLastActivity } from "./types";
 import CategoryButton from "./CategoryButton";
 import { CategoryPictogram, categoryColorValue, type CategoryColor, type CategoryIcon } from "./CategoryVisual";
@@ -132,8 +133,10 @@ export default function CategoryModePanel({
     const valid = pendingLeaf
       ? all.filter((p) => mapping.resolve(pendingLeaf.activityName, p.id) != null)
       : all;
-    const q = projectFilter.trim().toLowerCase();
-    return q ? valid.filter((p) => p.name.toLowerCase().includes(q)) : valid;
+    const q = normalizeSearchText(projectFilter.trim());
+    return q
+      ? valid.filter((project) => normalizeSearchText(project.name).includes(q))
+      : valid;
   }, [projectsQ.data, projectFilter, pendingLeaf, mapping]);
 
   const resetToMain = () => {

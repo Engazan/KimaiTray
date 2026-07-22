@@ -51,6 +51,28 @@ describe("accessible custom controls", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("matches canonically equivalent and unaccented select searches", async () => {
+    const user = userEvent.setup();
+    renderLocalized(
+      <SearchableSelect
+        options={[{ value: 1, label: "fore\u0302t" }]}
+        value={null}
+        onChange={vi.fn()}
+        placeholder="Choose project"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /choose project/i }));
+    const input = screen.getByRole("combobox");
+
+    await user.type(input, "for\u00ea");
+    expect(screen.getByRole("option", { name: "fore\u0302t" })).toBeTruthy();
+
+    await user.clear(input);
+    await user.type(input, "fore");
+    expect(screen.getByRole("option", { name: "fore\u0302t" })).toBeTruthy();
+  });
+
   it("opens and focuses SearchableSelect from a keyboard-flow request", async () => {
     renderLocalized(
       <SearchableSelect

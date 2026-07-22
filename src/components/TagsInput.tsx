@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { KimaiTag } from "../api/tagApi";
+import { normalizeSearchText, normalizeTextKey } from "../utils/searchText";
 import TagPill from "./TagPill";
 
 interface TagsInputProps {
@@ -37,19 +38,19 @@ export default function TagsInput({
 
   // Suggestions not yet selected, filtered by the current input.
   const available = useMemo(() => {
-    const selected = new Set(tags.map((t) => t.toLowerCase()));
-    const q = input.trim().toLowerCase();
+    const selected = new Set(tags.map(normalizeTextKey));
+    const q = normalizeSearchText(input.trim());
     return suggestions.filter((s) => {
-      const low = s.name.toLowerCase();
-      if (selected.has(low)) return false;
-      return q === "" || low.includes(q);
+      const normalizedName = normalizeSearchText(s.name);
+      if (selected.has(normalizeTextKey(s.name))) return false;
+      return q === "" || normalizedName.includes(q);
     });
   }, [suggestions, tags, input]);
 
   // Map tag name → color for coloring the selected pills.
   const colorByName = useMemo(() => {
     const m = new Map<string, string | null>();
-    for (const s of suggestions) m.set(s.name.toLowerCase(), s.color);
+    for (const s of suggestions) m.set(normalizeTextKey(s.name), s.color);
     return m;
   }, [suggestions]);
 
@@ -78,7 +79,11 @@ export default function TagsInput({
     (name: string) => {
       const trimmed = name.trim();
       if (!trimmed) return;
-      if (tags.some((tg) => tg.toLowerCase() === trimmed.toLowerCase())) return;
+      if (
+        tags.some((tag) => normalizeTextKey(tag) === normalizeTextKey(trimmed))
+      ) {
+        return;
+      }
       onChange([...tags, trimmed]);
       setInput("");
     },
@@ -135,7 +140,7 @@ export default function TagsInput({
           <TagPill
             key={tag}
             tag={tag}
-            color={colorByName.get(tag.toLowerCase()) ?? null}
+            color={colorByName.get(normalizeTextKey(tag)) ?? null}
             onRemove={disabled ? undefined : () => removeTag(i)}
           />
         ))}
