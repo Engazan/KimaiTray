@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.21.0] - 2026-07-22
+
+### New Features
+
+- **Edit completed time entries** ([#26](https://github.com/Engazan/KimaiTray/issues/26)) — the start and end times of entries in the Today section can now be corrected after they are stopped, with a live duration preview and validation that prevents invalid time ranges
+- **Persistent autofocus control for new timers** — a new icon next to Refresh enables or disables the automatic keyboard-focus flow through the new-timer form. The mode is enabled by default and remembers the chosen state across forms and application restarts
+
+### Bug Fixes
+
+- **Tray popup opens on the clicked display** — multi-monitor placement now uses the display where the tray icon was clicked, including setups whose monitors use different scale factors — thanks to [@4713n](https://github.com/4713n) ([#23](https://github.com/Engazan/KimaiTray/pull/23))
+- **Open Kimai works reliably** ([#25](https://github.com/Engazan/KimaiTray/issues/25)) — opening the configured Kimai instance is now handled by the native application layer instead of the webview
+- **Unicode-aware searches** ([#27](https://github.com/Engazan/KimaiTray/issues/27)) — project, activity, tag, category and issue searches now normalize Unicode consistently, so case and diacritic variants match as expected
+- **Changelog preview and post-update window** — the What's New window is now preconfigured, activated before content is delivered and granted the required version permission, so both the Settings preview and automatic display after an update work reliably
+
+### Documentation
+
+- **Updated README and screenshots** — refreshed the feature overview and replaced the application previews with current timer and no-timer states
+
 ## [0.20.0] - 2026-07-20
 
 ### New Features
