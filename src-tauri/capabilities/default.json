@@ -4,10 +4,10 @@
   "description": "Least-privilege capability for the tray popup",
   "windows": ["tray-popup"],
   "permissions": [
+    "core:app:allow-version",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:event:allow-emit-to",
-    "core:webview:allow-create-webview-window",
     "core:window:allow-get-all-windows",
     "opener:allow-default-urls",
     "core:window:allow-show",

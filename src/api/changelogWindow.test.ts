@@ -4,26 +4,21 @@ const mocks = vi.hoisted(() => ({
   emitTo: vi.fn(),
   getByLabel: vi.fn(),
   queueChangelogWindow: vi.fn(),
-  create: vi.fn(),
-  once: vi.fn(),
+  show: vi.fn(),
+  setFocus: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({ emitTo: mocks.emitTo }));
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
   WebviewWindow: class {
     static getByLabel = mocks.getByLabel;
-
-    constructor(label: string, options: unknown) {
-      mocks.create(label, options);
-    }
-
-    once(event: string, handler: (event: { payload: unknown }) => void) {
-      return mocks.once(event, handler);
-    }
   },
 }));
 vi.mock("./changelog", () => ({
   queueChangelogWindow: mocks.queueChangelogWindow,
+}));
+vi.mock("../utils/logger", () => ({
+  logger: { error: vi.fn(), info: vi.fn() },
 }));
 
 import {
@@ -36,19 +31,16 @@ describe("changelog window bridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.emitTo.mockResolvedValue(undefined);
+    mocks.show.mockResolvedValue(undefined);
+    mocks.setFocus.mockResolvedValue(undefined);
     mocks.queueChangelogWindow.mockReturnValue(true);
-    mocks.getByLabel.mockResolvedValue({});
-    mocks.once.mockImplementation(
-      (event: string, handler: (event: { payload: unknown }) => void) => {
-        if (event === "tauri://created") {
-          queueMicrotask(() => handler({ payload: null }));
-        }
-        return Promise.resolve(() => {});
-      },
-    );
+    mocks.getByLabel.mockResolvedValue({
+      show: mocks.show,
+      setFocus: mocks.setFocus,
+    });
   });
 
-  it("updates an existing changelog window without recreating it", async () => {
+  it("stages content and updates the configured changelog window", async () => {
     const changelog = { version: "2.1.0", body: "### New Features" };
 
     await expect(showChangelogWindow(changelog)).resolves.toBe(true);
@@ -58,46 +50,39 @@ describe("changelog window bridge", () => {
       CHANGELOG_SHOW_EVENT,
       changelog,
     );
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.show).toHaveBeenCalledOnce();
+    expect(mocks.setFocus).toHaveBeenCalledOnce();
+    expect(mocks.setFocus.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.emitTo.mock.invocationCallOrder[0],
+    );
     expect(mocks.queueChangelogWindow).toHaveBeenCalledWith(changelog);
   });
 
-  it("creates a hidden changelog window only after staging content", async () => {
+  it("returns false when the configured changelog window is unavailable", async () => {
     const changelog = { version: "2.1.0", body: "Notes" };
     mocks.getByLabel.mockResolvedValue(null);
 
-    await expect(showChangelogWindow(changelog)).resolves.toBe(true);
+    await expect(showChangelogWindow(changelog)).resolves.toBe(false);
 
     expect(mocks.queueChangelogWindow).toHaveBeenCalledWith(changelog);
-    expect(mocks.create).toHaveBeenCalledWith(
-      CHANGELOG_WINDOW_LABEL,
-      expect.objectContaining({
-        url: "/",
-        visible: false,
-      }),
-    );
-    expect(mocks.queueChangelogWindow.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.create.mock.invocationCallOrder[0],
-    );
     expect(mocks.emitTo).not.toHaveBeenCalled();
   });
 
-  it("does not create a window when content cannot be staged", async () => {
-    mocks.getByLabel.mockResolvedValue(null);
+  it("uses the event when staging is unavailable", async () => {
     mocks.queueChangelogWindow.mockReturnValue(false);
 
     await expect(
       showChangelogWindow({ version: "2.1.0", body: "Notes" }),
-    ).resolves.toBe(false);
+    ).resolves.toBe(true);
 
-    expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.emitTo).not.toHaveBeenCalled();
+    expect(mocks.emitTo).toHaveBeenCalledWith(
+      CHANGELOG_WINDOW_LABEL,
+      CHANGELOG_SHOW_EVENT,
+      { version: "2.1.0", body: "Notes" },
+    );
   });
 
-  it("serializes creation before a subsequent content update", async () => {
-    mocks.getByLabel
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({});
+  it("serializes subsequent content updates", async () => {
     const first = { version: "2.1.0", body: "First" };
     const second = { version: "2.1.0", body: "Second" };
 
@@ -106,10 +91,16 @@ describe("changelog window bridge", () => {
       showChangelogWindow(second),
     ]);
 
-    expect(mocks.create).toHaveBeenCalledOnce();
     expect(mocks.queueChangelogWindow).toHaveBeenNthCalledWith(1, first);
     expect(mocks.queueChangelogWindow).toHaveBeenNthCalledWith(2, second);
-    expect(mocks.emitTo).toHaveBeenCalledWith(
+    expect(mocks.emitTo).toHaveBeenNthCalledWith(
+      1,
+      CHANGELOG_WINDOW_LABEL,
+      CHANGELOG_SHOW_EVENT,
+      first,
+    );
+    expect(mocks.emitTo).toHaveBeenNthCalledWith(
+      2,
       CHANGELOG_WINDOW_LABEL,
       CHANGELOG_SHOW_EVENT,
       second,

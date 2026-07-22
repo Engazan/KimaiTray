@@ -4,47 +4,31 @@ import {
   queueChangelogWindow,
   type ChangelogEntry,
 } from "./changelog";
+import { logger } from "../utils/logger";
 
 export const CHANGELOG_WINDOW_LABEL = "changelog";
 export const CHANGELOG_SHOW_EVENT = "kimai://changelog-show";
 
 let windowOperation: Promise<void> = Promise.resolve();
 
-function createChangelogWindow(): Promise<void> {
-  const win = new WebviewWindow(CHANGELOG_WINDOW_LABEL, {
-    title: "KimaiTray — What's New",
-    url: "/",
-    width: 620,
-    height: 640,
-    minWidth: 480,
-    minHeight: 420,
-    visible: false,
-    center: true,
-    resizable: true,
-  });
-
-  return new Promise((resolve, reject) => {
-    void win.once("tauri://created", () => resolve());
-    void win.once<unknown>("tauri://error", (event) => reject(event.payload));
-  });
-}
-
 async function showChangelogWindowNow(
   changelog: ChangelogEntry,
 ): Promise<boolean> {
-  const staged = queueChangelogWindow(changelog);
+  // This covers the startup race before the hidden window installs its event
+  // listener; normal subsequent opens are delivered by the event below.
+  queueChangelogWindow(changelog);
   const existing = await WebviewWindow.getByLabel(CHANGELOG_WINDOW_LABEL);
-  if (existing) {
-    await emitTo(CHANGELOG_WINDOW_LABEL, CHANGELOG_SHOW_EVENT, changelog);
-    return true;
+  if (!existing) {
+    logger.error("Configured changelog window is unavailable");
+    return false;
   }
-
-  if (!staged) return false;
-  await createChangelogWindow();
+  await existing.show();
+  await existing.setFocus();
+  await emitTo(CHANGELOG_WINDOW_LABEL, CHANGELOG_SHOW_EVENT, changelog);
   return true;
 }
 
-/** Serialize requests so a newly created webview consumes its queued content first. */
+/** Serialize requests so the changelog window consumes staged content in order. */
 export function showChangelogWindow(
   changelog: ChangelogEntry,
 ): Promise<boolean> {
