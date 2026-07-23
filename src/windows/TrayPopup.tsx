@@ -246,9 +246,17 @@ export default function TrayPopup() {
     connectionId: string;
   } | null>(null);
   const [pendingLinkedIssueVersion, setPendingLinkedIssueVersion] = useState(0);
-  const linkedIssueRef = useRef<ExternalIssue | null>(null);
-  const linkedIssueConnectionRef = useRef<string | null>(null);
-  const [linkedIssue, setLinkedIssue] = useState<ExternalIssue | null>(null);
+  const linkedIssueRef = useRef<{
+    timerId: number;
+    issue: ExternalIssue;
+    connectionId: string;
+  } | null>(null);
+  const [linkedIssueLink, setLinkedIssueLink] = useState<{
+    timerId: number;
+    issue: ExternalIssue;
+    connectionId: string;
+  } | null>(null);
+  const issueTimeSyncsRef = useRef(new Map<string, Promise<void>>());
   const prevTimerIdRef = useRef<number | null>(null);
 
   const { startTask, startingKey, switchError, dismissError, isStarting } =
@@ -369,12 +377,11 @@ export default function TrayPopup() {
 
   useEffect(() => {
     if (
-      linkedIssueConnectionRef.current &&
-      linkedIssueConnectionRef.current !== activeConnectionId
+      linkedIssueRef.current &&
+      linkedIssueRef.current.connectionId !== activeConnectionId
     ) {
       linkedIssueRef.current = null;
-      linkedIssueConnectionRef.current = null;
-      setLinkedIssue(null);
+      setLinkedIssueLink(null);
     }
     if (
       pendingLinkedIssueRef.current &&
@@ -385,38 +392,30 @@ export default function TrayPopup() {
   }, [activeConnectionId]);
 
   useEffect(() => {
-    const pending = pendingLinkedIssueRef.current;
-    if (
-      !pending ||
-      pending.connectionId !== activeConnectionId ||
-      timer?.id !== pending.timerId
-    ) {
-      return;
-    }
-    pendingLinkedIssueRef.current = null;
-    linkedIssueRef.current = pending.issue;
-    linkedIssueConnectionRef.current = pending.connectionId;
-    setLinkedIssue(pending.issue);
-  }, [timer?.id, activeConnectionId, pendingLinkedIssueVersion]);
-
-  useEffect(() => {
     const prevId = prevTimerIdRef.current;
+    const previousLink = linkedIssueRef.current;
+    const timerChanged =
+      prevId != null && (timer == null || timer.id !== prevId);
 
     prevTimerIdRef.current = timer?.id ?? null;
 
-    // Drop the estimate badge once no timer is running.
-    if (timer == null) setLinkedIssue(null);
+    // A linked issue belongs to one concrete Kimai timesheet. Do not let an
+    // in-memory issue snapshot from the previous timer suppress the refresh for
+    // a timer just started from recents/favorites.
+    if (
+      timer == null ||
+      (previousLink != null && previousLink.timerId !== timer.id)
+    ) {
+      linkedIssueRef.current = null;
+      setLinkedIssueLink(null);
+    }
 
     if (
-      prevId != null &&
-      (timer == null || timer.id !== prevId) &&
-      linkedIssueRef.current
+      timerChanged &&
+      previousLink?.timerId === prevId
     ) {
-      const issue = linkedIssueRef.current;
       const belongsToActiveConnection =
-        linkedIssueConnectionRef.current === activeConnectionId;
-      linkedIssueRef.current = null;
-      linkedIssueConnectionRef.current = null;
+        previousLink.connectionId === activeConnectionId;
 
       if (
         belongsToActiveConnection &&
@@ -431,15 +430,28 @@ export default function TrayPopup() {
           activeConnectionId,
         );
         if (provider.addSpentTime) {
-          void getTimesheet(client, prevId)
+          const syncKey = `${previousLink.connectionId}:${previousLink.issue.webUrl}`;
+          const previousSync =
+            issueTimeSyncsRef.current.get(syncKey) ?? Promise.resolve();
+          const syncPromise = previousSync
+            .then(() => getTimesheet(client, prevId))
             .then((entry) => {
               const durationSeconds = getRecordedDurationSeconds(entry);
               if (durationSeconds == null || durationSeconds <= 0) return;
-              return provider.addSpentTime?.(issue.id, durationSeconds);
+              return provider.addSpentTime?.(
+                previousLink.issue.id,
+                durationSeconds,
+              );
             })
             .catch(() => {
               logger.error("Failed to sync spent time to issue provider");
             });
+          issueTimeSyncsRef.current.set(syncKey, syncPromise);
+          void syncPromise.finally(() => {
+            if (issueTimeSyncsRef.current.get(syncKey) === syncPromise) {
+              issueTimeSyncsRef.current.delete(syncKey);
+            }
+          });
         }
       }
     }
@@ -450,6 +462,20 @@ export default function TrayPopup() {
     activeConnectionId,
     client,
   ]);
+
+  useEffect(() => {
+    const pending = pendingLinkedIssueRef.current;
+    if (
+      !pending ||
+      pending.connectionId !== activeConnectionId ||
+      timer?.id !== pending.timerId
+    ) {
+      return;
+    }
+    pendingLinkedIssueRef.current = null;
+    linkedIssueRef.current = pending;
+    setLinkedIssueLink(pending);
+  }, [timer?.id, activeConnectionId, pendingLinkedIssueVersion]);
 
   // Global shortcut: toggle timer
   const stopActiveTimerRef = useRef(stopActiveTimer);
@@ -834,6 +860,13 @@ export default function TrayPopup() {
     issueIntegration.provider === "gitlab" &&
     (issueIntegration.showTimeEstimate ?? true);
 
+  const linkedIssue =
+    timer &&
+    linkedIssueLink?.timerId === timer.id &&
+    linkedIssueLink.connectionId === activeConnectionId
+      ? linkedIssueLink.issue
+      : null;
+
   // Persist the linked issue ↔ timer association so the estimate survives a
   // popup reload/remount or app restart, regardless of the auto-insert-URL
   // setting (we keep the issue's own web URL to refresh its stats later).
@@ -854,14 +887,19 @@ export default function TrayPopup() {
     );
   }, [timer, linkedIssue, activeConnectionId]);
 
-  // When the in-memory link is gone (after a reload/restart), restore it for
-  // the running timer from localStorage and/or the issue URL in the
-  // description, then refresh the time stats straight from GitLab.
-  const [fetchedIssue, setFetchedIssue] = useState<ExternalIssue | null>(null);
-
+  // When the current timer has no in-memory link (after a reload/restart or
+  // when started from recents), restore it from localStorage and/or the issue
+  // URL in the description, then refresh the time stats straight from GitLab.
   useEffect(() => {
-    if (linkedIssue || !estimateEnabled || !timer || !issueToken) {
-      setFetchedIssue(null);
+    if (!estimateEnabled || !timer || !issueToken) {
+      return;
+    }
+    const currentLink = linkedIssueRef.current;
+    if (
+      linkedIssue ||
+      (currentLink?.timerId === timer.id &&
+        currentLink.connectionId === activeConnectionId)
+    ) {
       return;
     }
 
@@ -884,35 +922,51 @@ export default function TrayPopup() {
       activeConnectionId,
     );
     if (!url || !provider.fetchIssueByUrl) {
-      setFetchedIssue(storedIssue);
-      linkedIssueRef.current = storedIssue;
-      linkedIssueConnectionRef.current = storedIssue
-        ? activeConnectionId
-        : null;
+      if (storedIssue) {
+        const restoredLink = {
+          timerId: timer.id,
+          issue: storedIssue,
+          connectionId: activeConnectionId,
+        };
+        linkedIssueRef.current = restoredLink;
+        setLinkedIssueLink(restoredLink);
+      }
       return;
     }
 
     let cancelled = false;
-    provider
-      .fetchIssueByUrl(url)
+    // If this issue has just been stopped, let its GitLab spent-time write
+    // finish before reading the stats. Otherwise a fast click on Recents can
+    // win the race and leave the badge at the old value (commonly 0 / X).
+    const pendingSync = issueTimeSyncsRef.current.get(
+      `${activeConnectionId}:${url}`,
+    );
+    const refreshedIssue = pendingSync
+      ? pendingSync.then(() => provider.fetchIssueByUrl!(url))
+      : provider.fetchIssueByUrl(url);
+    refreshedIssue
       .then((issue) => {
         if (!cancelled) {
           const restored = issue ?? storedIssue;
-          setFetchedIssue(restored);
-          linkedIssueRef.current = restored;
-          linkedIssueConnectionRef.current = restored
-            ? activeConnectionId
-            : null;
+          if (!restored) return;
+          const restoredLink = {
+            timerId: timer.id,
+            issue: restored,
+            connectionId: activeConnectionId,
+          };
+          linkedIssueRef.current = restoredLink;
+          setLinkedIssueLink(restoredLink);
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setFetchedIssue(storedIssue);
-          linkedIssueRef.current = storedIssue;
-          linkedIssueConnectionRef.current = storedIssue
-            ? activeConnectionId
-            : null;
-        }
+        if (cancelled || !storedIssue) return;
+        const restoredLink = {
+          timerId: timer.id,
+          issue: storedIssue,
+          connectionId: activeConnectionId,
+        };
+        linkedIssueRef.current = restoredLink;
+        setLinkedIssueLink(restoredLink);
       });
     return () => {
       cancelled = true;
@@ -927,8 +981,8 @@ export default function TrayPopup() {
     activeConnectionId,
   ]);
 
-  const estimateIssue = linkedIssue ?? fetchedIssue;
-  const showIssueEstimate = estimateEnabled && estimateIssue?.timeEstimate != null;
+  const showIssueEstimate =
+    estimateEnabled && linkedIssue?.timeEstimate != null;
 
   const compactTimer = popupLayout === "taskbar" || popupLayout === "timeline";
 
@@ -1096,8 +1150,8 @@ export default function TrayPopup() {
                     showTags={featureFlags.featureTags}
                     tagSuggestions={tagSuggestions}
                     issueUrl={timerIssueUrl}
-                    timeEstimate={showIssueEstimate ? estimateIssue!.timeEstimate : undefined}
-                    timeSpent={showIssueEstimate ? estimateIssue!.timeSpent : undefined}
+                    timeEstimate={showIssueEstimate ? linkedIssue!.timeEstimate : undefined}
+                    timeSpent={showIssueEstimate ? linkedIssue!.timeSpent : undefined}
                     colorMode={colorMode}
                     editDescriptionRequest={editNoteRequest}
                     onEditDescriptionRequestHandled={() =>

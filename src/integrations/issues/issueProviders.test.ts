@@ -49,4 +49,52 @@ describe("issue provider API boundaries", () => {
       }),
     );
   });
+
+  it("refreshes GitLab time stats when restoring an issue by URL", async () => {
+    http.safeHttpFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          iid: 42,
+          title: "Keep the previous time",
+          state: "opened",
+          web_url: "https://git.example.test/group/project/-/issues/42",
+          labels: [],
+          author: { username: "developer" },
+          time_stats: {
+            time_estimate: 7_200,
+            total_time_spent: 0,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          time_estimate: 7_200,
+          total_time_spent: 3_600,
+        }),
+      });
+    const provider = createGitLabProvider(
+      config("gitlab"),
+      "secret",
+      "connection-a",
+    );
+
+    const restored = await provider.fetchIssueByUrl?.(
+      "https://git.example.test/group/project/-/issues/42",
+    );
+
+    expect(restored).toMatchObject({
+      id: 42,
+      timeEstimate: 7_200,
+      timeSpent: 3_600,
+    });
+    expect(http.safeHttpFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://git.example.test/api/v4/projects/group%2Fproject/issues/42/time_stats",
+      expect.objectContaining({
+        authorization: { type: "issue", connectionId: "connection-a" },
+      }),
+    );
+  });
 });

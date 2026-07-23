@@ -11,10 +11,12 @@ interface GitLabIssue {
   web_url: string;
   labels: string[];
   author?: { username: string } | null;
-  time_stats?: {
-    time_estimate: number;
-    total_time_spent: number;
-  };
+  time_stats?: GitLabTimeStats;
+}
+
+interface GitLabTimeStats {
+  time_estimate: number;
+  total_time_spent: number;
 }
 
 interface GitLabLabel {
@@ -32,10 +34,7 @@ function isGitLabIssue(value: unknown): value is GitLabIssue {
     value.author == null ||
     (isRecord(value.author) && typeof value.author.username === "string");
   const timeStatsValid =
-    value.time_stats == null ||
-    (isRecord(value.time_stats) &&
-      typeof value.time_stats.time_estimate === "number" &&
-      typeof value.time_stats.total_time_spent === "number");
+    value.time_stats == null || isGitLabTimeStats(value.time_stats);
   return (
     typeof value.iid === "number" &&
     typeof value.title === "string" &&
@@ -44,6 +43,16 @@ function isGitLabIssue(value: unknown): value is GitLabIssue {
     isStringArray(value.labels) &&
     authorValid &&
     timeStatsValid
+  );
+}
+
+function isGitLabTimeStats(value: unknown): value is GitLabTimeStats {
+  return (
+    isRecord(value) &&
+    typeof value.time_estimate === "number" &&
+    Number.isFinite(value.time_estimate) &&
+    typeof value.total_time_spent === "number" &&
+    Number.isFinite(value.total_time_spent)
   );
 }
 
@@ -207,12 +216,30 @@ export function createGitLabProvider(
       const iid = match[2];
       if (!projectPath) return null;
       try {
+        const issuePath = `/projects/${encodeURIComponent(projectPath)}/issues/${iid}`;
         const issue = expectObject(
-          await request(`/projects/${encodeURIComponent(projectPath)}/issues/${iid}`),
+          await request(issuePath),
           isGitLabIssue,
           "GitLab issue",
         );
-        return normalize(issue);
+        // The dedicated endpoint is the authoritative source for the current
+        // accumulated time. In particular, a task restored from recents can
+        // carry an older issue snapshot in localStorage.
+        try {
+          const timeStats = expectObject(
+            await request(`${issuePath}/time_stats`),
+            isGitLabTimeStats,
+            "GitLab issue time stats",
+          );
+          return normalize({ ...issue, time_stats: timeStats });
+        } catch (err) {
+          // Older GitLab instances can omit the dedicated endpoint. The issue
+          // response still commonly contains time_stats, so keep that fallback.
+          logger.error(
+            `GitLab fetchIssueTimeStats failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return normalize(issue);
+        }
       } catch (err) {
         logger.error(
           `GitLab fetchIssueByUrl failed: ${err instanceof Error ? err.message : String(err)}`,

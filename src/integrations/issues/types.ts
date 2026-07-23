@@ -49,8 +49,8 @@ export interface IssueProvider {
   }>;
   searchIssues(query: string): Promise<ExternalIssue[]>;
   getIssueUrl(issue: ExternalIssue): string;
-  /** Fetch a single issue (incl. time stats) from its web URL. Used to restore
-   *  the linked issue for a timer started in a previous session. */
+  /** Fetch a single issue (including current time stats) from its web URL.
+   *  Used to restore the linked issue for a timer started in a previous session. */
   fetchIssueByUrl?(url: string): Promise<ExternalIssue | null>;
   addSpentTime?(issueId: number, durationSeconds: number): Promise<void>;
   fetchLabels?(): Promise<ExternalLabel[]>;

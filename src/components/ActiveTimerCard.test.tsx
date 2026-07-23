@@ -59,4 +59,34 @@ describe("ActiveTimerCard keyboard actions", () => {
     expect(onEdit).toHaveBeenCalledWith(1, { description: "New note" });
     expect(onHandled).toHaveBeenCalledOnce();
   });
+
+  it("adds the current session to time already spent on the linked issue", () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    render(
+      <I18nextProvider i18n={i18n}>
+        <ActiveTimerCard
+          timer={{
+            id: 2,
+            projectId: 2,
+            activityId: 3,
+            project: "Alpha",
+            projectColor: "#000000",
+            activityColor: "#000000",
+            customerColor: "#000000",
+            activity: "Work",
+            description: "",
+            tags: [],
+            beginSeconds: nowSeconds - 300,
+            beginIso: new Date((nowSeconds - 300) * 1000).toISOString(),
+          }}
+          onStop={vi.fn()}
+          timeEstimate={7_200}
+          timeSpent={3_600}
+        />
+      </I18nextProvider>,
+    );
+
+    expect(screen.getByText("1h5m / 2h")).toBeTruthy();
+  });
 });
