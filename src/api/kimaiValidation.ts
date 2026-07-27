@@ -34,6 +34,10 @@ function isIdReference(value: unknown): value is number | { id: number } {
   );
 }
 
+function isMetaField(value: unknown): boolean {
+  return isRecord(value) && typeof value.name === "string";
+}
+
 export function isKimaiTimesheet(value: unknown): value is KimaiTimesheetEntry {
   if (!isRecord(value)) return false;
   const begin = parseTimestamp(value.begin);
@@ -48,6 +52,9 @@ export function isKimaiTimesheet(value: unknown): value is KimaiTimesheetEntry {
     typeof value.billable === "boolean" &&
     Array.isArray(value.tags) &&
     value.tags.every((tag) => typeof tag === "string") &&
+    (value.metaFields === undefined ||
+      (Array.isArray(value.metaFields) &&
+        value.metaFields.every(isMetaField))) &&
     isIdReference(value.project) &&
     isIdReference(value.activity)
   );

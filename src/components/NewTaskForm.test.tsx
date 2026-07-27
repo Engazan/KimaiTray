@@ -9,6 +9,10 @@ import type { ComponentProps } from "react";
 import type { KimaiClient } from "../api/kimaiClient";
 import i18n, { initPromise } from "../shared/i18n";
 import NewTaskForm from "./NewTaskForm";
+import {
+  CREATIVE_ISSUE_LINK_INPUT_ID,
+  getEnabledPluginCustomInputs,
+} from "../plugins/customInputs";
 
 const apiMocks = vi.hoisted(() => ({
   getCustomers: vi.fn(),
@@ -322,6 +326,194 @@ describe("new task keyboard flow", () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: 1, activityId: 10 }),
       null,
+    );
+  });
+
+  it("submits the Creative issue link field when the plugin is enabled", async () => {
+    apiMocks.getActivities.mockResolvedValue([
+      {
+        id: 10,
+        name: "Work",
+        project: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        comment: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({
+      autoFocusProject: false,
+      pluginCustomInputs: getEnabledPluginCustomInputs({
+        creativeIssueLink: true,
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Project" }));
+    const projectSearch = await screen.findByRole("combobox");
+    await user.type(projectSearch, "Alpha");
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Activity").textContent).toContain("Work"),
+    );
+
+    await user.type(screen.getByLabelText("Issue / Ticket"), " CREATIVE-123 ");
+    await user.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: { issue_link: "CREATIVE-123" },
+      }),
+      null,
+    );
+  });
+
+  it("auto-inserts a selected issue URL into a plugin custom input", async () => {
+    apiMocks.getActivities.mockResolvedValue([
+      {
+        id: 10,
+        name: "Work",
+        project: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        comment: null,
+      },
+    ]);
+    integrationMocks.useIssues.mockReturnValue({
+      issues: [
+        {
+          id: 42,
+          title: "Custom input target",
+          state: "opened",
+          webUrl: "https://gitlab.example/group/repo/-/issues/42",
+          labels: [],
+          author: "developer",
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    const user = userEvent.setup();
+    const pluginCustomInputs = getEnabledPluginCustomInputs({
+      creativeIssueLink: true,
+    });
+    const { onSubmit } = renderForm({
+      autoFocusProject: false,
+      showIssuePicker: true,
+      issueToken: "gitlab-token",
+      pluginCustomInputs,
+      issueIntegrationConfig: {
+        enabled: true,
+        provider: "gitlab",
+        baseUrl: "https://gitlab.example",
+        apiBaseUrl: "https://gitlab.example/api/v4",
+        projectPathOrRepo: "group/repo",
+        defaultState: "opened",
+        assigneeOnly: false,
+        syncTime: false,
+        autoInsertUrl: true,
+        autoInsertUrlTarget: CREATIVE_ISSUE_LINK_INPUT_ID,
+        showTimeEstimate: false,
+        filterLabels: [],
+        filterLabelsMode: "include",
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Project" }));
+    await user.type(await screen.findByRole("combobox"), "Alpha");
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Activity").textContent).toContain("Work"),
+    );
+
+    await user.click(screen.getByLabelText("Issue"));
+    await user.click(
+      await screen.findByRole("option", { name: /#42 Custom input target/ }),
+    );
+
+    expect(
+      (screen.getByLabelText("Issue / Ticket") as HTMLInputElement).value,
+    ).toBe("https://gitlab.example/group/repo/-/issues/42");
+    await user.click(screen.getByRole("button", { name: "Start" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: undefined,
+        metadata: {
+          issue_link: "https://gitlab.example/group/repo/-/issues/42",
+        },
+      }),
+      expect.objectContaining({ id: 42 }),
+    );
+  });
+
+  it("keeps description as the default auto-insert target", async () => {
+    apiMocks.getActivities.mockResolvedValue([
+      {
+        id: 10,
+        name: "Work",
+        project: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        comment: null,
+      },
+    ]);
+    integrationMocks.useIssues.mockReturnValue({
+      issues: [
+        {
+          id: 42,
+          title: "Description target",
+          state: "opened",
+          webUrl: "https://gitlab.example/group/repo/-/issues/42",
+          labels: [],
+          author: "developer",
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({
+      autoFocusProject: false,
+      showIssuePicker: true,
+      issueToken: "gitlab-token",
+      issueIntegrationConfig: {
+        enabled: true,
+        provider: "gitlab",
+        baseUrl: "https://gitlab.example",
+        apiBaseUrl: "https://gitlab.example/api/v4",
+        projectPathOrRepo: "group/repo",
+        defaultState: "opened",
+        assigneeOnly: false,
+        syncTime: false,
+        autoInsertUrl: true,
+        showTimeEstimate: false,
+        filterLabels: [],
+        filterLabelsMode: "include",
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Project" }));
+    await user.type(await screen.findByRole("combobox"), "Alpha");
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Activity").textContent).toContain("Work"),
+    );
+    await user.click(screen.getByLabelText("Issue"));
+    await user.click(
+      await screen.findByRole("option", { name: /#42 Description target/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "https://gitlab.example/group/repo/-/issues/42",
+        metadata: undefined,
+      }),
+      expect.objectContaining({ id: 42 }),
     );
   });
 });

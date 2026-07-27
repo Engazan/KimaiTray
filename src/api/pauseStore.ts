@@ -19,6 +19,7 @@ export interface PausedTimerData {
   activity: string;
   description: string;
   tags: string[];
+  metadata?: Record<string, string>;
   pausedAt: string;
 }
 

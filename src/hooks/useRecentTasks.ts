@@ -6,6 +6,7 @@ import type { RecentTask } from "../types";
 import { extractId } from "../api/kimaiTypes";
 import { normalizeKimaiTags } from "../api/tagUtils";
 import { differenceInLocalCalendarDays, parseKimaiDate } from "../utils/time";
+import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 import { useEntityLookup } from "./useEntityLookup";
 
 function formatRelativeDate(iso: string): string {
@@ -85,6 +86,7 @@ export function useRecentTasks(
         activity: act?.name ?? `Activity #${activityId}`,
         description: entry.description ?? "",
         tags: normalizeKimaiTags(entry.tags),
+        metadata: getStringTimesheetMetadata(entry),
         lastUsed: formatRelativeDate(entry.begin),
       });
 

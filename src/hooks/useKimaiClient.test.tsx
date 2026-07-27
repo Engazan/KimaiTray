@@ -53,6 +53,11 @@ function settingsFor(id: string): AppSettings {
     kimaiUrl: url,
     activeConnectionId: id,
     connections: [{ id, name: id, url }],
+    plugins: {
+      [id]: {
+        creativeIssueLink: id === "connection-a",
+      },
+    },
     issueIntegrations: {
       [id]: {
         enabled: true,
@@ -132,6 +137,19 @@ describe("Kimai connection session isolation", () => {
     );
     expect(result.current.client?.connectionId).toBe("connection-a");
     expect(result.current.client?.cacheScope).not.toContain("rotated-token");
+  });
+
+  it("applies Creative issue link settings per connection", async () => {
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() =>
+      expect(result.current.pluginFlags.creativeIssueLink).toBe(true),
+    );
+
+    act(() => serviceMocks.listener?.(settingsFor("connection-b")));
+
+    await waitFor(() =>
+      expect(result.current.pluginFlags.creativeIssueLink).toBe(false),
+    );
   });
 
   it("keeps the previous session active until a switch is persisted", async () => {

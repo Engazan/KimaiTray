@@ -12,6 +12,8 @@ export interface IssueIntegrationSettings {
   assigneeOnly: boolean;
   syncTime: boolean;
   autoInsertUrl: boolean;
+  /** Form input that receives the selected issue URL. Defaults to description. */
+  autoInsertUrlTarget?: string;
   showTimeEstimate: boolean;
   filterLabels: string[];
   filterLabelsMode: LabelFilterMode;

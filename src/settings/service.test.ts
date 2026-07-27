@@ -54,6 +54,20 @@ describe("settings schema defaults", () => {
     expect(merged.connections).toEqual([]);
   });
 
+  it("keeps description as the legacy auto-insert URL target", () => {
+    const merged = mergeSettings({
+      issueIntegrations: {
+        "connection-a": {
+          autoInsertUrl: true,
+        },
+      },
+    } as unknown as Partial<typeof defaultSettings>);
+
+    expect(
+      merged.issueIntegrations["connection-a"].autoInsertUrlTarget,
+    ).toBe("description");
+  });
+
   it("normalizes corrupted scalar settings and numeric ranges", () => {
     const merged = mergeSettings({
       language: "fr",
@@ -110,6 +124,7 @@ describe("settings schema defaults", () => {
           enabled: true,
           provider: "invalid",
           baseUrl: "https://git.test",
+          autoInsertUrlTarget: "plugin:custom:field",
           filterLabels: ["bug", 123],
           filterLabelsMode: "exclude",
         },
@@ -135,12 +150,17 @@ describe("settings schema defaults", () => {
       fullDailyGoalMinutes: 480,
       featureCategoryMode: false,
     });
-    expect(merged.plugins["connection-a"]).toEqual({ customFields: true });
-    expect(merged.plugins.invalid).toEqual({ customFields: false });
+    expect(merged.plugins["connection-a"]).toEqual({
+      creativeIssueLink: true,
+    });
+    expect(merged.plugins.invalid).toEqual({
+      creativeIssueLink: false,
+    });
     expect(merged.issueIntegrations["connection-a"]).toMatchObject({
       enabled: true,
       provider: "gitlab",
       baseUrl: "https://git.test",
+      autoInsertUrlTarget: "plugin:custom:field",
       filterLabels: ["bug"],
       filterLabelsMode: "exclude",
     });

@@ -6,6 +6,7 @@ import {
 import type {
   KimaiTimesheetCreate,
   KimaiTimesheetEntry,
+  KimaiTimesheetMetaUpdate,
   KimaiTimesheetUpdate,
   TimesheetListParams,
 } from "./kimaiTypes";
@@ -104,6 +105,20 @@ export async function updateTimesheet(
   payload: KimaiTimesheetUpdate,
 ): Promise<KimaiTimesheetEntry> {
   const path = `/api/timesheets/${id}`;
+  return expectObjectResponse<KimaiTimesheetEntry>(
+    await client.patch<unknown>(path, payload),
+    path,
+    "PATCH",
+    isKimaiTimesheet,
+  );
+}
+
+export async function updateTimesheetMeta(
+  client: KimaiClient,
+  id: number,
+  payload: KimaiTimesheetMetaUpdate,
+): Promise<KimaiTimesheetEntry> {
+  const path = `/api/timesheets/${id}/meta`;
   return expectObjectResponse<KimaiTimesheetEntry>(
     await client.patch<unknown>(path, payload),
     path,

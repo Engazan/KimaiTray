@@ -9,6 +9,7 @@ import type {
   SavedConnection,
   TrayStateColors,
 } from "../types";
+import { DESCRIPTION_INPUT_TARGET } from "../plugins/customInputs";
 import { migrateLegacyStore } from "../api/storeMigrations";
 
 const STORE_PATH = "settings.json";
@@ -35,7 +36,7 @@ export const defaultFeatureSettings: FeatureSettings = {
 };
 
 export const defaultPluginSettings: PluginSettings = {
-  customFields: false,
+  creativeIssueLink: false,
 };
 
 export const defaultSettings: AppSettings = {
@@ -256,9 +257,12 @@ function normalizePlugins(value: unknown): Record<string, PluginSettings> {
   for (const [id, pluginValue] of Object.entries(value)) {
     if (!id || id.length > 256 || !isRecord(pluginValue)) continue;
     normalized[id] = {
-      customFields: booleanValue(
-        pluginValue.customFields,
-        defaultPluginSettings.customFields,
+      creativeIssueLink: booleanValue(
+        pluginValue.creativeIssueLink,
+        booleanValue(
+          pluginValue.customFields,
+          defaultPluginSettings.creativeIssueLink,
+        ),
       ),
     };
   }
@@ -275,6 +279,7 @@ const defaultIssueIntegration: IssueIntegrationSettings = {
   assigneeOnly: false,
   syncTime: false,
   autoInsertUrl: false,
+  autoInsertUrlTarget: DESCRIPTION_INPUT_TARGET,
   showTimeEstimate: true,
   filterLabels: [],
   filterLabelsMode: "include",
@@ -305,6 +310,11 @@ function normalizeIssueIntegrations(
       assigneeOnly: booleanValue(integrationValue.assigneeOnly, false),
       syncTime: booleanValue(integrationValue.syncTime, false),
       autoInsertUrl: booleanValue(integrationValue.autoInsertUrl, false),
+      autoInsertUrlTarget: stringValue(
+        integrationValue.autoInsertUrlTarget,
+        DESCRIPTION_INPUT_TARGET,
+        256,
+      ),
       showTimeEstimate: booleanValue(integrationValue.showTimeEstimate, true),
       filterLabels: Array.isArray(integrationValue.filterLabels)
         ? integrationValue.filterLabels.filter(

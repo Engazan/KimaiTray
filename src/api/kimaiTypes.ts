@@ -49,6 +49,11 @@ export interface KimaiActivity {
   comment: string | null;
 }
 
+export interface KimaiMetaField {
+  name: string;
+  value: unknown;
+}
+
 export interface KimaiTimesheetEntry {
   id: number;
   begin: string;
@@ -63,6 +68,7 @@ export interface KimaiTimesheetEntry {
   activity: number | { id: number };
   project: number | { id: number };
   user: number | { id: number };
+  metaFields?: KimaiMetaField[];
 }
 
 export function extractId(val: number | { id: number }): number {
@@ -86,6 +92,11 @@ export interface KimaiTimesheetUpdate {
   activity?: number;
   description?: string;
   tags?: string;
+}
+
+export interface KimaiTimesheetMetaUpdate {
+  name: string;
+  value: string;
 }
 
 // ── Query parameters ───────────────────────────────────────────

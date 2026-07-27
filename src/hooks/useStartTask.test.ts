@@ -5,7 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { KimaiClient } from "../api/kimaiClient";
-import { switchTask, TaskSwitchError, useStartTask } from "./useStartTask";
+import {
+  switchTask,
+  TaskMetadataError,
+  TaskSwitchError,
+  useStartTask,
+} from "./useStartTask";
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 
 function timesheet(id: number): KimaiTimesheetEntry {
@@ -97,6 +102,59 @@ describe("transactional timer switching", () => {
     });
   });
 
+  it("stores issue_link metadata after Kimai returns the new timer id", async () => {
+    const post = vi.fn(async () => timesheet(99));
+    const patch = vi.fn(async () => timesheet(99));
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+      patch: patch as unknown as KimaiClient["patch"],
+    });
+
+    await switchTask(client, {
+      projectId: 1,
+      activityId: 2,
+      metadata: { issue_link: " CREATIVE-123 " },
+      label: "Issue task",
+    });
+
+    expect(patch).toHaveBeenCalledWith("/api/timesheets/99/meta", {
+      name: "issue_link",
+      value: "CREATIVE-123",
+    });
+    expect(post.mock.invocationCallOrder[0]).toBeLessThan(
+      patch.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not restart the old timer when only the metadata request fails", async () => {
+    const post = vi.fn(async () => timesheet(99));
+    const patch = vi
+      .fn()
+      .mockResolvedValueOnce(timesheet(42))
+      .mockRejectedValueOnce(new Error("metadata failed"));
+    const client = mockClient({
+      post: post as unknown as KimaiClient["post"],
+      patch: patch as unknown as KimaiClient["patch"],
+    });
+
+    await expect(
+      switchTask(client, {
+        projectId: 1,
+        activityId: 2,
+        metadata: { issue_link: "CREATIVE-123" },
+        label: "Issue task",
+      }),
+    ).rejects.toBeInstanceOf(TaskMetadataError);
+
+    expect(patch).toHaveBeenNthCalledWith(1, "/api/timesheets/42/stop");
+    expect(patch).toHaveBeenNthCalledWith(2, "/api/timesheets/99/meta", {
+      name: "issue_link",
+      value: "CREATIVE-123",
+    });
+    expect(patch).not.toHaveBeenCalledWith("/api/timesheets/42/restart");
+  });
+
   it("publishes task metadata only after the create request succeeds", async () => {
     let resolveStart!: (entry: KimaiTimesheetEntry) => void;
     const post = vi.fn(
@@ -132,6 +190,44 @@ describe("transactional timer switching", () => {
     });
     await waitFor(() =>
       expect(onStarted).toHaveBeenCalledWith(timesheet(99), payload),
+    );
+    queryClient.clear();
+  });
+
+  it("publishes the running timer when only its metadata write fails", async () => {
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: vi.fn(async () => timesheet(99)) as unknown as KimaiClient["post"],
+      patch: vi.fn(async () => {
+        throw new Error("metadata failed");
+      }) as unknown as KimaiClient["patch"],
+    });
+    const onStarted = vi.fn();
+    const onFailed = vi.fn();
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const payload = {
+      projectId: 1,
+      activityId: 2,
+      metadata: { issue_link: "CREATIVE-123" },
+      label: "New task",
+    };
+    const { result } = renderHook(
+      () => useStartTask(client, onStarted, onFailed),
+      { wrapper },
+    );
+
+    await act(async () => {
+      expect(await result.current.startTask(payload)).toBeNull();
+    });
+
+    await waitFor(() =>
+      expect(onStarted).toHaveBeenCalledWith(timesheet(99), payload),
+    );
+    expect(onFailed).not.toHaveBeenCalled();
+    expect(result.current.switchError).toContain(
+      "plugin metadata could not be saved",
     );
     queryClient.clear();
   });

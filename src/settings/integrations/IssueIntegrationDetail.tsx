@@ -28,6 +28,10 @@ import {
 } from "../Controls";
 import { ChevronLeft } from "../icons";
 import { LatestRequest } from "../../utils/latestRequest";
+import {
+  DESCRIPTION_INPUT_TARGET,
+  getEnabledPluginCustomInputs,
+} from "../../plugins/customInputs";
 
 const PROVIDER_API_VERSION: Record<
   IssueIntegrationSettings["provider"],
@@ -54,6 +58,7 @@ export const emptyIssueConfig: IssueIntegrationSettings = {
   assigneeOnly: false,
   syncTime: false,
   autoInsertUrl: false,
+  autoInsertUrlTarget: DESCRIPTION_INPUT_TARGET,
   showTimeEstimate: true,
   filterLabels: [],
   filterLabelsMode: "include",
@@ -193,6 +198,31 @@ export default function IssueIntegrationDetail({
 }: Props) {
   const { t } = useTranslation();
   const config = settings.issueIntegrations[connectionId] ?? emptyIssueConfig;
+  const pluginCustomInputs = useMemo(
+    () =>
+      getEnabledPluginCustomInputs(
+        settings.plugins[connectionId] ?? { creativeIssueLink: false },
+      ),
+    [connectionId, settings.plugins],
+  );
+  const autoInsertTargetOptions = useMemo(
+    () => [
+      {
+        value: DESCRIPTION_INPUT_TARGET,
+        label: t("integrations.timerDescriptionTarget"),
+      },
+      ...pluginCustomInputs.map((input) => ({
+        value: input.id,
+        label: t(input.labelKey),
+      })),
+    ],
+    [pluginCustomInputs, t],
+  );
+  const selectedAutoInsertTarget = autoInsertTargetOptions.some(
+    (option) => option.value === config.autoInsertUrlTarget,
+  )
+    ? config.autoInsertUrlTarget!
+    : DESCRIPTION_INPUT_TARGET;
 
   const [issueToken, setIssueToken] = useState("");
   const [showToken, setShowToken] = useState(false);
@@ -695,6 +725,23 @@ export default function IssueIntegrationDetail({
               disabled={disabled}
             />
           </FieldGroup>
+
+          {config.autoInsertUrl && (
+            <FieldGroup
+              label={t("integrations.autoInsertUrlTarget")}
+              description={t("integrations.autoInsertUrlTargetDescription")}
+              horizontal
+            >
+              <Select
+                value={selectedAutoInsertTarget}
+                onChange={(value) =>
+                  updateField("autoInsertUrlTarget", value)
+                }
+                options={autoInsertTargetOptions}
+                disabled={disabled}
+              />
+            </FieldGroup>
+          )}
 
           {(config.provider === "gitlab" || config.provider === "gitea") && (
             <FieldGroup

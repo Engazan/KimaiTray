@@ -2,11 +2,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createKimaiClient, type KimaiClient } from "../api/kimaiClient";
 import { getConnectionToken } from "../api/connectionTokenStore";
-import { loadSettings, onSettingsChange, patchSettings, defaultFeatureSettings } from "../settings/service";
-import type { SavedConnection, ColorMode, FeatureSettings } from "../types";
+import {
+  loadSettings,
+  onSettingsChange,
+  patchSettings,
+  defaultFeatureSettings,
+  defaultPluginSettings,
+} from "../settings/service";
+import type {
+  SavedConnection,
+  ColorMode,
+  FeatureSettings,
+  PluginSettings,
+} from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
 import { getIssueToken } from "../integrations/issues/issueTokenStore";
 import { LatestRequest } from "../utils/latestRequest";
+import { DESCRIPTION_INPUT_TARGET } from "../plugins/customInputs";
 
 interface IdleSettings {
   enableIdleDetection: boolean;
@@ -51,6 +63,7 @@ interface UseKimaiClientResult {
   traySettings: TraySettings;
   shortcutSettings: ShortcutSettings;
   featureFlags: FeatureSettings;
+  pluginFlags: PluginSettings;
   autoUpdate: boolean;
   popupLayout: PopupLayout;
   colorMode: ColorMode;
@@ -112,6 +125,8 @@ export function useKimaiClient(): UseKimaiClientResult {
   const [displayMode, setDisplayMode] = useState<"tray" | "detached">("tray");
   const [featureFlags, setFeatureFlags] =
     useState<FeatureSettings>(defaultFeatureSettings);
+  const [pluginFlags, setPluginFlags] =
+    useState<PluginSettings>(defaultPluginSettings);
   const [shortcutSettings, setShortcutSettings] =
     useState<ShortcutSettings>(defaultShortcutSettings);
   const [issueIntegration, setIssueIntegration] =
@@ -125,6 +140,7 @@ export function useKimaiClient(): UseKimaiClientResult {
       assigneeOnly: false,
       syncTime: false,
       autoInsertUrl: false,
+      autoInsertUrlTarget: DESCRIPTION_INPUT_TARGET,
       showTimeEstimate: true,
       filterLabels: [],
       filterLabelsMode: "include",
@@ -189,6 +205,10 @@ export function useKimaiClient(): UseKimaiClientResult {
     setFeatureFlags({
       ...defaultFeatureSettings,
       ...((s.features ?? {})[connId] ?? {}),
+    });
+    setPluginFlags({
+      ...defaultPluginSettings,
+      ...((s.plugins ?? {})[connId] ?? {}),
     });
     const issueConfig = (s.issueIntegrations ?? {})[connId] ?? {
       enabled: false,
@@ -296,6 +316,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     traySettings,
     shortcutSettings,
     featureFlags,
+    pluginFlags,
     autoUpdate,
     popupLayout,
     colorMode,

@@ -30,12 +30,12 @@ export default function PluginsSection({ settings, update, connectionId }: Props
   return (
     <SettingsList>
       <SettingsRow
-        label={t("plugins.customFields")}
+        label={t("plugins.creativeIssueLink")}
         description={t("plugins.author", { author: "Creativesites s.r.o." })}
       >
         <Toggle
-          checked={config.customFields}
-          onChange={(value) => updatePlugin("customFields", value)}
+          checked={config.creativeIssueLink}
+          onChange={(value) => updatePlugin("creativeIssueLink", value)}
         />
       </SettingsRow>
     </SettingsList>

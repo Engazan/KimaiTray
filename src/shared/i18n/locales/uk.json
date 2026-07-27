@@ -83,8 +83,10 @@
   },
   "plugins": {
     "title": "Plugins",
-    "customFields": "Custom Fields",
-    "author": "Автор: {{author}}"
+    "author": "Автор: {{author}}",
+    "creativeIssueLink": "Creative issue link",
+    "issueFieldLabel": "Issue / Ticket",
+    "issueFieldPlaceholder": "напр. PROJ-123 або URL"
   },
   "settings": {
     "title": "Налаштування",
@@ -592,7 +594,10 @@
     "syncTime": "Синхронізувати час",
     "syncTimeDescription": "Записувати витрачений час у пов'язану GitLab або Gitea задачу при зупинці таймера",
     "autoInsertUrl": "Автоматично вставляти URL задачі",
-    "autoInsertUrlDescription": "Автоматично додавати URL задачі до опису таймера при виборі задачі",
+    "autoInsertUrlDescription": "Автоматично вставляти URL задачі при виборі задачі",
+    "autoInsertUrlTarget": "Вставити в",
+    "autoInsertUrlTargetDescription": "Виберіть поле таймера, яке отримає URL задачі",
+    "timerDescriptionTarget": "Опис таймера",
     "showTimeEstimate": "Показувати оцінку часу",
     "showTimeEstimateDescription": "Показувати витрачений / оцінений час із GitLab біля кожної задачі",
     "timeBudgetTooltip": "Зафіксовано {{spent}} із {{estimate}} оцінених",

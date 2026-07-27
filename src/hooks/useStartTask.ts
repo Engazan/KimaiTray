@@ -7,6 +7,7 @@ import {
   restartTimesheet,
   startTimesheet,
   stopTimesheet,
+  updateTimesheetMeta,
 } from "../api/timesheetApi";
 import { serializeKimaiTags } from "../api/tagUtils";
 import { invalidateTimesheets } from "./invalidateTimesheets";
@@ -18,6 +19,7 @@ export interface StartTaskPayload {
   begin?: string;
   description?: string;
   tags?: string[];
+  metadata?: Record<string, string>;
   label: string;
 }
 
@@ -29,12 +31,22 @@ export class TaskSwitchError extends Error {
   }
 }
 
+export class TaskMetadataError extends Error {
+  readonly entry: KimaiTimesheetEntry;
+
+  constructor(cause: unknown, entry: KimaiTimesheetEntry) {
+    super(cause instanceof KimaiApiError ? cause.message : String(cause));
+    this.entry = entry;
+  }
+}
+
 export async function switchTask(
   client: KimaiClient,
   payload: StartTaskPayload,
 ) {
   let stoppedExisting = false;
   const stoppedIds: number[] = [];
+  let entry: KimaiTimesheetEntry;
   try {
     const active = await getActiveTimesheets(client);
     for (const entry of active) {
@@ -42,7 +54,7 @@ export async function switchTask(
       stoppedExisting = true;
       stoppedIds.push(entry.id);
     }
-    return await startTimesheet(client, {
+    entry = await startTimesheet(client, {
       project: payload.projectId,
       activity: payload.activityId,
       begin: payload.begin,
@@ -62,6 +74,23 @@ export async function switchTask(
     }
     throw new TaskSwitchError(err, stoppedExisting && !rolledBack);
   }
+
+  try {
+    for (const [name, rawValue] of Object.entries(payload.metadata ?? {})) {
+      const value = rawValue.trim();
+      if (!name || !value) continue;
+      await updateTimesheetMeta(client, entry.id, {
+        name,
+        value,
+      });
+    }
+  } catch (error) {
+    // The new timer already exists and may be running. Do not restart the
+    // previously stopped timer and accidentally leave two active timers.
+    throw new TaskMetadataError(error, entry);
+  }
+
+  return entry;
 }
 
 export function useStartTask(
@@ -90,7 +119,15 @@ export function useStartTask(
       setStartingKey(null);
       invalidateTimesheets(qc);
 
-      if (err instanceof TaskSwitchError && err.stoppedExisting) {
+      if (err instanceof TaskMetadataError) {
+        setSwitchError(
+          `Timer started, but plugin metadata could not be saved: ${err.message}`,
+        );
+        // Creation already succeeded. Publish the running timer so callers can
+        // close the form and keep any other post-start associations intact.
+        onTaskStarted?.(err.entry, payload);
+        return;
+      } else if (err instanceof TaskSwitchError && err.stoppedExisting) {
         setSwitchError(
           `Timer stopped but "${payload.label}" failed to start: ${err.message}`,
         );

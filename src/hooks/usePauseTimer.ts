@@ -1,7 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
-import { stopTimesheet, startTimesheet } from "../api/timesheetApi";
+import {
+  stopTimesheet,
+  startTimesheet,
+  updateTimesheetMeta,
+} from "../api/timesheetApi";
 import { serializeKimaiTags } from "../api/tagUtils";
 import {
   loadPausedTimers,
@@ -12,6 +16,10 @@ import {
 } from "../api/pauseStore";
 import type { ActiveTimer } from "../types";
 import { invalidateTimesheets } from "./invalidateTimesheets";
+import {
+  pickPluginMetadata,
+  type PluginCustomInputDefinition,
+} from "../plugins/customInputs";
 
 interface UsePauseTimerResult {
   pausedTimers: PausedTimerData[];
@@ -32,6 +40,7 @@ export function usePauseTimer(
   client: KimaiClient | null,
   timer: ActiveTimer | null,
   connectionId: string,
+  pluginCustomInputs: readonly PluginCustomInputDefinition[] = [],
 ): UsePauseTimerResult {
   const qc = useQueryClient();
   const [pausedTimers, setPausedTimers] = useState<PausedTimerData[]>([]);
@@ -88,6 +97,10 @@ export function usePauseTimer(
         activity: activeTimer.activity,
         description: activeTimer.description,
         tags: activeTimer.tags,
+        metadata: pickPluginMetadata(
+          activeTimer.metadata,
+          pluginCustomInputs,
+        ),
         pausedAt: new Date().toISOString(),
       };
       // Persist recovery data before mutating Kimai. If the store write fails,
@@ -149,6 +162,10 @@ export function usePauseTimer(
           activity: currentTimer.activity,
           description: currentTimer.description,
           tags: currentTimer.tags,
+          metadata: pickPluginMetadata(
+            currentTimer.metadata,
+            pluginCustomInputs,
+          ),
           pausedAt: new Date().toISOString(),
         };
         await addPausedTimer(swapData);
@@ -161,13 +178,30 @@ export function usePauseTimer(
       }
 
       // Start the target paused timer
-      await startTimesheet(operationClient, {
+      const entry = await startTimesheet(operationClient, {
         project: target.projectId,
         activity: target.activityId,
         description: target.description || undefined,
         tags:
           target.tags.length > 0 ? serializeKimaiTags(target.tags) : undefined,
       });
+
+      let metadataError: Error | null = null;
+      try {
+        const metadata = pickPluginMetadata(
+          target.metadata,
+          pluginCustomInputs,
+        );
+        for (const [name, value] of Object.entries(metadata ?? {})) {
+          await updateTimesheetMeta(operationClient, entry.id, {
+            name,
+            value,
+          });
+        }
+      } catch (error) {
+        metadataError =
+          error instanceof Error ? error : new Error(String(error));
+      }
 
       // Server success is authoritative. Hide the resumed item immediately and
       // retry a failed local cleanup instead of offering a duplicate resume.
@@ -177,12 +211,17 @@ export function usePauseTimer(
         timers: updated.filter(
           (t) => t.connectionId === operationConnectionId,
         ),
+        metadataError,
       };
     },
-    onSuccess: ({ scope, timers }) => {
+    onSuccess: ({ scope, timers, metadataError }) => {
       if (sessionScopeRef.current !== scope) return;
       setPausedTimers(timers);
-      setPauseError(null);
+      setPauseError(
+        metadataError
+          ? `Timer resumed, but plugin metadata could not be saved: ${metadataError.message}`
+          : null,
+      );
       setResumingId(null);
       invalidate();
     },

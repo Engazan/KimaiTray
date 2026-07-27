@@ -27,6 +27,7 @@ describe("Kimai response entity validation", () => {
         ...timesheet,
         end: "2026-07-11T10:00:00+0200",
         duration: 3600,
+        metaFields: [{ name: "issue_link", value: "CREATIVE-123" }],
       }),
     ).toBe(true);
     expect(isKimaiProject({ id: 2, name: "Project", customer: 4 })).toBe(true);
@@ -51,6 +52,9 @@ describe("Kimai response entity validation", () => {
     expect(isKimaiTimesheet({ ...timesheet, activity: { id: -2 } })).toBe(false);
     expect(isKimaiTimesheet({ ...timesheet, begin: "not-a-date" })).toBe(false);
     expect(isKimaiTimesheet({ ...timesheet, duration: -1 })).toBe(false);
+    expect(
+      isKimaiTimesheet({ ...timesheet, metaFields: { issue_link: "x" } }),
+    ).toBe(false);
     expect(
       isKimaiTimesheet({
         ...timesheet,

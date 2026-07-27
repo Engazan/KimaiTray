@@ -8,6 +8,7 @@ import type { ActiveTimer } from "../types";
 import { extractId } from "../api/kimaiTypes";
 import { normalizeKimaiTags } from "../api/tagUtils";
 import { parseKimaiDate } from "../utils/time";
+import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 import { useEntityLookup } from "./useEntityLookup";
 import { invalidateTimesheets } from "./invalidateTimesheets";
 
@@ -79,6 +80,7 @@ export function useActiveTimer(
       activity: act?.name ?? `Activity #${activityId}`,
       description: entry.description ?? "",
       tags: normalizeKimaiTags(entry.tags),
+      metadata: getStringTimesheetMetadata(entry),
       beginSeconds: Math.floor(parseKimaiDate(entry.begin).getTime() / 1000),
       beginIso: entry.begin,
     };

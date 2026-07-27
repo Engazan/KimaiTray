@@ -83,8 +83,10 @@
   },
   "plugins": {
     "title": "Plugins",
-    "customFields": "Custom Fields",
-    "author": "Autor: {{author}}"
+    "author": "Autor: {{author}}",
+    "creativeIssueLink": "Creative issue link",
+    "issueFieldLabel": "Issue / Ticket",
+    "issueFieldPlaceholder": "z. B. PROJ-123 oder URL"
   },
   "settings": {
     "title": "Einstellungen",
@@ -592,7 +594,10 @@
     "syncTime": "Zeit synchronisieren",
     "syncTimeDescription": "Aufgewendete Zeit im verknüpften GitLab- oder Gitea-Issue protokollieren, wenn der Timer gestoppt wird",
     "autoInsertUrl": "Issue-URL automatisch einfügen",
-    "autoInsertUrlDescription": "Issue-URL automatisch zur Timer-Beschreibung hinzufügen, wenn ein Issue ausgewählt wird",
+    "autoInsertUrlDescription": "Issue-URL automatisch einfügen, wenn ein Issue ausgewählt wird",
+    "autoInsertUrlTarget": "Einfügen in",
+    "autoInsertUrlTargetDescription": "Wählen Sie das Timer-Feld aus, das die Issue-URL erhält",
+    "timerDescriptionTarget": "Timer-Beschreibung",
     "showTimeEstimate": "Zeitschätzung anzeigen",
     "showTimeEstimateDescription": "Aufgewendete / geschätzte Zeit aus GitLab neben jedem Issue anzeigen",
     "timeBudgetTooltip": "{{spent}} von {{estimate}} geschätzt erfasst",

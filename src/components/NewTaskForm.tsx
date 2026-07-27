@@ -15,6 +15,10 @@ import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
 import SearchableSelect from "./SearchableSelect";
 import { normalizeCustomStartTime } from "../utils/customStartTime";
+import {
+  DESCRIPTION_INPUT_TARGET,
+  type PluginCustomInputDefinition,
+} from "../plugins/customInputs";
 
 interface NewTaskFormProps {
   client: KimaiClient;
@@ -29,6 +33,7 @@ interface NewTaskFormProps {
   showTags?: boolean;
   showCustomerSelect?: boolean;
   showCustomStartTime?: boolean;
+  pluginCustomInputs?: readonly PluginCustomInputDefinition[];
   showIssuePicker?: boolean;
   issueIntegrationConfig?: IssueIntegrationSettings | null;
   issueToken?: string | null;
@@ -91,6 +96,7 @@ export default function NewTaskForm({
   showTags = true,
   showCustomerSelect = true,
   showCustomStartTime = true,
+  pluginCustomInputs = [],
   showIssuePicker = false,
   issueIntegrationConfig,
   issueToken,
@@ -119,6 +125,9 @@ export default function NewTaskForm({
   );
   const submitButtonRef = useRef<HTMLButtonElement>(null);
   const [description, setDescription] = useState("");
+  const [customInputValues, setCustomInputValues] = useState<
+    Record<string, string>
+  >({});
   const [tags, setTags] = useState<string[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<ExternalIssue | null>(null);
 
@@ -181,10 +190,23 @@ export default function NewTaskForm({
     setSelectedIssue(issue);
     setFocusSubmitWhenReady(autoFocusEnabled && issue != null);
     if (issue && autoInsertUrl) {
-      setDescription((prev) => {
-        const trimmed = prev.trim();
-        return trimmed ? `${trimmed}\n${issue.webUrl}` : issue.webUrl;
-      });
+      const configuredTarget =
+        issueIntegrationConfig?.autoInsertUrlTarget ??
+        DESCRIPTION_INPUT_TARGET;
+      const customTarget = pluginCustomInputs.find(
+        (input) => input.id === configuredTarget,
+      );
+      if (customTarget) {
+        setCustomInputValues((current) => ({
+          ...current,
+          [customTarget.id]: issue.webUrl,
+        }));
+      } else {
+        setDescription((prev) => {
+          const trimmed = prev.trim();
+          return trimmed ? `${trimmed}\n${issue.webUrl}` : issue.webUrl;
+        });
+      }
     }
   };
   const [useCustomTime, setUseCustomTime] = useState(false);
@@ -320,6 +342,12 @@ export default function NewTaskForm({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+    const metadata = Object.fromEntries(
+      pluginCustomInputs.flatMap((input) => {
+        const value = customInputValues[input.id]?.trim();
+        return value ? [[input.metadataName, value]] : [];
+      }),
+    );
     onSubmit(
       {
         projectId: projectId!,
@@ -327,6 +355,7 @@ export default function NewTaskForm({
         begin: customBegin ?? undefined,
         description: description.trim() || undefined,
         tags: tags.length > 0 ? tags : undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
         label: selectedProject?.name ?? `Project #${projectId}`,
       },
       selectedIssue,
@@ -500,6 +529,29 @@ export default function NewTaskForm({
             </div>
           </div>
         )}
+
+        {pluginCustomInputs.map((input) => {
+          const controlId = `${formId}-${input.id.replace(/[^a-z0-9-]/gi, "-")}`;
+          return (
+            <div key={input.id}>
+              <FieldLabel htmlFor={controlId}>{t(input.labelKey)}</FieldLabel>
+              <input
+                id={controlId}
+                type="text"
+                value={customInputValues[input.id] ?? ""}
+                onChange={(event) =>
+                  setCustomInputValues((current) => ({
+                    ...current,
+                    [input.id]: event.target.value,
+                  }))
+                }
+                disabled={isSubmitting}
+                placeholder={t(input.placeholderKey)}
+                className={selectCls}
+              />
+            </div>
+          );
+        })}
 
         {showNote && (
           <div>

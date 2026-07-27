@@ -22,6 +22,7 @@ export interface ActiveTimer {
   activity: string;
   description: string;
   tags: string[];
+  metadata?: Record<string, string>;
   beginSeconds: number;
   beginIso: string;
 }
@@ -39,6 +40,7 @@ export interface RecentTask {
   activity: string;
   description: string;
   tags: string[];
+  metadata?: Record<string, string>;
   lastUsed: string;
 }
 
@@ -74,7 +76,9 @@ export interface FeatureSettings {
 }
 
 export interface PluginSettings {
-  customFields: boolean;
+  /** Creative issue link: adds an "Issue / Ticket" field to new timers and
+   *  stores it as the `issue_link` timesheet meta value on the Kimai server. */
+  creativeIssueLink: boolean;
 }
 
 export interface AppSettings {
@@ -154,6 +158,7 @@ export interface FavoriteTask {
   customer: string;
   description: string;
   tags: string[];
+  metadata?: Record<string, string>;
   projectColor: string;
   activityColor: string;
   customerColor: string;

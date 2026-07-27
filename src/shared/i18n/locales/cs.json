@@ -83,8 +83,10 @@
   },
   "plugins": {
     "title": "Plugins",
-    "customFields": "Custom Fields",
-    "author": "Autor: {{author}}"
+    "author": "Autor: {{author}}",
+    "creativeIssueLink": "Creative issue link",
+    "issueFieldLabel": "Issue / Ticket",
+    "issueFieldPlaceholder": "např. PROJ-123 nebo URL"
   },
   "settings": {
     "title": "Nastavení",
@@ -592,7 +594,10 @@
     "syncTime": "Synchronizovat čas",
     "syncTimeDescription": "Zaznamenat strávený čas do propojené GitLab nebo Gitea úlohy po zastavení časovače",
     "autoInsertUrl": "Automaticky vložit URL úlohy",
-    "autoInsertUrlDescription": "Automaticky přidat URL úlohy do popisu časovače při výběru úlohy",
+    "autoInsertUrlDescription": "Automaticky vložit URL úlohy při výběru úlohy",
+    "autoInsertUrlTarget": "Vložit do",
+    "autoInsertUrlTargetDescription": "Vyberte pole časovače, do kterého se vloží URL úlohy",
+    "timerDescriptionTarget": "Popis časovače",
     "showTimeEstimate": "Zobrazit odhad času",
     "showTimeEstimateDescription": "Zobrazit odpracovaný / odhadovaný čas z GitLabu u každé úlohy",
     "timeBudgetTooltip": "Zalogováno {{spent}} z odhadovaných {{estimate}}",

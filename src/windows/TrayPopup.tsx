@@ -78,6 +78,10 @@ import {
   rememberPendingChangelog,
 } from "../api/changelog";
 import { showChangelogWindow } from "../api/changelogWindow";
+import {
+  getEnabledPluginCustomInputs,
+  pickPluginMetadata,
+} from "../plugins/customInputs";
 
 export default function TrayPopup() {
   const { t, i18n } = useTranslation();
@@ -147,6 +151,7 @@ export default function TrayPopup() {
     traySettings,
     shortcutSettings,
     featureFlags,
+    pluginFlags,
     autoUpdate,
     popupLayout,
     colorMode,
@@ -157,6 +162,10 @@ export default function TrayPopup() {
     issueIntegration,
     issueToken,
   } = useKimaiClient();
+  const pluginCustomInputs = useMemo(
+    () => getEnabledPluginCustomInputs(pluginFlags),
+    [pluginFlags],
+  );
   const isDetached = displayMode === "detached";
   const [pinned, setPinned] = useState(false);
 
@@ -217,7 +226,12 @@ export default function TrayPopup() {
     isStoppingActive,
     pauseError,
     dismissPauseError,
-  } = usePauseTimer(client, timer, activeConnectionId);
+  } = usePauseTimer(
+    client,
+    timer,
+    activeConnectionId,
+    pluginCustomInputs,
+  );
 
   const activeKey = timer ? `${timer.projectId}-${timer.activityId}` : null;
   const { tasks, isLoading: tasksLoading } = useRecentTasks(
@@ -321,6 +335,7 @@ export default function TrayPopup() {
         activityId: task.activityId,
         description: task.description || undefined,
         tags: task.tags?.length ? task.tags : undefined,
+        metadata: pickPluginMetadata(task.metadata, pluginCustomInputs),
         label: task.project,
       },
       task.key,
@@ -783,6 +798,7 @@ export default function TrayPopup() {
         activityId: task.activityId,
         description: task.description || undefined,
         tags: task.tags?.length ? task.tags : undefined,
+        metadata: pickPluginMetadata(task.metadata, pluginCustomInputs),
         label: task.project,
       },
       task.key,
@@ -813,13 +829,14 @@ export default function TrayPopup() {
           customer: task.customer,
           description: task.description,
           tags: task.tags,
+          metadata: pickPluginMetadata(task.metadata, pluginCustomInputs),
           projectColor: task.projectColor,
           activityColor: task.activityColor,
           customerColor: task.customerColor,
         });
       }
     },
-    [isFavorite, addFav, removeFav],
+    [isFavorite, addFav, removeFav, pluginCustomInputs],
   );
 
   const handleStartFavorite = useCallback(
@@ -830,12 +847,13 @@ export default function TrayPopup() {
           activityId: task.activityId,
           description: task.description || undefined,
           tags: task.tags?.length ? task.tags : undefined,
+          metadata: pickPluginMetadata(task.metadata, pluginCustomInputs),
           label: task.project,
         },
         task.key,
       );
     },
-    [startTask],
+    [pluginCustomInputs, startTask],
   );
 
   const handleRemoveFavorite = useCallback(
@@ -1112,6 +1130,7 @@ export default function TrayPopup() {
           showTags={featureFlags.featureTags}
           showCustomerSelect={featureFlags.featureCustomerSelect}
           showCustomStartTime={featureFlags.featureCustomStartTime}
+          pluginCustomInputs={pluginCustomInputs}
           showIssuePicker={issueIntegration.enabled}
           issueIntegrationConfig={issueIntegration}
           issueToken={issueToken}

@@ -15,8 +15,10 @@ export type {
   KimaiCustomer,
   KimaiProject,
   KimaiActivity,
+  KimaiMetaField,
   KimaiTimesheetEntry,
   KimaiTimesheetCreate,
+  KimaiTimesheetMetaUpdate,
   KimaiTimesheetUpdate,
   TimesheetListParams,
   ProjectListParams,
@@ -40,6 +42,7 @@ export {
   stopTimesheet,
   restartTimesheet,
   updateTimesheet,
+  updateTimesheetMeta,
   deleteTimesheet,
 } from "./timesheetApi";
 

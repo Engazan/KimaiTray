@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { KimaiClient } from "../api/kimaiClient";
 import type { PausedTimerData } from "../api/pauseStore";
 import type { ActiveTimer } from "../types";
+import { getEnabledPluginCustomInputs } from "../plugins/customInputs";
 
 const pauseStoreMocks = vi.hoisted(() => ({
   loadPausedTimers: vi.fn(),
@@ -17,6 +18,7 @@ const pauseStoreMocks = vi.hoisted(() => ({
 const timesheetMocks = vi.hoisted(() => ({
   startTimesheet: vi.fn(),
   stopTimesheet: vi.fn(),
+  updateTimesheetMeta: vi.fn(),
 }));
 
 vi.mock("../api/pauseStore", () => pauseStoreMocks);
@@ -54,6 +56,7 @@ function paused(connectionId: string): PausedTimerData {
     activity: "Activity",
     description: "",
     tags: [],
+    metadata: { issue_link: "CREATIVE-123" },
     pausedAt: "2026-01-01T00:00:00.000Z",
   };
 }
@@ -70,6 +73,7 @@ function activeTimer(): ActiveTimer {
     activity: "Activity",
     description: "",
     tags: [],
+    metadata: { issue_link: "CREATIVE-123" },
     beginSeconds: 1_700_000_000,
     beginIso: "2026-01-01T00:00:00.000Z",
   };
@@ -94,6 +98,7 @@ describe("paused timer session isolation", () => {
     pauseStoreMocks.removeResumedTimer.mockResolvedValue([]);
     timesheetMocks.startTimesheet.mockResolvedValue({ id: 99 });
     timesheetMocks.stopTimesheet.mockResolvedValue(undefined);
+    timesheetMocks.updateTimesheetMeta.mockResolvedValue({ id: 99 });
   });
 
   it("ignores a previous connection load that completes late", async () => {
@@ -173,6 +178,33 @@ describe("paused timer session isolation", () => {
       "paused-connection-a",
     );
     expect(result.current.pauseError).toBeNull();
+  });
+
+  it("copies issue_link metadata to the new timer when resuming", async () => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValueOnce([
+      paused("connection-a"),
+    ]);
+    const { result } = renderHook(
+      () =>
+        usePauseTimer(
+          client("connection-a"),
+          null,
+          "connection-a",
+          getEnabledPluginCustomInputs({ creativeIssueLink: true }),
+        ),
+      { wrapper: wrapper() },
+    );
+    await waitFor(() => expect(result.current.pausedTimers).toHaveLength(1));
+
+    act(() => result.current.resumeTimer("paused-connection-a"));
+
+    await waitFor(() =>
+      expect(timesheetMocks.updateTimesheetMeta).toHaveBeenCalledWith(
+        expect.anything(),
+        99,
+        { name: "issue_link", value: "CREATIVE-123" },
+      ),
+    );
   });
 
   it("deduplicates immediate repeated active timer stops", async () => {
