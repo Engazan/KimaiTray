@@ -12,6 +12,7 @@ import TagsList from "./TagsList";
 import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
 import ColorDots from "./ColorDots";
+import type { PluginCustomInputDefinition } from "../plugins/customInputs";
 
 interface ActiveTimerCardProps {
   timer: ActiveTimer;
@@ -22,7 +23,12 @@ interface ActiveTimerCardProps {
   multipleActive?: boolean;
   onEdit?: (
     id: number,
-    payload: { description?: string; begin?: string; tags?: string[] },
+    payload: {
+      description?: string;
+      begin?: string;
+      tags?: string[];
+      metadata?: Record<string, string>;
+    },
   ) => void;
   isSaving?: boolean;
   saveError?: string | null;
@@ -30,6 +36,7 @@ interface ActiveTimerCardProps {
   focusMode?: boolean;
   showNote?: boolean;
   showTags?: boolean;
+  pluginCustomInputs?: readonly PluginCustomInputDefinition[];
   tagSuggestions?: KimaiTag[];
   issueUrl?: string | null;
   /** Linked issue's time estimate in seconds (GitLab). Undefined hides the badge. */
@@ -79,6 +86,7 @@ export default function ActiveTimerCard({
   focusMode,
   showNote = true,
   showTags = true,
+  pluginCustomInputs = [],
   tagSuggestions = [],
   issueUrl,
   timeEstimate,
@@ -139,6 +147,46 @@ export default function ActiveTimerCard({
       e.preventDefault();
       setEditingDesc(false);
       onEditDescriptionRequestHandled?.();
+    }
+  };
+
+  // ── Plugin custom input editing ──
+  const [editingCustomInputId, setEditingCustomInputId] = useState<
+    string | null
+  >(null);
+  const [customInputValue, setCustomInputValue] = useState("");
+  const customInputRef = useRef<HTMLInputElement>(null);
+
+  const startEditCustomInput = (input: PluginCustomInputDefinition) => {
+    if (!onEdit) return;
+    setCustomInputValue(timer.metadata?.[input.metadataName] ?? "");
+    setEditingCustomInputId(input.id);
+  };
+
+  useEffect(() => {
+    if (editingCustomInputId) customInputRef.current?.focus();
+  }, [editingCustomInputId]);
+
+  const saveCustomInput = (input: PluginCustomInputDefinition) => {
+    setEditingCustomInputId(null);
+    const previous = timer.metadata?.[input.metadataName] ?? "";
+    if (customInputValue !== previous) {
+      onEdit?.(timer.id, {
+        metadata: { [input.metadataName]: customInputValue },
+      });
+    }
+  };
+
+  const handleCustomInputKey = (
+    event: React.KeyboardEvent,
+    input: PluginCustomInputDefinition,
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      saveCustomInput(input);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setEditingCustomInputId(null);
     }
   };
 
@@ -204,6 +252,7 @@ export default function ActiveTimerCard({
   // Reset editing when timer changes
   useEffect(() => {
     setEditingDesc(false);
+    setEditingCustomInputId(null);
     setEditingTags(false);
     setEditingBegin(false);
     setBeginError("");
@@ -404,7 +453,53 @@ export default function ActiveTimerCard({
           </div>
         )}
 
-        {/* Row 3: Tags */}
+        {/* Plugin custom inputs (editable) */}
+        {pluginCustomInputs.map((input) => {
+          const value = timer.metadata?.[input.metadataName] ?? "";
+          const editing = editingCustomInputId === input.id;
+          return (
+            <div
+              key={input.id}
+              className="pl-4 mb-1.5 flex min-w-0 items-center gap-1.5"
+            >
+              <span className="shrink-0 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                {t(input.labelKey)}:
+              </span>
+              {editing ? (
+                <input
+                  ref={customInputRef}
+                  type="text"
+                  aria-label={t(input.labelKey)}
+                  value={customInputValue}
+                  onChange={(event) => setCustomInputValue(event.target.value)}
+                  onBlur={() => saveCustomInput(input)}
+                  onKeyDown={(event) => handleCustomInputKey(event, input)}
+                  placeholder={t(input.placeholderKey)}
+                  className="min-w-0 flex-1 rounded border border-emerald-300 bg-white px-1.5 py-0.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 dark:border-emerald-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder:text-gray-500"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startEditCustomInput(input)}
+                  disabled={!onEdit}
+                  className={`min-w-0 flex-1 truncate text-left text-[11px] focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${
+                    onEdit
+                      ? "cursor-text rounded px-1 -mx-1 transition-colors hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
+                      : ""
+                  } ${
+                    value
+                      ? "text-gray-500 dark:text-gray-400"
+                      : "italic text-gray-400 dark:text-gray-500"
+                  }`}
+                >
+                  {value || t(input.placeholderKey)}
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Tags */}
         {showTags && (
           <div className="pl-4 mb-1.5">
             {editingTags ? (

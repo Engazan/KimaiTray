@@ -1167,6 +1167,7 @@ export default function TrayPopup() {
                     focusMode={popupLayout === "focus"}
                     showNote={featureFlags.featureNote || editNoteRequest > 0}
                     showTags={featureFlags.featureTags}
+                    pluginCustomInputs={pluginCustomInputs}
                     tagSuggestions={tagSuggestions}
                     issueUrl={timerIssueUrl}
                     timeEstimate={showIssueEstimate ? linkedIssue!.timeEstimate : undefined}

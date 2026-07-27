@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import i18n, { initPromise } from "../shared/i18n";
 import ActiveTimerCard from "./ActiveTimerCard";
+import { getEnabledPluginCustomInputs } from "../plugins/customInputs";
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -88,5 +89,47 @@ describe("ActiveTimerCard keyboard actions", () => {
     );
 
     expect(screen.getByText("1h5m / 2h")).toBeTruthy();
+  });
+
+  it("shows and edits an active timer plugin custom field", async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    render(
+      <I18nextProvider i18n={i18n}>
+        <ActiveTimerCard
+          timer={{
+            id: 3,
+            projectId: 2,
+            activityId: 3,
+            project: "Alpha",
+            projectColor: "#000000",
+            activityColor: "#000000",
+            customerColor: "#000000",
+            activity: "Work",
+            description: "",
+            tags: [],
+            metadata: { issue_link: "CREATIVE-123" },
+            beginSeconds: Math.floor(Date.now() / 1000),
+            beginIso: new Date().toISOString(),
+          }}
+          onStop={vi.fn()}
+          onEdit={onEdit}
+          pluginCustomInputs={getEnabledPluginCustomInputs({
+            creativeIssueLink: true,
+          })}
+        />
+      </I18nextProvider>,
+    );
+
+    await user.click(screen.getByText("CREATIVE-123"));
+    const input = screen.getByLabelText("Issue / Ticket");
+    expect(document.activeElement).toBe(input);
+    await user.clear(input);
+    await user.type(input, "CREATIVE-456{Enter}");
+
+    expect(onEdit).toHaveBeenCalledWith(3, {
+      metadata: { issue_link: "CREATIVE-456" },
+    });
+    expect(onEdit).toHaveBeenCalledTimes(1);
   });
 });
