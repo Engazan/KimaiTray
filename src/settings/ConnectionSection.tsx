@@ -173,7 +173,7 @@ export default function ConnectionSection({
     async () => {
       if (!editingId) return;
       const id = editingId;
-      let credentialCleanupPending = false;
+      let credentialCleanupPending: boolean;
       try {
         ({ credentialCleanupPending } = await removeConnection(id));
       } catch {
