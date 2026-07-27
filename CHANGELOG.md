@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.22.0] - 2026-07-27
+
+### New Features
+
+- **Per-connection plugins and Creative issue links** — saved connections now have a Plugins tab where the Creative issue link plugin can be enabled. It adds an **Issue / Ticket** field directly below the issue picker, stores its value as `issue_link` timer metadata, preserves it when a timer is stopped and resumed, and lets it be edited alongside the note while the timer is running
+- **Configurable issue URL insertion target** — GitLab, GitHub and Gitea integrations can now auto-insert the selected issue URL into the timer description or any custom input supplied by an enabled plugin, while keeping the existing description behavior as the default
+
+### Bug Fixes
+
+- **Fresh GitLab time for timers started from recents** — restarting a GitLab-linked timer now waits for pending spent-time synchronization and fetches the authoritative issue time statistics, preventing stale spent / estimated time from being displayed
+
+### Maintenance
+
+- **Frontend dependency security updates** — updated ESLint, Vitest, PostCSS and the JSX accessibility lint plugin to remove all high-severity npm audit findings
+- **Correct GitHub funding account** — project funding metadata now points to the Engazan account
+
 ## [0.21.0] - 2026-07-22
 
 ### New Features
