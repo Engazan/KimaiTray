@@ -5,6 +5,7 @@ import { testConnection, isInsecureUrl, type ConnectionResult } from "../api";
 import { getConnectionToken } from "../api/connectionTokenStore";
 import IntegrationsSection from "./IntegrationsSection";
 import FeaturesSection from "./FeaturesSection";
+import PluginsSection from "./PluginsSection";
 import { TextInput } from "./Controls";
 import {
   SettingsList,
@@ -26,7 +27,7 @@ interface Props {
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }
 
-type ConnectionTab = "connection" | "features" | "integrations";
+type ConnectionTab = "connection" | "features" | "integrations" | "plugins";
 
 export default function ConnectionSection({
   settings,
@@ -228,9 +229,24 @@ export default function ConnectionSection({
           {t("integrations.title")}
           {!editingId && <LockClosed />}
         </TabButton>
+        <TabButton
+          active={activeTab === "plugins"}
+          disabled={!editingId}
+          title={!editingId ? t("connection.saveFirstForPlugins") : undefined}
+          onClick={() => setActiveTab("plugins")}
+        >
+          {t("plugins.title")}
+          {!editingId && <LockClosed />}
+        </TabButton>
       </div>
 
-      {activeTab === "integrations" && editingId ? (
+      {activeTab === "plugins" && editingId ? (
+        <PluginsSection
+          settings={settings}
+          update={update}
+          connectionId={editingId}
+        />
+      ) : activeTab === "integrations" && editingId ? (
         <IntegrationsSection
           settings={settings}
           update={update}

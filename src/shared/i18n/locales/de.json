@@ -58,6 +58,7 @@
     "title": "Verbindung",
     "tabConnection": "Verbindung",
     "saveFirstForIntegrations": "Speichere zuerst die Verbindung, um Integrationen zu konfigurieren",
+    "saveFirstForPlugins": "Speichere zuerst die Verbindung, um Plugins zu konfigurieren",
     "saveFirstForFeatures": "Speichere zuerst die Verbindung, um Funktionen zu konfigurieren",
     "connectionsTitle": "Verbindungen",
     "description": "Verbinden Sie sich mit Ihrer Kimai-Instanz über die Basis-URL und einen persönlichen API-Token. Sie können mehrere Verbindungen speichern und zwischen ihnen wechseln.",
@@ -79,6 +80,11 @@
     "tokenRequired": "API-Token ist erforderlich",
     "unexpectedError": "Unerwarteter Fehler beim Verbindungstest",
     "connectionFailed": "Verbindung fehlgeschlagen"
+  },
+  "plugins": {
+    "title": "Plugins",
+    "customFields": "Custom Fields",
+    "author": "Autor: {{author}}"
   },
   "settings": {
     "title": "Einstellungen",

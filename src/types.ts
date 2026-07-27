@@ -73,6 +73,10 @@ export interface FeatureSettings {
   featureCategoryMode: boolean;
 }
 
+export interface PluginSettings {
+  customFields: boolean;
+}
+
 export interface AppSettings {
   kimaiUrl: string;
   connections: SavedConnection[];
@@ -110,6 +114,9 @@ export interface AppSettings {
 
   // Feature toggles are per-connection, keyed by connection id.
   features: Record<string, FeatureSettings>;
+
+  // Plugin toggles are per-connection, keyed by connection id.
+  plugins: Record<string, PluginSettings>;
 
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;

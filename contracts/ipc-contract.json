@@ -28,6 +28,7 @@
     "popupLayout",
     "colorMode",
     "features",
+    "plugins",
     "shortcutTogglePopup",
     "shortcutStartStopTimer",
     "shortcutNewTask",

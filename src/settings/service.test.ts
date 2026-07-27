@@ -35,12 +35,14 @@ describe("settings schema defaults", () => {
     const merged = mergeSettings({
       trayColors: { running: "#123456" } as typeof defaultSettings.trayColors,
       features: undefined,
+      plugins: undefined,
       issueIntegrations: undefined,
     });
 
     expect(merged.trayColors.running).toBe("#123456");
     expect(merged.trayColors.idle).toBe(defaultSettings.trayColors.idle);
     expect(merged.features).toEqual({});
+    expect(merged.plugins).toEqual({});
     expect(merged.issueIntegrations).toEqual({});
     expect(defaultSettings.trayColors.running).not.toBe("#123456");
   });
@@ -95,6 +97,14 @@ describe("settings schema defaults", () => {
           featureTags: "invalid",
         },
       },
+      plugins: {
+        "connection-a": {
+          customFields: true,
+        },
+        invalid: {
+          customFields: "yes",
+        },
+      },
       issueIntegrations: {
         "connection-a": {
           enabled: true,
@@ -125,6 +135,8 @@ describe("settings schema defaults", () => {
       fullDailyGoalMinutes: 480,
       featureCategoryMode: false,
     });
+    expect(merged.plugins["connection-a"]).toEqual({ customFields: true });
+    expect(merged.plugins.invalid).toEqual({ customFields: false });
     expect(merged.issueIntegrations["connection-a"]).toMatchObject({
       enabled: true,
       provider: "gitlab",

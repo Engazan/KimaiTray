@@ -5,6 +5,7 @@ import type {
   AppSettings,
   FeatureSettings,
   IssueIntegrationSettings,
+  PluginSettings,
   SavedConnection,
   TrayStateColors,
 } from "../types";
@@ -31,6 +32,10 @@ export const defaultFeatureSettings: FeatureSettings = {
   dailyGoalMinutes: 7 * 60 + 30,
   fullDailyGoalMinutes: 8 * 60,
   featureCategoryMode: false,
+};
+
+export const defaultPluginSettings: PluginSettings = {
+  customFields: false,
 };
 
 export const defaultSettings: AppSettings = {
@@ -69,6 +74,7 @@ export const defaultSettings: AppSettings = {
   colorMode: "kimai",
 
   features: {},
+  plugins: {},
 
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
@@ -244,6 +250,21 @@ function normalizeFeatures(value: unknown): Record<string, FeatureSettings> {
   return normalized;
 }
 
+function normalizePlugins(value: unknown): Record<string, PluginSettings> {
+  if (!isRecord(value)) return {};
+  const normalized: Record<string, PluginSettings> = {};
+  for (const [id, pluginValue] of Object.entries(value)) {
+    if (!id || id.length > 256 || !isRecord(pluginValue)) continue;
+    normalized[id] = {
+      customFields: booleanValue(
+        pluginValue.customFields,
+        defaultPluginSettings.customFields,
+      ),
+    };
+  }
+  return normalized;
+}
+
 const defaultIssueIntegration: IssueIntegrationSettings = {
   enabled: false,
   provider: "gitlab",
@@ -306,6 +327,7 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     ...defaultSettings,
     trayColors: { ...defaultSettings.trayColors },
     features: {},
+    plugins: {},
     issueIntegrations: {},
   };
   const value = raw as unknown as UnknownRecord;
@@ -431,6 +453,7 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
       defaultSettings.colorMode,
     ),
     features: normalizeFeatures(value.features),
+    plugins: normalizePlugins(value.plugins),
     shortcutTogglePopup: stringValue(value.shortcutTogglePopup, "", 256),
     shortcutStartStopTimer: stringValue(value.shortcutStartStopTimer, "", 256),
     shortcutNewTask: stringValue(value.shortcutNewTask, "", 256),
