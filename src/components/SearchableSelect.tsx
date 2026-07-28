@@ -78,10 +78,17 @@ export default function SearchableSelect<T extends OptionValue>({
     const q = normalizeSearchText(search);
     return options.filter((o) => normalizeSearchText(o.label).includes(q));
   }, [options, search]);
+  const totalItems = filtered.length + (allowEmpty ? 1 : 0);
 
   useEffect(() => {
     setHighlightIndex(0);
-  }, [filtered]);
+  }, [search]);
+
+  useEffect(() => {
+    setHighlightIndex((index) =>
+      totalItems === 0 ? 0 : Math.min(index, totalItems - 1),
+    );
+  }, [totalItems]);
 
   useEffect(() => {
     if (!open) return;
@@ -132,7 +139,6 @@ export default function SearchableSelect<T extends OptionValue>({
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    const totalItems = filtered.length + (allowEmpty ? 1 : 0);
     if (totalItems === 0 && e.key !== "Escape") return;
     if (e.key === "ArrowDown") {
       e.preventDefault();

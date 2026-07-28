@@ -51,6 +51,51 @@ describe("accessible custom controls", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("keeps the keyboard highlight across equivalent parent rerenders", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = renderLocalized(
+      <SearchableSelect
+        id="project-select"
+        options={[
+          { value: 1, label: "Alpha" },
+          { value: 2, label: "Beta" },
+        ]}
+        value={null}
+        onChange={onChange}
+        placeholder="Choose project"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /choose project/i }));
+    const input = screen.getByRole("combobox");
+    await user.keyboard("{ArrowDown}");
+    expect(input.getAttribute("aria-activedescendant")).toBe(
+      "project-select-option-1",
+    );
+
+    rerender(
+      <I18nextProvider i18n={i18n}>
+        <SearchableSelect
+          id="project-select"
+          options={[
+            { value: 1, label: "Alpha" },
+            { value: 2, label: "Beta" },
+          ]}
+          value={null}
+          onChange={onChange}
+          placeholder="Choose project"
+        />
+      </I18nextProvider>,
+    );
+
+    expect(input.getAttribute("aria-activedescendant")).toBe(
+      "project-select-option-1",
+    );
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenCalledWith(2);
+  });
+
   it("matches canonically equivalent and unaccented select searches", async () => {
     const user = userEvent.setup();
     renderLocalized(
