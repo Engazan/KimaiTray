@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1] - 2026-07-31
+
+### Bug Fixes
+
+- **Stable keyboard selection** — searchable selects now preserve the highlighted option across equivalent parent rerenders, so pressing Enter chooses the option reached with the arrow keys
+- **No stale GitLab time on unlinked timers** — starting a timer without choosing an issue no longer restores spent time from an older issue that used the same project and activity
+
 ## [0.22.0] - 2026-07-27
 
 ### New Features
@@ -10,7 +17,6 @@
 ### Bug Fixes
 
 - **Fresh GitLab time for timers started from recents** — restarting a GitLab-linked timer now waits for pending spent-time synchronization and fetches the authoritative issue time statistics, preventing stale spent / estimated time from being displayed
-- **No stale GitLab time on unlinked timers** — starting a timer without choosing an issue no longer restores spent time from an older issue that used the same project and activity
 
 ### Maintenance
 
