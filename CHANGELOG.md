@@ -10,6 +10,7 @@
 ### Bug Fixes
 
 - **Fresh GitLab time for timers started from recents** — restarting a GitLab-linked timer now waits for pending spent-time synchronization and fetches the authoritative issue time statistics, preventing stale spent / estimated time from being displayed
+- **No stale GitLab time on unlinked timers** — starting a timer without choosing an issue no longer restores spent time from an older issue that used the same project and activity
 
 ### Maintenance
 

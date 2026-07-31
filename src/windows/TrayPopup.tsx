@@ -57,7 +57,7 @@ import type { RecentTask, FavoriteTask, TodayEntry } from "../types";
 import type { ExternalIssue } from "../integrations/issues/types";
 import { createIssueProvider } from "../integrations/issues/issueProvider";
 import {
-  readLinkedIssueForTimer,
+  readLinkedIssueSelectionForTimer,
   readLinkedIssueMap,
   storeLinkedIssueForTask,
   storeLinkedIssueForTimer,
@@ -283,19 +283,19 @@ export default function TrayPopup() {
         submittedIssueRef.current = null;
         if (
           submitted?.payload === payload &&
-          submitted.issue &&
           submitted.connectionId === activeConnectionId
         ) {
-          pendingLinkedIssueRef.current = {
-            timerId: entry.id,
-            issue: submitted.issue,
-            connectionId: submitted.connectionId,
-          };
           storeLinkedIssueForTimer(
             submitted.connectionId,
             entry.id,
             submitted.issue,
           );
+          if (!submitted.issue) return;
+          pendingLinkedIssueRef.current = {
+            timerId: entry.id,
+            issue: submitted.issue,
+            connectionId: submitted.connectionId,
+          };
           storeLinkedIssueForTask(
             submitted.connectionId,
             taskKeyOf(payload.projectId, payload.activityId),
@@ -921,7 +921,15 @@ export default function TrayPopup() {
       return;
     }
 
-    let storedIssue = readLinkedIssueForTimer(activeConnectionId, timer.id);
+    let storedIssue = readLinkedIssueSelectionForTimer(
+      activeConnectionId,
+      timer.id,
+    );
+
+    // A null selection is intentional: the user submitted the new-task form
+    // without choosing an issue. Do not resurrect an older issue merely because
+    // it used the same project and activity.
+    if (storedIssue === null) return;
 
     // Fall back to the per-task association (project+activity). This is what
     // makes the badge appear for timers started from recents/favorites: they

@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ExternalIssue } from "./types";
 import {
+  readLinkedIssueSelectionForTimer,
   readLinkedIssueForTimer,
   readLinkedIssueMap,
   storeLinkedIssueForTask,
@@ -29,6 +30,16 @@ describe("linked issue persistence", () => {
     expect(readLinkedIssueForTimer("connection-a", 100)).toEqual(issue);
     expect(readLinkedIssueForTimer("connection-a", 101)).toBeNull();
     expect(readLinkedIssueForTimer("connection-b", 100)).toBeNull();
+  });
+
+  it("distinguishes an explicit timer without an issue from a missing association", () => {
+    storeLinkedIssueForTimer("connection-a", 100, null);
+
+    expect(readLinkedIssueSelectionForTimer("connection-a", 100)).toBeNull();
+    expect(
+      readLinkedIssueSelectionForTimer("connection-a", 101),
+    ).toBeUndefined();
+    expect(readLinkedIssueForTimer("connection-a", 100)).toBeNull();
   });
 
   it("isolates per-task associations by connection", () => {

@@ -66,7 +66,7 @@ export function storeLinkedIssueForTask(
 export function storeLinkedIssueForTimer(
   connectionId: string,
   timerId: number,
-  issue: ExternalIssue,
+  issue: ExternalIssue | null,
 ): void {
   if (!connectionId || !Number.isFinite(timerId)) return;
   try {
@@ -79,23 +79,38 @@ export function storeLinkedIssueForTimer(
   }
 }
 
-export function readLinkedIssueForTimer(
+/**
+ * Read the issue choice recorded for a concrete timer.
+ *
+ * `undefined` means that no choice was recorded, while `null` means the user
+ * explicitly started the timer without an issue.
+ */
+export function readLinkedIssueSelectionForTimer(
   connectionId: string,
   timerId: number,
-): ExternalIssue | null {
-  if (!connectionId || !Number.isFinite(timerId)) return null;
+): ExternalIssue | null | undefined {
+  if (!connectionId || !Number.isFinite(timerId)) return undefined;
   try {
     const raw = localStorage.getItem(
       scopedStorageKey(LINKED_ISSUE_KEY_PREFIX, connectionId),
     );
-    if (!raw) return null;
+    if (!raw) return undefined;
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return undefined;
+    }
     const stored = parsed as { timerId?: unknown; issue?: unknown };
-    return stored.timerId === timerId && isExternalIssue(stored.issue)
-      ? stored.issue
-      : null;
+    if (stored.timerId !== timerId) return undefined;
+    if (stored.issue === null) return null;
+    return isExternalIssue(stored.issue) ? stored.issue : undefined;
   } catch {
-    return null;
+    return undefined;
   }
+}
+
+export function readLinkedIssueForTimer(
+  connectionId: string,
+  timerId: number,
+): ExternalIssue | null {
+  return readLinkedIssueSelectionForTimer(connectionId, timerId) ?? null;
 }
