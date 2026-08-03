@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.2] - 2026-08-03
+
+### New Features
+
+- **External timer deep links** — websites and other applications can now open a prefilled new-timer form with `kimaitray://new` or start a timer directly with `kimaitray://start`. Links can select a Kimai connection, project and activity, include descriptions and tags, load GitLab, GitHub or Gitea issues, and populate custom plugin metadata
+- **GitLab issue button userscript** — the included Tampermonkey userscript adds a **Nový Kimai timer** button to GitLab issue details and open issue-board drawers, including the newer `/-/work_items/:iid` routes. It supports self-hosted GitLab URLs and opens the issue in KimaiTray without starting the timer automatically
+- **Visible connection IDs** — connection settings can now reveal and copy the internal connection ID required by external deep links and integrations
+
 ## [0.22.1] - 2026-07-31
 
 ### Bug Fixes
