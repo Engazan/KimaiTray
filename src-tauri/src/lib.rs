@@ -145,7 +145,18 @@ pub fn run() {
         default_hook(info);
     }));
 
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // This plugin must be registered before deep-link. On Windows and Linux a
+    // protocol activation starts a short-lived second process; the plugin
+    // forwards its URL to this running instance instead of opening another
+    // KimaiTray process.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        tray::show_popup_window(app);
+    }));
+
+    let builder = builder
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
@@ -164,6 +175,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_notification::init());
 
@@ -225,6 +237,12 @@ pub fn run() {
             migrate_legacy_data(app.handle());
             tray::create_tray(app.handle())?;
             info!("System tray created");
+
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                app.deep_link().register_all()?;
+            }
             // GTK needs a resizable native window to honor the fullscreen
             // request. Other platforms keep the original fixed borderless
             // reminder configuration.
@@ -249,6 +267,20 @@ pub fn run() {
                 }
             }
             shortcuts::register_from_store(app.handle());
+
+            // The popup webview is created hidden. Surface it when this process
+            // was cold-started by a protocol URL; the frontend claims the URL
+            // through deep-link.getCurrent once its React listeners are ready.
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let launched_from_deep_link = app
+                    .deep_link()
+                    .get_current()?
+                    .is_some_and(|urls| urls.iter().any(|url| url.scheme() == "kimaitray"));
+                if launched_from_deep_link {
+                    tray::show_popup_window(app.handle());
+                }
+            }
             Ok(())
         })
         .on_window_event(|window, event| match window.label() {

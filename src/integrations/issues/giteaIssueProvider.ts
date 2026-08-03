@@ -172,6 +172,36 @@ export function createGiteaProvider(
       return issue.webUrl;
     },
 
+    async fetchIssueByUrl(url: string): Promise<ExternalIssue | null> {
+      try {
+        const parsed = new URL(url);
+        const configuredBase = new URL(base);
+        if (
+          parsed.origin !== configuredBase.origin ||
+          parsed.username ||
+          parsed.password
+        ) {
+          return null;
+        }
+        const basePath = configuredBase.pathname.replace(/\/+$/, "");
+        if (basePath && !parsed.pathname.startsWith(`${basePath}/`)) return null;
+        const relativePath = parsed.pathname.slice(basePath.length);
+        const match = relativePath.match(/^\/([^/]+\/[^/]+)\/issues\/(\d+)\/?$/);
+        if (!match) return null;
+        const issue = expectObject(
+          await request(`/repos/${match[1]}/issues/${match[2]}`),
+          isGiteaIssue,
+          "Gitea issue",
+        );
+        return normalize(issue);
+      } catch (err) {
+        logger.error(
+          `Gitea fetchIssueByUrl failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return null;
+      }
+    },
+
     async addSpentTime(issueId: number, durationSeconds: number) {
       if (durationSeconds < 60) return;
 

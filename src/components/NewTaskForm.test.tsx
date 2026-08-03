@@ -368,6 +368,51 @@ describe("new task keyboard flow", () => {
     );
   });
 
+  it("keeps deep-linked issue and custom plugin values on initial mount", () => {
+    const issue = {
+      id: 42,
+      title: "Opened from GitLab",
+      state: "opened",
+      webUrl: "https://gitlab.example/group/repo/-/issues/42",
+      labels: [],
+      author: "developer",
+    };
+    renderForm({
+      showIssuePicker: true,
+      issueToken: "gitlab-token",
+      pluginCustomInputs: getEnabledPluginCustomInputs({
+        creativeIssueLink: true,
+      }),
+      issueIntegrationConfig: {
+        enabled: true,
+        provider: "gitlab",
+        baseUrl: "https://gitlab.example",
+        apiBaseUrl: "https://gitlab.example/api/v4",
+        projectPathOrRepo: "group/repo",
+        defaultState: "opened",
+        assigneeOnly: false,
+        syncTime: false,
+        autoInsertUrl: false,
+        showTimeEstimate: false,
+        filterLabels: [],
+        filterLabelsMode: "include",
+      },
+      initialValues: {
+        selectedIssue: issue,
+        customInputValues: {
+          [CREATIVE_ISSUE_LINK_INPUT_ID]: issue.webUrl,
+        },
+      },
+    });
+
+    expect(screen.getByLabelText("Issue").textContent).toContain(
+      "#42 Opened from GitLab",
+    );
+    expect(
+      (screen.getByLabelText("Issue / Ticket") as HTMLInputElement).value,
+    ).toBe(issue.webUrl);
+  });
+
   it("auto-inserts a selected issue URL into a plugin custom input", async () => {
     apiMocks.getActivities.mockResolvedValue([
       {

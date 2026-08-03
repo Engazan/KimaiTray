@@ -209,13 +209,27 @@ export function createGitLabProvider(
     },
 
     async fetchIssueByUrl(url: string): Promise<ExternalIssue | null> {
-      // GitLab issue URLs look like: {base}/{group/project}/-/issues/{iid}
-      const match = url.match(/^(.*)\/-\/issues\/(\d+)/);
-      if (!match) return null;
-      const projectPath = match[1].slice(base.length).replace(/^\/+/, "");
-      const iid = match[2];
-      if (!projectPath) return null;
+      // GitLab issue URLs can use the classic /issues/ route or the unified
+      // /work_items/ route introduced for issues in newer GitLab versions.
       try {
+        const parsed = new URL(url);
+        const configuredBase = new URL(base);
+        if (
+          parsed.origin !== configuredBase.origin ||
+          parsed.username ||
+          parsed.password
+        ) {
+          return null;
+        }
+        const basePath = configuredBase.pathname.replace(/\/+$/, "");
+        if (basePath && !parsed.pathname.startsWith(`${basePath}/`)) return null;
+        const relativePath = parsed.pathname.slice(basePath.length);
+        const match = relativePath.match(
+          /^\/(.+)\/-\/(?:issues|work_items)\/(\d+)\/?$/,
+        );
+        if (!match) return null;
+        const projectPath = match[1];
+        const iid = match[2];
         const issuePath = `/projects/${encodeURIComponent(projectPath)}/issues/${iid}`;
         const issue = expectObject(
           await request(issuePath),

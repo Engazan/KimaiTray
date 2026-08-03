@@ -17,6 +17,7 @@
     "core:window:allow-start-dragging",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
+    "deep-link:allow-get-current",
     "store:allow-load",
     "store:allow-get",
     "notification:allow-notify",

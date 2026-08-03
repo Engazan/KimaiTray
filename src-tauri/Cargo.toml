@@ -34,6 +34,10 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
 
+[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]
+tauri-plugin-deep-link = "2.4.9"
+tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSStatusItem"] }

@@ -45,6 +45,8 @@ export default function ConnectionSection({
   const [url, setUrl] = useState("");
   const [editToken, setEditToken] = useState("");
   const [showToken, setShowToken] = useState(false);
+  const [showConnectionId, setShowConnectionId] = useState(false);
+  const [connectionIdCopied, setConnectionIdCopied] = useState(false);
   const [status, setStatus] = useState<
     "idle" | "testing" | "connected" | "error"
   >("idle");
@@ -58,6 +60,8 @@ export default function ConnectionSection({
       setStatus("idle");
       setStatusMessage("");
       setShowToken(false);
+      setShowConnectionId(false);
+      setConnectionIdCopied(false);
       // Integrations bind to a saved connection id — a new one has none yet.
       if (!id) setActiveTab("connection");
 
@@ -115,6 +119,16 @@ export default function ConnectionSection({
   const editingConn = editingId
     ? settings.connections.find((c) => c.id === editingId)
     : undefined;
+
+  const copyConnectionId = async () => {
+    if (!editingConn || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(editingConn.id);
+      setConnectionIdCopied(true);
+    } catch {
+      setConnectionIdCopied(false);
+    }
+  };
 
   const handleTestAndSave = useCallback(async () => {
     setStatus("testing");
@@ -310,6 +324,50 @@ export default function ConnectionSection({
                 placeholder={t("connection.connectionNamePlaceholder")}
               />
             </SettingsRowStacked>
+
+            {editingConn && (
+              <SettingsRowStacked
+                label={t("connection.internalId")}
+                description={t("connection.internalIdDescription")}
+              >
+                {showConnectionId ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code
+                      className="min-w-0 flex-1 select-all break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      {editingConn.id}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => void copyConnectionId()}
+                      className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                    >
+                      {connectionIdCopied
+                        ? t("connection.internalIdCopied")
+                        : t("connection.copyInternalId")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowConnectionId(false);
+                        setConnectionIdCopied(false);
+                      }}
+                      className="shrink-0 rounded-md px-2.5 py-1.5 text-[11px] text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                    >
+                      {t("common.hide")}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowConnectionId(true)}
+                    className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                  >
+                    {t("connection.showInternalId")}
+                  </button>
+                )}
+              </SettingsRowStacked>
+            )}
 
             <SettingsRowStacked
               label={t("connection.baseUrl")}

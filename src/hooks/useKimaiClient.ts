@@ -54,6 +54,7 @@ type PopupLayout = "classic" | "focus" | "taskbar" | "timeline";
 
 interface UseKimaiClientResult {
   client: KimaiClient | null;
+  settingsReady: boolean;
   isConfigured: boolean;
   refreshInterval: number;
   baseUrl: string;
@@ -153,6 +154,7 @@ export function useKimaiClient(): UseKimaiClientResult {
 
   const applySettings = useCallback(async (s: Awaited<ReturnType<typeof loadSettings>>) => {
     const generation = settingsRequestsRef.current.begin();
+    setReady(false);
     const nextConnId = s.activeConnectionId ?? "";
     const urlChanged = s.kimaiUrl !== baseUrlRef.current;
     const connChanged = nextConnId !== activeIdRef.current;
@@ -307,6 +309,7 @@ export function useKimaiClient(): UseKimaiClientResult {
 
   return {
     client,
+    settingsReady: ready,
     isConfigured: ready && !!baseUrl && !!token,
     refreshInterval,
     baseUrl,

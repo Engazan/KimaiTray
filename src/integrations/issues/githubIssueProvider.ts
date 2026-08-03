@@ -82,6 +82,7 @@ export function createGitHubProvider(
   token: string,
   connectionId = "",
 ): IssueProvider {
+  const webBase = (config.baseUrl || "https://github.com").replace(/\/+$/, "");
   const apiBase = (config.apiBaseUrl || "https://api.github.com").replace(/\/+$/, "");
   const allowedOrigin = new URL(apiBase).origin;
   let cachedUsername: string | null = null;
@@ -191,6 +192,36 @@ export function createGitHubProvider(
 
     getIssueUrl(issue: ExternalIssue) {
       return issue.webUrl;
+    },
+
+    async fetchIssueByUrl(url: string): Promise<ExternalIssue | null> {
+      try {
+        const parsed = new URL(url);
+        const configuredBase = new URL(webBase);
+        if (
+          parsed.origin !== configuredBase.origin ||
+          parsed.username ||
+          parsed.password
+        ) {
+          return null;
+        }
+        const basePath = configuredBase.pathname.replace(/\/+$/, "");
+        if (basePath && !parsed.pathname.startsWith(`${basePath}/`)) return null;
+        const relativePath = parsed.pathname.slice(basePath.length);
+        const match = relativePath.match(/^\/([^/]+\/[^/]+)\/issues\/(\d+)\/?$/);
+        if (!match) return null;
+        const issue = expectObject(
+          await request(`/repos/${match[1]}/issues/${match[2]}`),
+          isGitHubIssue,
+          "GitHub issue",
+        );
+        return issue.pull_request ? null : normalize(issue);
+      } catch (err) {
+        logger.error(
+          `GitHub fetchIssueByUrl failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return null;
+      }
     },
 
     async fetchLabels(): Promise<ExternalLabel[]> {

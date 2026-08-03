@@ -20,6 +20,14 @@ import {
   type PluginCustomInputDefinition,
 } from "../plugins/customInputs";
 
+export interface NewTaskFormInitialValues {
+  description?: string;
+  tags?: string[];
+  /** Values keyed by the custom input's stable id. */
+  customInputValues?: Record<string, string>;
+  selectedIssue?: ExternalIssue | null;
+}
+
 interface NewTaskFormProps {
   client: KimaiClient;
   hasActiveTimer: boolean;
@@ -38,6 +46,7 @@ interface NewTaskFormProps {
   issueIntegrationConfig?: IssueIntegrationSettings | null;
   issueToken?: string | null;
   autoFocusProject?: boolean;
+  initialValues?: NewTaskFormInitialValues;
 }
 
 const selectCls =
@@ -101,6 +110,7 @@ export default function NewTaskForm({
   issueIntegrationConfig,
   issueToken,
   autoFocusProject = false,
+  initialValues,
 }: NewTaskFormProps) {
   const { t } = useTranslation();
   const formId = useId();
@@ -124,12 +134,16 @@ export default function NewTaskForm({
     loadAutoFocusPreference,
   );
   const submitButtonRef = useRef<HTMLButtonElement>(null);
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(
+    initialValues?.description ?? "",
+  );
   const [customInputValues, setCustomInputValues] = useState<
     Record<string, string>
-  >({});
-  const [tags, setTags] = useState<string[]>([]);
-  const [selectedIssue, setSelectedIssue] = useState<ExternalIssue | null>(null);
+  >(initialValues?.customInputValues ?? {});
+  const [tags, setTags] = useState<string[]>(initialValues?.tags ?? []);
+  const [selectedIssue, setSelectedIssue] = useState<ExternalIssue | null>(
+    initialValues?.selectedIssue ?? null,
+  );
 
   // Repository for issue lookup — defaults to the one configured in settings,
   // but can be overridden per timer here.
@@ -171,11 +185,17 @@ export default function NewTaskForm({
     }
   }, [autoFocusEnabled, hasIssuePicker, hasRepositoryPicker]);
 
-  // Follow the configured default repository when the connection/default changes.
+  const issueConfigScope = `${issueIntegrationConfig?.baseUrl ?? ""}\0${issueIntegrationConfig?.projectPathOrRepo ?? ""}`;
+  const previousIssueConfigScopeRef = useRef(issueConfigScope);
+
+  // Follow later configuration changes without clearing an issue supplied as
+  // initial deep-link state on the form's first mount.
   useEffect(() => {
+    if (previousIssueConfigScopeRef.current === issueConfigScope) return;
+    previousIssueConfigScopeRef.current = issueConfigScope;
     setSelectedRepo(issueIntegrationConfig?.projectPathOrRepo ?? "");
     setSelectedIssue(null);
-  }, [issueIntegrationConfig?.baseUrl, issueIntegrationConfig?.projectPathOrRepo]);
+  }, [issueConfigScope, issueIntegrationConfig?.projectPathOrRepo]);
 
   const handleSelectRepo = useCallback((v: string | null) => {
     setSelectedRepo(v ?? "");

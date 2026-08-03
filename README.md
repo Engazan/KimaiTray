@@ -77,6 +77,81 @@ The optional no-timer and idle reminders can take over the screen so they are di
 
 <img src="kimaitray_no_timer.png" alt="KimaiTray full-screen no-timer reminder" width="900">
 
+## Deep-link automation
+
+An installed KimaiTray can be opened from a browser or another application
+through the `kimaitray://` protocol. The `start` action starts immediately and
+stops the currently running Kimai timesheet, matching the normal in-app switch
+behavior. The `new` action only opens a prefilled new-timer form and always
+requires manual confirmation.
+
+```html
+<button id="start-kimai-timer">Start timer</button>
+<script>
+  document.querySelector("#start-kimai-timer").addEventListener("click", () => {
+    const params = new URLSearchParams({
+      connection: "work",
+      project: "123",
+      activity: "45",
+      description: "Review pull request",
+      issue: "https://git.example.com/team/project/-/issues/17",
+      "custom.issue_link": "https://tickets.example.com/17",
+    });
+    window.location.href = `kimaitray://start?${params}`;
+  });
+</script>
+```
+
+| Parameter | Required | Meaning |
+|-----------|----------|---------|
+| `project` | for `start` | Positive Kimai project ID |
+| `activity` | for `start` | Positive Kimai activity ID |
+| `connection` | no | Saved KimaiTray connection ID; the active connection is used when omitted |
+| `description` | no | Timer description |
+| `begin` | no | Custom Kimai start date/time |
+| `label` | no | Label used in start/error feedback |
+| `tag` | no | One tag; repeat the parameter for multiple tags |
+| `tags` | no | Comma-separated tags (may be combined with `tag`) |
+| `issue` | no | GitLab, GitHub, or Gitea issue URL belonging to the configured integration |
+| `custom.<name>` | no | Enabled custom plugin input, addressed by metadata name or its stable input ID |
+
+An open-only example suitable for browser integrations is:
+
+```text
+kimaitray://new?connection=work&issue=https%3A%2F%2Fgit.example.com%2Fteam%2Fproject%2F-%2Fissues%2F17
+```
+
+For the Creative Issue Link plugin, use `custom.issue_link`. Git issue URLs are
+resolved using the selected connection's configured provider and credentials;
+the URL is also inserted into the configured description/custom-input target
+when that integration's auto-insert option is enabled. API and issue tokens must
+never be placed in a deep-link URL.
+
+### GitLab Tampermonkey button
+
+The installable userscript at
+[`tempermonkey/gitlab.user.js`](tempermonkey/gitlab.user.js) adds a **Nový
+Kimai timer** button after GitLab's small issue breadcrumb. It opens
+`kimaitray://new` with the current issue URL and displays a prefilled new-timer
+form; it never starts the timer automatically. Both GitLab issue URL formats
+(`/-/issues/:iid` and `/-/work_items/:iid`) are supported. On an issue board,
+the same button is added to the open work-item drawer next to its reference and
+copy-link action.
+
+1. Create a new Tampermonkey userscript and paste the contents of
+   `tempermonkey/gitlab.user.js` into it.
+2. Open the Tampermonkey menu and choose **KimaiTray: nastaviť GitLab
+   integráciu**.
+3. Enter the GitLab base URL. Self-hosted GitLab installations and base-path
+   URLs such as `https://example.com/gitlab` are supported.
+4. Optionally enter a KimaiTray connection ID and custom plugin metadata name.
+   Use `issue_link` for the Creative Issue Link plugin; leave it empty when the
+   plugin is disabled.
+
+Because the GitLab host is configured at runtime, the userscript uses a broad
+`@match` and exits immediately on every host except the manually configured
+GitLab URL.
+
 ## Prerequisites
 
 | Tool | Version |

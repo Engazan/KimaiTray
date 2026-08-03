@@ -15,7 +15,9 @@ import {
   CollapsibleTraySection,
   FocusTabs,
 } from "../components/TrayLayoutControls";
-import NewTaskForm from "../components/NewTaskForm";
+import NewTaskForm, {
+  type NewTaskFormInitialValues,
+} from "../components/NewTaskForm";
 import CategoryModePanel from "../categorymode/CategoryModePanel";
 import ApiErrorDialog from "../components/ApiErrorDialog";
 import TodaySection from "../components/TodaySection";
@@ -79,14 +81,27 @@ import {
 } from "../api/changelog";
 import { showChangelogWindow } from "../api/changelogWindow";
 import {
+  DESCRIPTION_INPUT_TARGET,
   getEnabledPluginCustomInputs,
   pickPluginMetadata,
 } from "../plugins/customInputs";
+import { subscribeToDeepLinks } from "../api/deepLink";
+import {
+  parseKimaiTrayDeepLink,
+  type KimaiTrayDeepLink,
+} from "../api/deepLinkPayload";
+
+interface PendingDeepLink {
+  id: number;
+  request: KimaiTrayDeepLink;
+}
 
 export default function TrayPopup() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskInitialValues, setNewTaskInitialValues] =
+    useState<NewTaskFormInitialValues>();
   const [newTaskShortcutRequest, setNewTaskShortcutRequest] = useState(0);
   const [editNoteRequest, setEditNoteRequest] = useState(0);
   const [idleProcessing, setIdleProcessing] = useState(false);
@@ -95,6 +110,11 @@ export default function TrayPopup() {
   const [recentCollapsed, setRecentCollapsed] = useState(false);
   const [todayCollapsed, setTodayCollapsed] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TodayEntry | null>(null);
+  const [deepLinkQueue, setDeepLinkQueue] = useState<PendingDeepLink[]>([]);
+  const [deepLinkProcessing, setDeepLinkProcessing] = useState(false);
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+  const deepLinkSequenceRef = useRef(0);
+  const attemptedConnectionSwitchesRef = useRef(new Set<number>());
   const idleReminderVisibleRef = useRef(false);
 
   useAppearance();
@@ -134,14 +154,37 @@ export default function TrayPopup() {
   useEffect(() => {
     const win = getCurrentWindow();
     const unlisten = win.listen("kimai://new-task", () => {
+      setNewTaskInitialValues(undefined);
       setNewTaskShortcutRequest((request) => request + 1);
       setShowNewTask(true);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
+  useEffect(
+    () =>
+      subscribeToDeepLinks((url) => {
+        try {
+          const request = parseKimaiTrayDeepLink(url);
+          setDeepLinkError(null);
+          setShowNewTask(false);
+          setNewTaskShortcutRequest(0);
+          setDeepLinkQueue((current) => [
+            ...current.slice(-19),
+            { id: ++deepLinkSequenceRef.current, request },
+          ]);
+        } catch (error) {
+          setDeepLinkError(
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      }),
+    [],
+  );
+
   const {
     client,
+    settingsReady,
     isConfigured,
     refreshInterval,
     baseUrl,
@@ -278,6 +321,7 @@ export default function TrayPopup() {
       client,
       (entry, payload) => {
         setShowNewTask(false);
+        setNewTaskInitialValues(undefined);
         setNewTaskShortcutRequest(0);
         const submitted = submittedIssueRef.current;
         submittedIssueRef.current = null;
@@ -310,6 +354,156 @@ export default function TrayPopup() {
         }
       },
     );
+  const isStartBusy = isStarting || deepLinkProcessing;
+
+  useEffect(() => {
+    const pending = deepLinkQueue[0];
+    if (!pending || deepLinkProcessing || isStarting) return;
+    if (!settingsReady) return;
+
+    const removePending = () => {
+      attemptedConnectionSwitchesRef.current.delete(pending.id);
+      setDeepLinkQueue((current) =>
+        current[0]?.id === pending.id ? current.slice(1) : current,
+      );
+    };
+    const failPending = (message: string) => {
+      setDeepLinkError(message);
+      removePending();
+    };
+
+    const requestedConnection = pending.request.connectionId;
+    if (requestedConnection && requestedConnection !== activeConnectionId) {
+      if (!connections.some((connection) => connection.id === requestedConnection)) {
+        failPending(`Deep-link connection "${requestedConnection}" does not exist`);
+        return;
+      }
+      if (attemptedConnectionSwitchesRef.current.has(pending.id)) {
+        failPending(`KimaiTray could not switch to connection "${requestedConnection}"`);
+        return;
+      }
+      attemptedConnectionSwitchesRef.current.add(pending.id);
+      setDeepLinkProcessing(true);
+      void switchConnection(requestedConnection).finally(() => {
+        setDeepLinkProcessing(false);
+      });
+      return;
+    }
+
+    if (!client || !isConfigured) {
+      failPending("Configure the requested Kimai connection before using this deep link");
+      return;
+    }
+
+    setDeepLinkProcessing(true);
+    void (async () => {
+      const request = pending.request;
+      const metadata: Record<string, string> = {};
+      const customInputValues: Record<string, string> = {};
+      for (const [name, value] of Object.entries(request.customFields)) {
+        const input = pluginCustomInputs.find(
+          (candidate) =>
+            candidate.metadataName === name || candidate.id === name,
+        );
+        if (!input) {
+          throw new Error(
+            `Custom plugin field "${name}" is not enabled for this connection`,
+          );
+        }
+        metadata[input.metadataName] = value;
+        customInputValues[input.id] = value;
+      }
+
+      let description = request.description;
+      let linkedIssue: ExternalIssue | null = null;
+      if (request.issueUrl) {
+        if (!issueIntegration.enabled || !issueToken) {
+          throw new Error(
+            "Enable and authenticate the Git issue integration for this connection",
+          );
+        }
+        const provider = createIssueProvider(
+          issueIntegration,
+          issueToken,
+          activeConnectionId,
+        );
+        if (!provider.fetchIssueByUrl) {
+          throw new Error("The configured Git provider cannot load issue URLs");
+        }
+        linkedIssue = await provider.fetchIssueByUrl(request.issueUrl);
+        if (!linkedIssue) {
+          throw new Error(
+            "The issue URL does not match an accessible issue on the configured Git provider",
+          );
+        }
+
+        if (issueIntegration.autoInsertUrl) {
+          const target =
+            issueIntegration.autoInsertUrlTarget ?? DESCRIPTION_INPUT_TARGET;
+          const customTarget = pluginCustomInputs.find(
+            (input) => input.id === target,
+          );
+          if (customTarget) {
+            metadata[customTarget.metadataName] ??= linkedIssue.webUrl;
+            customInputValues[customTarget.id] ??= linkedIssue.webUrl;
+          } else if (!description?.includes(linkedIssue.webUrl)) {
+            description = description?.trim()
+              ? `${description.trim()}\n${linkedIssue.webUrl}`
+              : linkedIssue.webUrl;
+          }
+        }
+      }
+
+      if (request.action === "new") {
+        setNewTaskInitialValues({
+          description,
+          tags: request.tags,
+          customInputValues,
+          selectedIssue: linkedIssue,
+        });
+        setNewTaskShortcutRequest((current) => current + 1);
+        setShowNewTask(true);
+        return;
+      }
+
+      const payload: StartTaskPayload = {
+        projectId: request.projectId,
+        activityId: request.activityId,
+        begin: request.begin,
+        description,
+        tags: request.tags,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        label: request.label ?? `Project #${request.projectId}`,
+      };
+      submittedIssueRef.current = {
+        payload,
+        issue: linkedIssue,
+        connectionId: activeConnectionId,
+      };
+      await startTask(payload, `deep-link:${pending.id}`);
+    })()
+      .catch((error) => {
+        setDeepLinkError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        removePending();
+        setDeepLinkProcessing(false);
+      });
+  }, [
+    activeConnectionId,
+    client,
+    connections,
+    deepLinkProcessing,
+    deepLinkQueue,
+    isConfigured,
+    isStarting,
+    issueIntegration,
+    issueToken,
+    pluginCustomInputs,
+    settingsReady,
+    startTask,
+    switchConnection,
+  ]);
 
   const pauseResumeTimerRef = useRef<() => void>(() => {});
   pauseResumeTimerRef.current = () => {
@@ -346,6 +540,7 @@ export default function TrayPopup() {
   editActiveNoteRef.current = () => {
     if (!timer) return;
     setShowNewTask(false);
+    setNewTaskInitialValues(undefined);
     setNewTaskShortcutRequest(0);
     setEditNoteRequest((request) => request + 1);
   };
@@ -672,6 +867,7 @@ export default function TrayPopup() {
     }
     if (succeeded) {
       dismissIdle();
+      setNewTaskInitialValues(undefined);
       setNewTaskShortcutRequest(0);
       setShowNewTask(true);
     }
@@ -1131,9 +1327,10 @@ export default function TrayPopup() {
           onSubmit={handleNewTaskSubmit}
           onCancel={() => {
             setShowNewTask(false);
+            setNewTaskInitialValues(undefined);
             setNewTaskShortcutRequest(0);
           }}
-          isSubmitting={isStarting}
+          isSubmitting={isStartBusy}
           showNote={featureFlags.featureNote}
           showTags={featureFlags.featureTags}
           showCustomerSelect={featureFlags.featureCustomerSelect}
@@ -1143,6 +1340,7 @@ export default function TrayPopup() {
           issueIntegrationConfig={issueIntegration}
           issueToken={issueToken}
           autoFocusProject={newTaskShortcutRequest > 0}
+          initialValues={newTaskInitialValues}
         />
       ) : (
         <>
@@ -1229,11 +1427,13 @@ export default function TrayPopup() {
               </div>
             )}
 
-            {(switchError || pauseError || timesheetDeleteError) && (
+            {(deepLinkError || switchError || pauseError || timesheetDeleteError) && (
               <ErrorBanner
-                message={(switchError || pauseError || timesheetDeleteError)!}
+                message={(deepLinkError || switchError || pauseError || timesheetDeleteError)!}
                 onDismiss={
-                  switchError
+                  deepLinkError
+                    ? () => setDeepLinkError(null)
+                    : switchError
                     ? dismissError
                     : timesheetDeleteError
                       ? dismissDeleteError
@@ -1255,7 +1455,7 @@ export default function TrayPopup() {
                   hasActiveTimer={!!timer}
                   startTask={startTask}
                   startingKey={startingKey}
-                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                 />
                 {status !== "unconfigured" && (
                   <TodaySection
@@ -1289,7 +1489,7 @@ export default function TrayPopup() {
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   startingKey={startingKey}
-                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
                 />
                 {focusTab === "recent" ? (
@@ -1303,7 +1503,7 @@ export default function TrayPopup() {
                     isLoading={status !== "unconfigured" && tasksLoading}
                     startingKey={startingKey}
                     deletingId={deletingId}
-                    disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                    disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                     hiddenCount={hiddenCount}
                     onShowAll={clearHidden}
                     showHeader={false}
@@ -1357,7 +1557,7 @@ export default function TrayPopup() {
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   startingKey={startingKey}
-                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
                 />
                 {/* Collapsible recent tasks */}
@@ -1376,7 +1576,7 @@ export default function TrayPopup() {
                       isLoading={status !== "unconfigured" && tasksLoading}
                       startingKey={startingKey}
                       deletingId={deletingId}
-                      disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                      disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                       hiddenCount={hiddenCount}
                       onShowAll={clearHidden}
                       showHeader={false}
@@ -1391,7 +1591,7 @@ export default function TrayPopup() {
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   startingKey={startingKey}
-                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
                 />
                 <RecentTasksList
@@ -1404,7 +1604,7 @@ export default function TrayPopup() {
                   isLoading={status !== "unconfigured" && tasksLoading}
                   startingKey={startingKey}
                   deletingId={deletingId}
-                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   hiddenCount={hiddenCount}
                   onShowAll={clearHidden}
                   colorMode={colorMode}
@@ -1454,7 +1654,7 @@ export default function TrayPopup() {
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   startingKey={startingKey}
-                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
                 />
                 <RecentTasksList
@@ -1467,7 +1667,7 @@ export default function TrayPopup() {
                   isLoading={status !== "unconfigured" && tasksLoading}
                   startingKey={startingKey}
                   deletingId={deletingId}
-                  disabled={isStarting || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   hiddenCount={hiddenCount}
                   onShowAll={clearHidden}
                   colorMode={colorMode}
@@ -1500,6 +1700,7 @@ export default function TrayPopup() {
 
           <PopupFooterActions
             onNewTask={() => {
+              setNewTaskInitialValues(undefined);
               setNewTaskShortcutRequest(0);
               setShowNewTask(true);
             }}
