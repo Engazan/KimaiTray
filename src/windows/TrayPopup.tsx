@@ -406,6 +406,11 @@ export default function TrayPopup() {
             candidate.metadataName === name || candidate.id === name,
         );
         if (!input) {
+          // The "new" form is interactive: if a plugin field the deep link
+          // targets isn't enabled for this connection (plugin off, or no such
+          // input), just open the form without it instead of failing. The
+          // "start" action commits directly, so a missing field is surfaced.
+          if (request.action === "new") continue;
           throw new Error(
             `Custom plugin field "${name}" is not enabled for this connection`,
           );
@@ -416,12 +421,12 @@ export default function TrayPopup() {
 
       let description = request.description;
       let linkedIssue: ExternalIssue | null = null;
-      if (request.issueUrl) {
-        if (!issueIntegration.enabled || !issueToken) {
-          throw new Error(
-            "Enable and authenticate the Git issue integration for this connection",
-          );
-        }
+      // The interactive "new" form only needs the issue URL, which a custom
+      // plugin field (e.g. Creative Issue Link) already carries. Resolving the
+      // issue through the Git integration is a best-effort enrichment there, so
+      // a missing integration must not abort the whole deep link. The "start"
+      // action commits a timer directly and still requires a resolved issue.
+      if (request.issueUrl && issueIntegration.enabled && issueToken) {
         const provider = createIssueProvider(
           issueIntegration,
           issueToken,
@@ -452,6 +457,12 @@ export default function TrayPopup() {
               : linkedIssue.webUrl;
           }
         }
+      }
+
+      if (request.issueUrl && request.action === "start" && !linkedIssue) {
+        throw new Error(
+          "Enable and authenticate the Git issue integration for this connection",
+        );
       }
 
       if (request.action === "new") {
