@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KimaiTray – GitLab issue button
 // @namespace    https://github.com/Engazan/KimaiTray
-// @version      1.1.0
+// @version      1.2.0
 // @description  Adds a button to GitLab issue breadcrumbs that opens a prefilled new-timer form in KimaiTray.
 // @author       KimaiTray contributors
 // @match        *://*/*
@@ -16,6 +16,8 @@
   "use strict";
 
   const BUTTON_WRAPPER_ID = "kimaitray-gitlab-button";
+  const STYLE_ELEMENT_ID = "kimaitray-gitlab-style";
+  const BUTTON_CLASS = "kimaitray-gitlab-btn";
   const BREADCRUMB_SELECTOR =
     ".gl-breadcrumb-item.gl-breadcrumb-item-sm";
   const DRAWER_REFERENCE_SELECTOR =
@@ -125,6 +127,49 @@
     document.getElementById(BUTTON_WRAPPER_ID)?.remove();
   }
 
+  function ensureStyles() {
+    if (document.getElementById(STYLE_ELEMENT_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ELEMENT_ID;
+    // Self-contained styling so the button stays prominent regardless of the
+    // GitLab theme (light/dark) instead of blending in as a default button.
+    style.textContent = `
+      .${BUTTON_CLASS} {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        line-height: 1.25rem;
+        color: #fff;
+        background-color: #ea580c;
+        border: 1px solid #c2410c;
+        border-radius: 0.25rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .${BUTTON_CLASS}::before {
+        content: "⏱";
+        font-size: 0.9375rem;
+        line-height: 1;
+      }
+      .${BUTTON_CLASS}:hover {
+        background-color: #c2410c;
+        border-color: #9a3412;
+      }
+      .${BUTTON_CLASS}:active {
+        background-color: #9a3412;
+      }
+      .${BUTTON_CLASS}:focus-visible {
+        outline: 2px solid #fdba74;
+        outline-offset: 1px;
+      }
+    `;
+    (document.head ?? document.documentElement).append(style);
+  }
+
   function ensureButton() {
     const placement = findButtonPlacement();
     if (!placement) {
@@ -155,9 +200,11 @@
       wrapper.style.marginInlineStart = "0.5rem";
     }
 
+    ensureStyles();
+
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "gl-button btn btn-default btn-sm";
+    button.className = BUTTON_CLASS;
     button.textContent = "Nový Kimai timer";
     button.title = "Otvoriť nový timer v KimaiTray (timer sa automaticky nespustí)";
     button.addEventListener("click", () => openKimaiTray(issueUrl));
