@@ -240,7 +240,7 @@ export default function TrayPopup() {
     multipleActive,
     status,
     errorMessage,
-  } = useActiveTimer(client, isConfigured, refreshInterval);
+  } = useActiveTimer(client, isConfigured, refreshInterval, settingsReady);
 
   useNoTimerReminder({
     enabled: timerReminderSettings.enabled,

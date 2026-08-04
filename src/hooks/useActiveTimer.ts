@@ -32,6 +32,7 @@ export function useActiveTimer(
   client: KimaiClient | null,
   isConfigured: boolean,
   refreshIntervalSec: number,
+  settingsReady = true,
 ): UseActiveTimerResult {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -101,7 +102,12 @@ export function useActiveTimer(
   let status: ConnectionStatus = "connected";
   let errorMessage = "";
 
-  if (!isConfigured) {
+  if (!settingsReady) {
+    // Settings are still being read from disk; we don't yet know whether a
+    // connection is configured. Show a loading state instead of flashing the
+    // "Setup connection" prompt when a connection actually exists.
+    status = "loading";
+  } else if (!isConfigured) {
     status = "unconfigured";
   } else if (activeQ.isLoading) {
     status = "loading";
