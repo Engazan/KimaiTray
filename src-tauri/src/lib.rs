@@ -268,6 +268,24 @@ pub fn run() {
             }
             shortcuts::register_from_store(app.handle());
 
+            // Surface the popup for every protocol activation that reaches an
+            // already-running instance. On macOS a warm-start URL is delivered
+            // through the deep-link plugin (not a second process), so the
+            // single-instance path in run() never fires and the window would
+            // otherwise stay hidden while the frontend silently handles the URL.
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    if event.urls().iter().any(|url| url.scheme() == "kimaitray") {
+                        let handle_for_main = handle.clone();
+                        let _ = handle.run_on_main_thread(move || {
+                            tray::show_popup_window(&handle_for_main);
+                        });
+                    }
+                });
+            }
+
             // The popup webview is created hidden. Surface it when this process
             // was cold-started by a protocol URL; the frontend claims the URL
             // through deep-link.getCurrent once its React listeners are ready.
