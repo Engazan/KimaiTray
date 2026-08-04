@@ -156,6 +156,10 @@ export default function IssuePicker({
       if (issues[highlightIndex]) select(issues[highlightIndex]);
     } else if (e.key === "Escape") {
       e.preventDefault();
+      // Keep Escape from bubbling to the parent's global handler (which would
+      // cancel the whole new-timer form). While the dropdown is open, Escape
+      // should only close the dropdown.
+      e.stopPropagation();
       setOpen(false);
       setSearch("");
     }
