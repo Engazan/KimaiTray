@@ -74,3 +74,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: src-tauri
+          # RUSTSEC-2026-0235 (rkyv 0.7): reachable only when deserializing
+          # untrusted rkyv archives. rkyv is an unused optional dependency of
+          # rust_decimal (pulled transitively via byte-unit -> tauri-plugin-log);
+          # byte-unit enables rust_decimal with default-features = false and never
+          # turns on its rkyv feature, so the crate is not compiled into the app.
+          ignore: RUSTSEC-2026-0235

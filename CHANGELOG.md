@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.22.3] - 2026-08-04
+
+### Bug Fixes
+
+- **Escape closes an open dropdown first** — while creating a new timer, pressing Escape with a searchable select or issue picker open now only closes that dropdown instead of discarding the whole form. The form is cancelled by Escape only when no dropdown is open
+- **Reliable deep links to a running instance on macOS** — `kimaitray://` links that reach an already-running instance now reliably surface the popup on macOS
+- **New-timer deep links without a resolved issue** — opening a `kimaitray://new` link no longer requires a resolvable issue link to prefill and show the form
+- **No Setup prompt flash on launch** — the Setup connection prompt no longer flashes briefly while saved settings are still loading
+
+### Improvements
+
+- **More prominent GitLab timer button** — the GitLab issue timer button stands out more clearly in issue views
+
+### Maintenance
+
+- **Patched brace-expansion dependency** — pinned brace-expansion to a patched version to clear a security advisory
+
 ## [0.22.2] - 2026-08-03
 
 ### New Features
