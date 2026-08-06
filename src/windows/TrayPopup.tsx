@@ -1326,6 +1326,8 @@ export default function TrayPopup() {
         connections={connections}
         activeConnectionId={activeConnectionId}
         onSwitchConnection={switchConnection}
+        showOpenKimai={openKimaiInBrowser}
+        onOpenKimai={() => void openConfiguredKimai()}
       />
 
       {updater.available && (
@@ -1721,8 +1723,6 @@ export default function TrayPopup() {
               setNewTaskShortcutRequest(0);
               setShowNewTask(true);
             }}
-            showOpenKimai={openKimaiInBrowser}
-            onOpenKimai={() => void openConfiguredKimai()}
             onSettings={async () => {
               const w = await Window.getByLabel("settings");
               if (w) {

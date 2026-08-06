@@ -9,6 +9,8 @@ interface HeaderStatusProps {
   connections: SavedConnection[];
   activeConnectionId: string;
   onSwitchConnection: (id: string) => Promise<void>;
+  showOpenKimai?: boolean;
+  onOpenKimai?: () => void;
 }
 
 const DOT_STYLES: Record<ConnectionStatus, string> = {
@@ -33,6 +35,8 @@ export default function HeaderStatus({
   connections,
   activeConnectionId,
   onSwitchConnection,
+  showOpenKimai = false,
+  onOpenKimai,
 }: HeaderStatusProps) {
   const { t } = useTranslation();
   const labelKey = STATUS_LABEL_KEYS[status];
@@ -60,17 +64,36 @@ export default function HeaderStatus({
           </span>
         )}
       </div>
-      {label && (
-        <span
-          className={`text-[10px] truncate max-w-[180px] shrink-0 ${
-            status === "error"
-              ? "text-red-500"
-              : "text-gray-400 dark:text-gray-500"
-          }`}
-        >
-          {label}
-        </span>
-      )}
+      <div className="flex min-w-0 items-center gap-1">
+        {label && (
+          <span
+            className={`max-w-[180px] truncate text-[10px] ${
+              status === "error"
+                ? "text-red-500"
+                : "text-gray-400 dark:text-gray-500"
+            }`}
+          >
+            {label}
+          </span>
+        )}
+        {showOpenKimai && onOpenKimai && (
+          <button
+            type="button"
+            onClick={onOpenKimai}
+            title={t("common.openKimai")}
+            aria-label={t("common.openKimai")}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] dark:text-gray-500 dark:hover:bg-white/[0.08] dark:hover:text-gray-300"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
     </header>
   );
 }
@@ -108,8 +131,8 @@ function ConnectionSwitcher({
         onClick={() => setOpen(!open)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase truncate
-          hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        className="flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase truncate
+          hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] dark:hover:bg-white/[0.08] dark:hover:text-gray-300 transition-colors"
       >
         <span className="truncate">{active?.name ?? "KimaiTray"}</span>
         <svg
