@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.22.4] - 2026-08-06
+
+### Improvements
+
+- **Resizable tray popup** — the popup can now be resized vertically while keeping a fixed width, and the chosen height is remembered across restarts and UI scale changes
+- **More accessible tray controls** — focus states, keyboard semantics and accessible labels were added to tabs, collapsible sections, timer actions, task actions and connection controls
+- **Refined popup toolbar** — the Open Kimai shortcut is now an icon-only action at the far right of the top bar, next to the connection/status area, while New Task and Settings remain in the footer
+- **Clearer new-timer toolbar** — autofocus and refresh controls now have visible labels in every supported language
+- **Smoother timer transitions** — starting, pausing, resuming and stopping timers now use less disruptive state animations
+
+### Bug Fixes
+
+- **No loading-state flash** — the popup no longer briefly shows an incorrect connection/setup state while saved settings are loading
+
 ## [0.22.3] - 2026-08-04
 
 ### Bug Fixes
