@@ -449,6 +449,8 @@
     "useNow": "Зараз",
     "custom": "Вибрати",
     "moreOptions": "Більше параметрів",
+    "focus": "Фокус",
+    "refresh": "Оновити",
     "enableAutoFocus": "Увімкнути автофокус",
     "disableAutoFocus": "Вимкнути автофокус",
     "refreshLists": "Оновити проєкти, активності та теги"

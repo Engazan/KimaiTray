@@ -449,6 +449,8 @@
     "useNow": "Jetzt",
     "custom": "Benutzerdefiniert",
     "moreOptions": "Weitere Optionen",
+    "focus": "Fokus",
+    "refresh": "Aktualisieren",
     "enableAutoFocus": "Autofokus aktivieren",
     "disableAutoFocus": "Autofokus deaktivieren",
     "refreshLists": "Projekte, Aktivitäten und Tags aktualisieren"

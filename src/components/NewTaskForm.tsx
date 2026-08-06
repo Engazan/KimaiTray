@@ -426,7 +426,7 @@ export default function NewTaskForm({
           title={t(autoFocusEnabled ? "newTask.disableAutoFocus" : "newTask.enableAutoFocus")}
           aria-label={t(autoFocusEnabled ? "newTask.disableAutoFocus" : "newTask.enableAutoFocus")}
           aria-pressed={autoFocusEnabled}
-          className={`ml-auto flex h-7 w-7 items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] ${
+          className={`ml-auto flex h-9 w-10 flex-col items-center justify-center gap-0.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] ${
             autoFocusEnabled
               ? "bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/15"
               : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08]"
@@ -442,6 +442,7 @@ export default function NewTaskForm({
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5H6A1.5 1.5 0 004.5 6v3m15 0V6A1.5 1.5 0 0018 4.5h-3m0 15h3a1.5 1.5 0 001.5-1.5v-3m-15 0v3A1.5 1.5 0 006 19.5h3" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75a2.25 2.25 0 110 4.5 2.25 2.25 0 010-4.5z" />
           </svg>
+          <span className="text-[8px] leading-[10px]">{t("newTask.focus")}</span>
         </button>
         <button
           type="button"
@@ -449,7 +450,7 @@ export default function NewTaskForm({
           disabled={refreshing}
           title={t("newTask.refreshLists")}
           aria-label={t("newTask.refreshLists")}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex h-9 w-10 flex-col items-center justify-center gap-0.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-white/[0.08] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg
             className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -464,6 +465,7 @@ export default function NewTaskForm({
               d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
             />
           </svg>
+          <span className="text-[8px] leading-[10px]">{t("newTask.refresh")}</span>
         </button>
       </div>
 
