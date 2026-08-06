@@ -75,6 +75,7 @@ describe("settings schema defaults", () => {
       idleThresholdMinutes: -20,
       noTimerReminderMinutes: 2000,
       popupMonitorIndex: 999,
+      popupHeight: 9999,
       popupLayout: "unknown",
       enableIdleDetection: "true",
       trayIconShape: "triangle",
@@ -86,6 +87,7 @@ describe("settings schema defaults", () => {
     expect(merged.idleThresholdMinutes).toBe(1);
     expect(merged.noTimerReminderMinutes).toBe(1440);
     expect(merged.popupMonitorIndex).toBe(255);
+    expect(merged.popupHeight).toBe(1200);
     expect(merged.popupLayout).toBe(defaultSettings.popupLayout);
     expect(merged.enableIdleDetection).toBe(defaultSettings.enableIdleDetection);
     expect(merged.trayIconShape).toBe(defaultSettings.trayIconShape);

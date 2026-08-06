@@ -1314,6 +1314,12 @@ export default function TrayPopup() {
           transparent={document.documentElement.dataset.theme === "transparent"}
         />
       )}
+      {!isDetached && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-1/2 z-20 h-1 w-10 -translate-x-1/2 rounded-t-full bg-gray-400/30 dark:bg-gray-500/30"
+        />
+      )}
       <HeaderStatus
         status={status}
         errorMessage={errorMessage}

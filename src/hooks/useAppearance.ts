@@ -1,10 +1,13 @@
 import { useEffect } from "react";
-import { loadSettings, onSettingsChange } from "../settings/service";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { loadSettings, onSettingsChange, patchSettings } from "../settings/service";
 import { setPopupCornerRadius, setPopupSize, setPopupZoom, setPopupVibrancy, setDisplayMode, setTrayIconSize, setTrayIconShape } from "../api/trayApi";
 import type { AppSettings } from "../types";
 
 const POPUP_BASE_WIDTH = 360;
 const POPUP_BASE_HEIGHT = 640;
+const POPUP_MIN_HEIGHT = 320;
+const POPUP_MAX_HEIGHT = 1200;
 
 const UI_SIZE_SCALE: Record<AppSettings["uiSize"], number> = {
   small: 0.85,
@@ -66,7 +69,8 @@ function apply(s: AppSettings) {
 
   if (!isDetached) {
     const w = Math.round(POPUP_BASE_WIDTH * scale);
-    const h = Math.round(POPUP_BASE_HEIGHT * scale);
+    const baseHeight = s.popupHeight || POPUP_BASE_HEIGHT;
+    const h = Math.round(baseHeight * scale);
     const sizeKey = `tray:${w}:${h}:${scale}`;
     if (sizeKey !== prevSize) {
       prevSize = sizeKey;
@@ -112,9 +116,60 @@ function apply(s: AppSettings) {
 
 export function useAppearance() {
   useEffect(() => {
-    loadSettings().then(apply);
-    const cleanup = onSettingsChange(apply);
+    let active = true;
+    let currentSettings: AppSettings | null = null;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingHeight: number | null = null;
+    let removeResizeListener: (() => void) | null = null;
+    const currentWindow = getCurrentWindow();
+    const resizeListener =
+      document.documentElement.dataset.window === "tray-popup"
+        ? currentWindow.scaleFactor().then((nativeScale) =>
+            currentWindow.onResized(({ payload }) => {
+              const settings = currentSettings;
+              if (!settings || settings.displayMode === "detached") return;
+
+              const scale = UI_SIZE_SCALE[settings.uiSize];
+              const nextHeight = Math.min(
+                POPUP_MAX_HEIGHT,
+                Math.max(
+                  POPUP_MIN_HEIGHT,
+                  Math.round(payload.height / nativeScale / scale),
+                ),
+              );
+              if (nextHeight === settings.popupHeight) return;
+
+              currentSettings = { ...settings, popupHeight: nextHeight };
+              pendingHeight = nextHeight;
+              if (resizeTimer) clearTimeout(resizeTimer);
+              resizeTimer = setTimeout(() => {
+                if (pendingHeight == null) return;
+                const height = pendingHeight;
+                pendingHeight = null;
+                void patchSettings({ popupHeight: height }).catch(() => {});
+              }, 250);
+            }),
+          )
+        : Promise.resolve<() => void>(() => {});
+
+    const applyCurrent = (settings: AppSettings) => {
+      if (!active) return;
+      currentSettings = settings;
+      apply(settings);
+    };
+
+    loadSettings().then(applyCurrent);
+    const cleanup = onSettingsChange(applyCurrent);
+    void resizeListener.then((cleanupResize) => {
+      if (active) removeResizeListener = cleanupResize;
+      else cleanupResize();
+    });
+
     return () => {
+      active = false;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      if (removeResizeListener) removeResizeListener();
+      else void resizeListener.then((cleanupResize) => cleanupResize());
       cleanup.then((fn) => fn());
       if (mediaCleanup) {
         mediaCleanup();

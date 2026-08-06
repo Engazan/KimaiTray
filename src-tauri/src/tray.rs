@@ -812,10 +812,9 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
 
-    #[cfg(target_os = "linux")]
     if detached {
-        // Remove the exact tray-popup geometry hints before making the
-        // detached window user-resizable.
+        // Detached windows should be freely resizable. Tray mode restores
+        // the fixed-width / bounded-height constraints in set_popup_size.
         window
             .set_min_size(None::<tauri::Size>)
             .map_err(|e| e.to_string())?;
@@ -824,7 +823,7 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
-    window.set_resizable(detached).map_err(|e| e.to_string())?;
+    window.set_resizable(true).map_err(|e| e.to_string())?;
     if crate::platform::supports_always_on_top() {
         window
             .set_always_on_top(!detached)
@@ -1102,11 +1101,11 @@ fn validate_popup_geometry(width: f64, height: f64, zoom: f64) -> Result<(), Str
     if !width.is_finite() || !(240.0..=1600.0).contains(&width) {
         return Err("Popup width must be between 240 and 1600".into());
     }
-    if !height.is_finite() || !(200.0..=1200.0).contains(&height) {
-        return Err("Popup height must be between 200 and 1200".into());
-    }
     if !zoom.is_finite() || !(0.5..=2.5).contains(&zoom) {
         return Err("Popup zoom must be between 0.5 and 2.5".into());
+    }
+    if !height.is_finite() || !(320.0 * zoom..=1200.0 * zoom).contains(&height) {
+        return Err("Popup height must be between 320 and 1200".into());
     }
     Ok(())
 }
@@ -1196,6 +1195,7 @@ mod tests {
     #[test]
     fn popup_geometry_accepts_supported_values() {
         assert!(validate_popup_geometry(360.0, 640.0, 1.0).is_ok());
+        assert!(validate_popup_geometry(576.0, 1920.0, 1.6).is_ok());
     }
 
     #[test]
@@ -1222,16 +1222,23 @@ pub fn set_popup_size(app: AppHandle, width: f64, height: f64, zoom: f64) -> Res
         .ok_or("Popup not found")?;
     let size = tauri::Size::Logical(tauri::LogicalSize { width, height });
 
-    #[cfg(target_os = "linux")]
-    {
-        // A GTK window created as non-resizable pins its initial min/max
-        // geometry hints, which makes later set_size calls ineffective. Keep
-        // the tray popup non-draggable by setting an exact min/max size while
-        // allowing GTK to accept the updated geometry.
-        window.set_resizable(true).map_err(|e| e.to_string())?;
-        window.set_min_size(Some(size)).map_err(|e| e.to_string())?;
-        window.set_max_size(Some(size)).map_err(|e| e.to_string())?;
-    }
+    // Keep the popup width fixed while allowing the user to resize its
+    // height. Values are logical pixels, so scale the bounds with the UI zoom.
+    let min_size = tauri::Size::Logical(tauri::LogicalSize {
+        width,
+        height: 320.0 * zoom,
+    });
+    let max_size = tauri::Size::Logical(tauri::LogicalSize {
+        width,
+        height: 1200.0 * zoom,
+    });
+    window.set_resizable(true).map_err(|e| e.to_string())?;
+    window
+        .set_min_size(Some(min_size))
+        .map_err(|e| e.to_string())?;
+    window
+        .set_max_size(Some(max_size))
+        .map_err(|e| e.to_string())?;
 
     window.set_size(size).map_err(|e| e.to_string())?;
     window.set_zoom(zoom).map_err(|e| e.to_string())

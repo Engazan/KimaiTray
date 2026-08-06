@@ -309,10 +309,24 @@ fn validate_settings_patch_window(
     if window_label == "settings" {
         return Ok(());
     }
-    if window_label != "tray-popup"
-        || values
-            .keys()
-            .any(|key| !matches!(key.as_str(), "activeConnectionId" | "kimaiUrl"))
+    if window_label != "tray-popup" {
+        return Err("Window is not authorized to patch these settings".into());
+    }
+
+    if values.len() == 1 && values.contains_key("popupHeight") {
+        let height = values
+            .get("popupHeight")
+            .and_then(Value::as_i64)
+            .ok_or("Popup height must be an integer")?;
+        if !(320..=1200).contains(&height) {
+            return Err("Popup height must be between 320 and 1200".into());
+        }
+        return Ok(());
+    }
+
+    if values
+        .keys()
+        .any(|key| !matches!(key.as_str(), "activeConnectionId" | "kimaiUrl"))
     {
         return Err("Window is not authorized to patch these settings".into());
     }
@@ -1031,6 +1045,18 @@ mod tests {
             "tray-popup",
             &settings,
             &Map::from_iter([("theme".into(), json!("dark"))]),
+        )
+        .is_err());
+        assert!(validate_settings_patch_window(
+            "tray-popup",
+            &settings,
+            &Map::from_iter([("popupHeight".into(), json!(800))]),
+        )
+        .is_ok());
+        assert!(validate_settings_patch_window(
+            "tray-popup",
+            &settings,
+            &Map::from_iter([("popupHeight".into(), json!(1201))]),
         )
         .is_err());
         assert!(validate_settings_patch_window("settings", &settings, &arbitrary_url).is_ok());
