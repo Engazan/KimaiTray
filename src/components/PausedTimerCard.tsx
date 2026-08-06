@@ -38,7 +38,7 @@ export default function PausedTimerCard({
 }: PausedTimerCardProps) {
   const { t } = useTranslation();
   const busy = !!isResuming || !!isStopping;
-  const cardAnim = busy ? "animate-card-out" : "animate-card-in";
+  const cardAnim = busy ? "animate-card-out" : "animate-timer-in";
   const description = paused.description.trim();
   const hasDescription = showDescriptionOnHover && description.length > 0;
 

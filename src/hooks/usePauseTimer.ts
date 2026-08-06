@@ -20,6 +20,9 @@ import {
   pickPluginMetadata,
   type PluginCustomInputDefinition,
 } from "../plugins/customInputs";
+import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
+
+const STOP_EXIT_ANIMATION_MS = 240;
 
 interface UsePauseTimerResult {
   pausedTimers: PausedTimerData[];
@@ -47,12 +50,24 @@ export function usePauseTimer(
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [resumingId, setResumingId] = useState<string | null>(null);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
+  const [stoppingExitScope, setStoppingExitScope] = useState<string | null>(null);
   const timerRef = useRef(timer);
   timerRef.current = timer;
   const stopActiveInFlightRef = useRef<string | null>(null);
+  const stopExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionScope = client?.cacheScope ?? `connection:${connectionId}`;
   const sessionScopeRef = useRef(sessionScope);
   sessionScopeRef.current = sessionScope;
+
+  useEffect(() => {
+    setStoppingExitScope(null);
+    return () => {
+      if (stopExitTimerRef.current) {
+        clearTimeout(stopExitTimerRef.current);
+        stopExitTimerRef.current = null;
+      }
+    };
+  }, [sessionScope]);
 
   useEffect(() => {
     const scope = sessionScope;
@@ -277,20 +292,46 @@ export function usePauseTimer(
       scope: string;
     }) => {
       await stopTimesheet(operationClient, timerId);
-      return scope;
+      return { scope, timerId };
     },
-    onSuccess: (scope) => {
-      if (stopActiveInFlightRef.current === scope) {
-        stopActiveInFlightRef.current = null;
+    onSuccess: ({ scope, timerId }) => {
+      if (sessionScopeRef.current !== scope) {
+        if (stopActiveInFlightRef.current === scope) {
+          stopActiveInFlightRef.current = null;
+        }
+        return;
       }
-      if (sessionScopeRef.current !== scope) return;
       setPauseError(null);
-      invalidate();
+      setStoppingExitScope(scope);
+      stopExitTimerRef.current = setTimeout(() => {
+        stopExitTimerRef.current = null;
+        if (sessionScopeRef.current !== scope) return;
+
+        // Remove the stopped entry at the end of the exit animation so a
+        // quick API response cannot cut the animation short or make the card
+        // briefly reappear while the active-timesheets query refetches.
+        qc.setQueriesData<KimaiTimesheetEntry[]>(
+          {
+            predicate: (query) => query.queryKey[0] === "active-timesheets",
+          },
+          (entries) => entries?.filter((entry) => entry.id !== timerId),
+        );
+        if (stopActiveInFlightRef.current === scope) {
+          stopActiveInFlightRef.current = null;
+        }
+        setStoppingExitScope(null);
+        void invalidate();
+      }, STOP_EXIT_ANIMATION_MS);
     },
     onError: (err: Error, { scope }) => {
+      if (stopExitTimerRef.current) {
+        clearTimeout(stopExitTimerRef.current);
+        stopExitTimerRef.current = null;
+      }
       if (stopActiveInFlightRef.current === scope) {
         stopActiveInFlightRef.current = null;
       }
+      setStoppingExitScope(null);
       if (sessionScopeRef.current !== scope) return;
       setPauseError(err.message);
     },
@@ -303,7 +344,8 @@ export function usePauseTimer(
   const isDiscardingCurrentSession =
     discardMut.isPending && discardMut.variables?.scope === sessionScope;
   const isStoppingCurrentSession =
-    stopActiveMut.isPending && stopActiveMut.variables?.scope === sessionScope;
+    (stopActiveMut.isPending && stopActiveMut.variables?.scope === sessionScope) ||
+    stoppingExitScope === sessionScope;
 
   const pauseTimer = useCallback(() => {
     if (!client || !timer || isPausingCurrentSession) return;
@@ -363,6 +405,7 @@ export function usePauseTimer(
     ) return;
     if (!client) return;
     setPauseError(null);
+    setStoppingExitScope(sessionScope);
     stopActiveInFlightRef.current = sessionScope;
     stopActiveMut.mutate({
       timerId: timer.id,

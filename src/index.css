@@ -33,10 +33,13 @@
   from {
     opacity: 1;
     transform: translateY(0) scale(1);
+    max-height: 520px;
   }
   to {
     opacity: 0;
-    transform: translateY(-4px) scale(0.97);
+    transform: translateY(-7px) scale(0.97);
+    max-height: 0;
+    border-color: transparent;
   }
 }
 
@@ -44,16 +47,35 @@
   animation: card-in 0.2s ease-out both;
 }
 
+/* Timer cards can appear while the tray webview is hidden (for example after
+   starting or resuming one from a global shortcut). Keep this entry animation
+   transform-only so a suspended first frame is still fully visible. */
+.animate-timer-in {
+  animation: active-timer-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center top;
+}
+
+@keyframes active-timer-in {
+  from {
+    transform: translateY(-6px) scale(0.985);
+  }
+  70% {
+    transform: translateY(1px) scale(1.002);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
 .animate-card-out {
-  animation: card-out 0.15s ease-in both;
+  animation: card-out 0.24s cubic-bezier(0.4, 0, 1, 1) both;
+  overflow: hidden;
+  transform-origin: center top;
   pointer-events: none;
 }
 
-/* WebKitGTK can suspend a hidden tray webview before an entry animation has
-   advanced past its transparent first frame. When the native tray later shows
-   the window, the animation may remain frozen and make otherwise-rendered
-   cards look missing. Tray popups must always favor immediately visible
-   content; settings-window animations remain unchanged. */
+/* Other card entry animations must also favor immediately visible content in
+   the tray popup; the active timer uses the transform-only animation above. */
 [data-window="tray-popup"] .animate-card-in {
   animation: none;
 }

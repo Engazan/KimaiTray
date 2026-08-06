@@ -276,7 +276,7 @@ export default function ActiveTimerCard({
   }, [editDescriptionRequest, onEdit, timer.description]);
 
   const exiting = isStopping || isPausing;
-  const cardAnim = exiting ? "animate-card-out" : "animate-card-in";
+  const cardAnim = exiting ? "animate-card-out" : "animate-timer-in";
 
   if (compact) {
     return (
