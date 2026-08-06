@@ -456,6 +456,7 @@
     "refreshLists": "Obnoviť projekty, aktivity a tagy"
   },
   "status": {
+    "connected": "Pripojené",
     "connecting": "Pripája sa…",
     "error": "Chyba",
     "offline": "Offline",

@@ -456,6 +456,7 @@
     "refreshLists": "Refresh projects, activities and tags"
   },
   "status": {
+    "connected": "Connected",
     "connecting": "Connecting…",
     "error": "Error",
     "offline": "Offline",

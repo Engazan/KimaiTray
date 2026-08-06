@@ -79,9 +79,11 @@ export default function PausedTimerCard({
           </span>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
+              type="button"
               onClick={onResume}
               disabled={busy}
               title={t("pause.resume")}
+              aria-label={t("pause.resume")}
               className="p-1 rounded-md bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 disabled:opacity-50 transition-colors focus:outline-none"
             >
               {isResuming ? (
@@ -91,9 +93,11 @@ export default function PausedTimerCard({
               )}
             </button>
             <button
+              type="button"
               onClick={onStop}
               disabled={busy}
               title={t("timer.stopTimer")}
+              aria-label={t("timer.stopTimer")}
               className="p-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors focus:outline-none"
             >
               {isStopping ? (
@@ -152,9 +156,11 @@ export default function PausedTimerCard({
 
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
             <button
+              type="button"
               onClick={onResume}
               disabled={busy}
               title={t("pause.resume")}
+              aria-label={t("pause.resume")}
               className="p-1.5 rounded-md
                 bg-[var(--accent)]/10 text-[var(--accent)]
                 hover:bg-[var(--accent)]/20 active:bg-[var(--accent)]/30
@@ -168,9 +174,11 @@ export default function PausedTimerCard({
               )}
             </button>
             <button
+              type="button"
               onClick={onStop}
               disabled={busy}
               title={t("timer.stopTimer")}
+              aria-label={t("timer.stopTimer")}
               className="p-1.5 rounded-md
                 bg-red-500/10 text-red-600 dark:text-red-400
                 hover:bg-red-500/20 active:bg-red-500/30
@@ -194,7 +202,9 @@ export default function PausedTimerCard({
             </span>
             {onDismissError && (
               <button
+                type="button"
                 onClick={onDismissError}
+                aria-label={t("common.dismiss")}
                 className="text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300 text-xs leading-none shrink-0"
               >
                 ✕

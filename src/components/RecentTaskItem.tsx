@@ -46,6 +46,7 @@ export default function RecentTaskItem({
         ${confirming ? "invisible" : ""}`}
     >
       <button
+        type="button"
         onClick={() => onStart(task)}
         disabled={disabled}
         className="flex items-center gap-2.5 flex-1 min-w-0
@@ -86,12 +87,14 @@ export default function RecentTaskItem({
           {task.lastUsed}
         </span>
 
-        <div className="hidden group-hover:flex items-center gap-0.5">
+        <div className="hidden group-hover:flex group-focus-within:flex items-center gap-0.5">
           {onToggleFavorite && (
             <button
+              type="button"
               onClick={() => onToggleFavorite(task)}
               disabled={disabled}
               title={isFavorite ? t("favorites.removeFromFavorites") : t("favorites.addToFavorites")}
+              aria-label={isFavorite ? t("favorites.removeFromFavorites") : t("favorites.addToFavorites")}
               className={`p-1 rounded transition-colors disabled:opacity-50 ${
                 isFavorite
                   ? "text-amber-400 hover:text-amber-500"
@@ -104,9 +107,11 @@ export default function RecentTaskItem({
             </button>
           )}
           <button
+            type="button"
             onClick={() => onHide(task)}
             disabled={disabled}
             title={t("recentActions.hideFromRecents")}
+            aria-label={t("recentActions.hideFromRecents")}
             className="p-1 rounded text-gray-400 dark:text-gray-500 hover:text-[var(--accent)] dark:hover:text-[var(--accent)] transition-colors disabled:opacity-50"
           >
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -114,9 +119,11 @@ export default function RecentTaskItem({
             </svg>
           </button>
           <button
+            type="button"
             onClick={() => setConfirming(true)}
             disabled={disabled}
             title={t("recentActions.deleteFromKimai")}
+            aria-label={t("recentActions.deleteFromKimai")}
             className="p-1 rounded text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
           >
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -129,8 +136,11 @@ export default function RecentTaskItem({
           <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-200 border-t-[var(--accent)] dark:border-gray-600 dark:border-t-[var(--accent)]" />
         ) : (
           <button
+            type="button"
             onClick={() => onStart(task)}
             disabled={disabled}
+            title={t("common.start")}
+            aria-label={t("common.start")}
             className="p-0.5 rounded text-gray-400 dark:text-gray-500
               group-hover:text-[var(--accent)]
               transition-colors disabled:opacity-50"
@@ -153,6 +163,7 @@ export default function RecentTaskItem({
             {t("recentActions.confirmDelete")}
           </span>
           <button
+            type="button"
             onClick={() => {
               onDelete(task);
               setConfirming(false);
@@ -167,6 +178,7 @@ export default function RecentTaskItem({
             )}
           </button>
           <button
+            type="button"
             onClick={() => setConfirming(false)}
             className="text-[10px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >

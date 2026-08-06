@@ -456,6 +456,7 @@
     "refreshLists": "Projekte, Aktivitäten und Tags aktualisieren"
   },
   "status": {
+    "connected": "Verbunden",
     "connecting": "Verbindung wird hergestellt…",
     "error": "Fehler",
     "offline": "Offline",

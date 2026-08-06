@@ -44,6 +44,8 @@ export default function HeaderStatus({
     <header className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-800">
       <div className="flex items-center gap-2 min-w-0">
         <span
+          role="img"
+          aria-label={label || t("status.connected")}
           className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${DOT_STYLES[status]}`}
         />
         {hasMultiple ? (
@@ -104,6 +106,8 @@ function ConnectionSwitcher({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase truncate
           hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
@@ -120,7 +124,7 @@ function ConnectionSwitcher({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 min-w-[180px] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]">
+        <div role="listbox" className="absolute left-0 top-full z-50 mt-1.5 min-w-[180px] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-[#1e1e1e]">
           {connections.map((conn) => (
             <button
               key={conn.id}
@@ -129,6 +133,8 @@ function ConnectionSwitcher({
                 void onSwitch(conn.id);
                 setOpen(false);
               }}
+              role="option"
+              aria-selected={conn.id === activeId}
               className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] transition-colors
                 ${
                   conn.id === activeId

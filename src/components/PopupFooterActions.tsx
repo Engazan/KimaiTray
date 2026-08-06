@@ -20,6 +20,7 @@ export default function PopupFooterActions({
   return (
     <footer className="flex items-center gap-1 border-t border-gray-100 dark:border-gray-800 px-2 py-1.5">
       <button
+        type="button"
         onClick={onNewTask}
         className={`${btnBase} text-[var(--accent)] hover:bg-[var(--accent-light)]`}
       >
@@ -31,6 +32,7 @@ export default function PopupFooterActions({
 
       {showOpenKimai && (
         <button
+          type="button"
           onClick={onOpenKimai}
           className={`${btnBase} text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800`}
         >
@@ -48,8 +50,10 @@ export default function PopupFooterActions({
       <div className="flex-1" />
 
       <button
+        type="button"
         onClick={onSettings}
         title={t("common.settings")}
+        aria-label={t("common.settings")}
         className={`${btnBase} text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800`}
       >
         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

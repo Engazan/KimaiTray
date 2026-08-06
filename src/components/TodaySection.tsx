@@ -72,9 +72,11 @@ export default function TodaySection({
         </div>
         {totalCount > 0 && (
           <button
+            type="button"
             onClick={onToggleSort}
             className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none"
             title={sortAsc ? t("today.newestFirst") : t("today.oldestFirst")}
+            aria-label={sortAsc ? t("today.newestFirst") : t("today.oldestFirst")}
           >
             {sortAsc ? "↑" : "↓"}
           </button>
@@ -104,6 +106,7 @@ export default function TodaySection({
               {t("today.loadError")}
             </p>
             <button
+              type="button"
               onClick={onRetry}
               className="text-[11px] text-[var(--accent)] hover:underline focus:outline-none"
             >
@@ -128,6 +131,7 @@ export default function TodaySection({
             ))}
             {hasMore && !expanded && (
               <button
+                type="button"
                 onClick={onToggleExpand}
                 className="w-full py-1.5 text-[11px] text-[var(--accent)] hover:underline focus:outline-none transition-colors"
               >
@@ -136,6 +140,7 @@ export default function TodaySection({
             )}
             {expanded && hasMore && (
               <button
+                type="button"
                 onClick={onToggleExpand}
                 className="w-full py-1.5 text-[11px] text-gray-400 dark:text-gray-500 hover:underline focus:outline-none transition-colors"
               >

@@ -16,7 +16,7 @@ describe("tray layout controls", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Today" }));
     expect(onChange).toHaveBeenCalledWith("today");
   });
 

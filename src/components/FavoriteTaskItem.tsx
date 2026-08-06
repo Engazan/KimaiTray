@@ -34,6 +34,7 @@ export default function FavoriteTaskItem({
         focus-within:bg-gray-100 dark:focus-within:bg-white/[0.06]"
     >
       <button
+        type="button"
         onClick={() => onStart(task)}
         disabled={disabled}
         className="flex items-center gap-2.5 flex-1 min-w-0
@@ -78,11 +79,13 @@ export default function FavoriteTaskItem({
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
 
-        <div className="hidden group-hover:flex items-center gap-0.5">
+        <div className="hidden group-hover:flex group-focus-within:flex items-center gap-0.5">
           <button
+            type="button"
             onClick={() => onRemove(task)}
             disabled={disabled}
             title={t("favorites.removeFromFavorites")}
+            aria-label={t("favorites.removeFromFavorites")}
             className="p-1 rounded text-amber-400 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
           >
             <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
@@ -95,8 +98,11 @@ export default function FavoriteTaskItem({
           <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-200 border-t-[var(--accent)] dark:border-gray-600 dark:border-t-[var(--accent)]" />
         ) : (
           <button
+            type="button"
             onClick={() => onStart(task)}
             disabled={disabled}
+            title={t("common.start")}
+            aria-label={t("common.start")}
             className="p-0.5 rounded text-gray-400 dark:text-gray-500
               group-hover:text-[var(--accent)]
               transition-colors disabled:opacity-50"

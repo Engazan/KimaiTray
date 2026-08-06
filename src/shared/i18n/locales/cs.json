@@ -456,6 +456,7 @@
     "refreshLists": "Obnovit projekty, aktivity a štítky"
   },
   "status": {
+    "connected": "Připojeno",
     "connecting": "Připojování…",
     "error": "Chyba",
     "offline": "Offline",
