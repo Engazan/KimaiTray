@@ -139,6 +139,28 @@ describe("Kimai connection session isolation", () => {
     expect(result.current.client?.cacheScope).not.toContain("rotated-token");
   });
 
+  it("keeps the session ready while refreshing the same connection", async () => {
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(result.current.settingsReady).toBe(true));
+
+    let resolveToken!: (value: string) => void;
+    credentialMocks.getConnectionToken.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveToken = resolve;
+        }),
+    );
+
+    act(() => serviceMocks.listener?.(settingsFor("connection-a")));
+    await waitFor(() => expect(credentialMocks.getConnectionToken).toHaveBeenCalledTimes(2));
+
+    expect(result.current.settingsReady).toBe(true);
+    expect(result.current.client?.connectionId).toBe("connection-a");
+
+    await act(async () => resolveToken("refreshed-token"));
+    await waitFor(() => expect(result.current.client?.cacheScope).toContain("connection-a"));
+  });
+
   it("applies Creative issue link settings per connection", async () => {
     const { result } = renderHook(() => useKimaiClient());
     await waitFor(() =>

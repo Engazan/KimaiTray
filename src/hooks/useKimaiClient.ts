@@ -150,21 +150,32 @@ export function useKimaiClient(): UseKimaiClientResult {
 
   const baseUrlRef = useRef("");
   const activeIdRef = useRef("");
+  const readyRef = useRef(false);
   const settingsRequestsRef = useRef(new LatestRequest());
 
   const applySettings = useCallback(async (s: Awaited<ReturnType<typeof loadSettings>>) => {
     const generation = settingsRequestsRef.current.begin();
-    setReady(false);
     const nextConnId = s.activeConnectionId ?? "";
     const urlChanged = s.kimaiUrl !== baseUrlRef.current;
     const connChanged = nextConnId !== activeIdRef.current;
+    const connectionChanged = urlChanged || connChanged;
+
+    // Focus/show events reload settings as a fallback. Keep the current UI
+    // usable while that routine refresh is in flight; otherwise opening the
+    // tray popup briefly replaces the timer with the loading state.
+    // A real connection change still needs the loading state because its
+    // credentials and query cache must be isolated from the previous one.
+    if (!readyRef.current || connectionChanged) {
+      readyRef.current = false;
+      setReady(false);
+    }
     baseUrlRef.current = s.kimaiUrl;
     activeIdRef.current = nextConnId;
 
     // Clear the token when switching connection (even to the same server URL)
     // so the client turns null until the new connection's token loads — this
     // avoids a fetch with the previous connection's token under the new key.
-    if (urlChanged || connChanged) {
+    if (connectionChanged) {
       setToken("");
       setIssueToken(null);
     }
@@ -249,6 +260,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     } else {
       setToken("");
     }
+    readyRef.current = true;
     setReady(true);
   }, []);
 
