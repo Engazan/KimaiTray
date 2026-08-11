@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.22.5] - 2026-08-11
+
+### Improvements
+
+- **Multiple self-hosted GitLab servers** — the Tampermonkey userscript can now manage several GitLab base URLs, automatically migrates the previous single-server setting and always opens deep links with the active KimaiTray connection
+- **Active connection as the deep-link default** — external timer links no longer need to include a connection ID; when omitted, KimaiTray uses the currently active connection
+- **Kimai colors in the new-timer form** — customer, project and activity options now display their safe Kimai colors consistently
+
+### Bug Fixes
+
+- **macOS menu bar restored after reminders** — dismissing a full-screen idle or no-timer reminder no longer leaves the macOS menu bar hidden
+
+### Maintenance
+
+- **Patched Nano ID dependency** — updated the transitive Nano ID package to clear its high-severity security advisory
+
 ## [0.22.4] - 2026-08-06
 
 ### Improvements
