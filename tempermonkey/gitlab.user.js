@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KimaiTray – GitLab issue button
 // @namespace    https://github.com/Engazan/KimaiTray
-// @version      1.2.1
+// @version      1.3.0
 // @description  Adds a button to GitLab issue breadcrumbs that opens a prefilled new-timer form in KimaiTray.
 // @author       KimaiTray contributors
 // @match        *://*/*
@@ -24,7 +24,8 @@
     '[data-testid="work-item-drawer-ref-link"][href]';
   const DRAWER_ACTIONS_SELECTOR =
     ".gl-flex.gl-grow.gl-items-center.gl-gap-2";
-  const SETTING_GITLAB_URL = "gitlabBaseUrl";
+  const LEGACY_SETTING_GITLAB_URL = "gitlabBaseUrl";
+  const SETTING_GITLAB_URLS = "gitlabBaseUrls";
   const SETTING_CUSTOM_FIELD = "customPluginField";
 
   function normalizeBaseUrl(rawValue) {
@@ -37,43 +38,70 @@
     }
     url.search = "";
     url.hash = "";
-    url.pathname = url.pathname.replace(/\/+$/, "");
-    return `${url.origin}${url.pathname}`;
+    const basePath = url.pathname.replace(/\/+$/, "");
+    return `${url.origin}${basePath}`;
   }
 
-  function configuredBaseUrl() {
-    const stored = GM_getValue(SETTING_GITLAB_URL, "");
-    if (!stored) return null;
-    try {
-      return new URL(stored);
-    } catch {
-      return null;
+  function normalizeBaseUrls(rawValues) {
+    const normalized = [];
+    for (const rawValue of rawValues) {
+      if (typeof rawValue !== "string" || !rawValue.trim()) continue;
+      try {
+        const baseUrl = normalizeBaseUrl(rawValue);
+        if (!normalized.includes(baseUrl)) normalized.push(baseUrl);
+      } catch {
+        // Ignore malformed values already present in userscript storage.
+      }
     }
+    return normalized;
+  }
+
+  function configuredBaseUrls() {
+    const stored = GM_getValue(SETTING_GITLAB_URLS, null);
+    if (Array.isArray(stored)) {
+      const normalized = normalizeBaseUrls(stored);
+      if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
+        GM_setValue(SETTING_GITLAB_URLS, normalized);
+      }
+      return normalized;
+    }
+
+    const legacy = GM_getValue(LEGACY_SETTING_GITLAB_URL, "");
+    const migrated = normalizeBaseUrls([legacy]);
+    GM_setValue(SETTING_GITLAB_URLS, migrated);
+    return migrated;
+  }
+
+  function saveBaseUrls(baseUrls) {
+    GM_setValue(SETTING_GITLAB_URLS, normalizeBaseUrls(baseUrls));
   }
 
   function issueUrlFrom(rawUrl) {
-    const base = configuredBaseUrl();
-    if (!base) return null;
-
     const current = new URL(rawUrl, window.location.href);
-    if (current.origin !== base.origin) return null;
-    const basePath = base.pathname.replace(/\/+$/, "");
-    if (
-      basePath &&
-      current.pathname !== basePath &&
-      !current.pathname.startsWith(`${basePath}/`)
-    ) {
-      return null;
-    }
+    const bases = configuredBaseUrls()
+      .map((baseUrl) => new URL(baseUrl))
+      .sort((left, right) => right.pathname.length - left.pathname.length);
+    for (const base of bases) {
+      if (current.origin !== base.origin) continue;
+      const basePath = base.pathname.replace(/\/+$/, "");
+      if (
+        basePath &&
+        current.pathname !== basePath &&
+        !current.pathname.startsWith(`${basePath}/`)
+      ) {
+        continue;
+      }
 
-    const relativePath = current.pathname.slice(basePath.length);
-    if (!/-\/(?:issues|work_items)\/\d+(?:\/|$)/.test(relativePath)) {
-      return null;
-    }
+      const relativePath = current.pathname.slice(basePath.length);
+      if (!/-\/(?:issues|work_items)\/\d+(?:\/|$)/.test(relativePath)) {
+        continue;
+      }
 
-    current.search = "";
-    current.hash = "";
-    return current.toString();
+      current.search = "";
+      current.hash = "";
+      return current.toString();
+    }
+    return null;
   }
 
   function findButtonPlacement() {
@@ -224,11 +252,10 @@
     });
   }
 
-  GM_registerMenuCommand("KimaiTray: nastaviť GitLab integráciu", () => {
-    const currentBase = GM_getValue(SETTING_GITLAB_URL, "");
+  GM_registerMenuCommand("KimaiTray: pridať GitLab server", () => {
     const rawBase = window.prompt(
       "GitLab base URL (napr. https://gitlab.example.com alebo https://example.com/gitlab):",
-      currentBase,
+      window.location.origin,
     );
     if (rawBase === null) return;
 
@@ -240,20 +267,66 @@
       return;
     }
 
+    const baseUrls = configuredBaseUrls();
+    if (baseUrls.includes(normalizedBase)) {
+      window.alert("Tento GitLab server je už nakonfigurovaný.");
+      return;
+    }
+    saveBaseUrls([...baseUrls, normalizedBase]);
+    window.alert(`GitLab server bol pridaný: ${normalizedBase}`);
+    scheduleButtonRefresh();
+  });
+
+  GM_registerMenuCommand("KimaiTray: odstrániť GitLab server", () => {
+    const baseUrls = configuredBaseUrls();
+    if (baseUrls.length === 0) {
+      window.alert("Nie sú nakonfigurované žiadne GitLab servery.");
+      return;
+    }
+
+    const selection = window.prompt(
+      `Zadaj číslo GitLab servera, ktorý chceš odstrániť:\n\n${baseUrls
+        .map((baseUrl, index) => `${index + 1}. ${baseUrl}`)
+        .join("\n")}`,
+      "1",
+    );
+    if (selection === null) return;
+
+    const selectedIndex = Number(selection.trim()) - 1;
+    if (!/^\d+$/.test(selection.trim()) || !baseUrls[selectedIndex]) {
+      window.alert("Neplatné číslo GitLab servera.");
+      return;
+    }
+
+    const removed = baseUrls[selectedIndex];
+    saveBaseUrls(baseUrls.filter((_, index) => index !== selectedIndex));
+    window.alert(`GitLab server bol odstránený: ${removed}`);
+    scheduleButtonRefresh();
+  });
+
+  GM_registerMenuCommand("KimaiTray: zobraziť GitLab servery", () => {
+    const baseUrls = configuredBaseUrls();
+    window.alert(
+      baseUrls.length > 0
+        ? `Nakonfigurované GitLab servery:\n\n${baseUrls.join("\n")}`
+        : "Nie sú nakonfigurované žiadne GitLab servery.",
+    );
+  });
+
+  GM_registerMenuCommand("KimaiTray: nastaviť custom plugin field", () => {
     const customField = window.prompt(
       "Custom plugin metadata name (nepovinné; pre Creative Issue Link použi issue_link):",
       GM_getValue(SETTING_CUSTOM_FIELD, ""),
     );
     if (customField === null) return;
 
-    GM_setValue(SETTING_GITLAB_URL, normalizedBase);
     GM_setValue(SETTING_CUSTOM_FIELD, customField.trim());
-    window.alert("KimaiTray GitLab userscript bol nastavený.");
-    scheduleButtonRefresh();
+    window.alert("Custom plugin field bol nastavený.");
   });
 
   GM_registerMenuCommand("KimaiTray: vymazať nastavenia", () => {
-    GM_setValue(SETTING_GITLAB_URL, "");
+    GM_setValue(LEGACY_SETTING_GITLAB_URL, "");
+    GM_setValue(SETTING_GITLAB_URLS, []);
     GM_setValue(SETTING_CUSTOM_FIELD, "");
     removeButton();
   });

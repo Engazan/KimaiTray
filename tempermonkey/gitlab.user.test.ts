@@ -7,26 +7,35 @@ const userscript = readFileSync(
   "utf8",
 );
 
-function runUserscript(html: string, url: string) {
+type MenuCommand = () => void;
+
+function runUserscript(
+  html: string,
+  url: string,
+  initialSettings: Record<string, unknown> = {},
+) {
   const dom = new JSDOM(html, {
     url,
     pretendToBeVisual: true,
     runScripts: "dangerously",
   });
-  const settings: Record<string, string> = {
+  const settings: Record<string, unknown> = {
     gitlabBaseUrl: "https://gitlab.example.test",
-    kimaiConnectionId: "",
     customPluginField: "",
+    ...initialSettings,
   };
+  const menuCommands = new Map<string, MenuCommand>();
   Object.assign(dom.window, {
-    GM_getValue: (key: string, fallback: string) => settings[key] ?? fallback,
-    GM_setValue: (key: string, value: string) => {
+    GM_getValue: (key: string, fallback: unknown) => settings[key] ?? fallback,
+    GM_setValue: (key: string, value: unknown) => {
       settings[key] = value;
     },
-    GM_registerMenuCommand: vi.fn(),
+    GM_registerMenuCommand: vi.fn((name: string, command: MenuCommand) => {
+      menuCommands.set(name, command);
+    }),
   });
   dom.window.eval(userscript);
-  return dom;
+  return { dom, menuCommands, settings };
 }
 
 async function flushAnimationFrames(dom: JSDOM) {
@@ -39,7 +48,7 @@ async function flushAnimationFrames(dom: JSDOM) {
 
 describe("GitLab Tampermonkey userscript", () => {
   it("appends the timer button to an open board work-item drawer", async () => {
-    const dom = runUserscript(
+    const { dom } = runUserscript(
       `<div class="gl-flex gl-grow gl-items-center gl-gap-2" id="drawer-actions">
         <a
           href="https://gitlab.example.test/group/project/-/work_items/725"
@@ -68,7 +77,7 @@ describe("GitLab Tampermonkey userscript", () => {
   });
 
   it("keeps adding the timer button after issue breadcrumbs", async () => {
-    const dom = runUserscript(
+    const { dom } = runUserscript(
       `<ol id="breadcrumbs">
         <li class="gl-breadcrumb-item gl-breadcrumb-item-sm">Issue 725</li>
       </ol>`,
@@ -85,5 +94,70 @@ describe("GitLab Tampermonkey userscript", () => {
       dom.window.document.getElementById("breadcrumbs")?.lastElementChild,
     ).toMatchObject({ id: "kimaitray-gitlab-button" });
     await flushAnimationFrames(dom);
+  });
+
+  it("shows the timer button on every configured GitLab server", async () => {
+    const { dom } = runUserscript(
+      `<ol id="breadcrumbs">
+        <li class="gl-breadcrumb-item gl-breadcrumb-item-sm">Issue 42</li>
+      </ol>`,
+      "https://gitlab.second.test/group/project/-/issues/42",
+      {
+        gitlabBaseUrls: [
+          "https://gitlab.first.test",
+          "https://gitlab.second.test",
+        ],
+      },
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        dom.window.document.getElementById("kimaitray-gitlab-button"),
+      ).not.toBeNull();
+    });
+    await flushAnimationFrames(dom);
+  });
+
+  it("migrates the legacy GitLab URL into the server list", async () => {
+    const { dom, settings } = runUserscript(
+      `<ol>
+        <li class="gl-breadcrumb-item gl-breadcrumb-item-sm">Issue 725</li>
+      </ol>`,
+      "https://gitlab.example.test/group/project/-/issues/725",
+    );
+
+    await vi.waitFor(() => {
+      expect(settings.gitlabBaseUrls).toEqual([
+        "https://gitlab.example.test",
+      ]);
+    });
+    await flushAnimationFrames(dom);
+  });
+
+  it("adds, lists and removes GitLab servers through menu commands", () => {
+    const { dom, menuCommands, settings } = runUserscript(
+      "<main></main>",
+      "https://gitlab.first.test/dashboard",
+      { gitlabBaseUrls: ["https://gitlab.first.test"] },
+    );
+    const prompt = vi.spyOn(dom.window, "prompt");
+    const alert = vi.spyOn(dom.window, "alert").mockImplementation(() => {});
+
+    prompt.mockReturnValueOnce("https://gitlab.second.test/");
+    menuCommands.get("KimaiTray: pridať GitLab server")?.();
+    expect(settings.gitlabBaseUrls).toEqual([
+      "https://gitlab.first.test",
+      "https://gitlab.second.test",
+    ]);
+
+    menuCommands.get("KimaiTray: zobraziť GitLab servery")?.();
+    expect(alert).toHaveBeenLastCalledWith(
+      "Nakonfigurované GitLab servery:\n\n" +
+        "https://gitlab.first.test\nhttps://gitlab.second.test",
+    );
+
+    prompt.mockReturnValueOnce("1");
+    menuCommands.get("KimaiTray: odstrániť GitLab server")?.();
+    expect(settings.gitlabBaseUrls).toEqual(["https://gitlab.second.test"]);
   });
 });
