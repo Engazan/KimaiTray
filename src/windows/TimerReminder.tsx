@@ -54,8 +54,15 @@ export default function TimerReminder() {
       const platform = currentPlatform();
       if (platform.os === "linux" && platform.session === "x11") {
         await win.setSimpleFullscreen(false);
+        await win.hide();
+        return;
       }
       await win.hide();
+      // On macOS, simple fullscreen enables app-wide menu bar auto-hide.
+      // Restore the previous presentation options after hiding the reminder.
+      if (platform.os === "macos") {
+        await win.setSimpleFullscreen(false);
+      }
     };
     void dismissWindow();
   }, []);

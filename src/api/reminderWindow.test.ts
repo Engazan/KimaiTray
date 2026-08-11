@@ -139,6 +139,18 @@ describe("fullscreen reminder window bridge", () => {
     expect(mocks.setSimpleFullscreen).not.toHaveBeenCalledWith(false);
   });
 
+  it("restores macOS presentation options after hiding the reminder", async () => {
+    mocks.currentPlatform.mockReturnValue({ os: "macos", session: "native" });
+
+    await hideFullscreenReminder();
+
+    expect(mocks.hide).toHaveBeenCalledOnce();
+    expect(mocks.setSimpleFullscreen).toHaveBeenCalledWith(false);
+    expect(mocks.hide.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.setSimpleFullscreen.mock.invocationCallOrder[0],
+    );
+  });
+
   it("disposes the fullscreen surface before hiding on Linux X11", async () => {
     mocks.currentPlatform.mockReturnValue({ os: "linux", session: "x11" });
 

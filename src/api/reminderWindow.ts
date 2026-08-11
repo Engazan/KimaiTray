@@ -117,6 +117,14 @@ export async function hideFullscreenReminder(): Promise<void> {
   const platform = currentPlatform();
   if (platform.os === "linux" && platform.session === "x11") {
     await reminder.setSimpleFullscreen(false);
+    await reminder.hide();
+    return;
   }
   await reminder.hide();
+  // Simple fullscreen changes the app-wide macOS presentation options to
+  // auto-hide the menu bar and Dock. Restore them after the reminder is no
+  // longer visible so subsequent tray interactions do not hide the menu bar.
+  if (platform.os === "macos") {
+    await reminder.setSimpleFullscreen(false);
+  }
 }

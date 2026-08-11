@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nextProvider } from "react-i18next";
 import i18n, { initPromise } from "../shared/i18n";
@@ -15,7 +15,9 @@ const mocks = vi.hoisted(() => ({
   emitTo: vi.fn(),
   hide: vi.fn(),
   listen: vi.fn(),
+  setSimpleFullscreen: vi.fn(),
   unlisten: vi.fn(),
+  currentPlatform: vi.fn(),
 }));
 
 let receiveReminder: ((event: { payload: ReminderShowRequest }) => void) | undefined;
@@ -26,8 +28,10 @@ vi.mock("@tauri-apps/api/window", () => ({
     label: "timer-reminder",
     hide: mocks.hide,
     listen: mocks.listen,
+    setSimpleFullscreen: mocks.setSimpleFullscreen,
   }),
 }));
+vi.mock("../platform", () => ({ currentPlatform: mocks.currentPlatform }));
 vi.mock("../hooks/useLanguageSync", () => ({ useLanguageSync: vi.fn() }));
 vi.mock("../settings/service", () => ({
   defaultSettings: { noTimerReminderMinutes: 30 },
@@ -54,6 +58,9 @@ beforeEach(() => {
   receiveReminder = undefined;
   vi.clearAllMocks();
   mocks.emitTo.mockResolvedValue(undefined);
+  mocks.hide.mockResolvedValue(undefined);
+  mocks.setSimpleFullscreen.mockResolvedValue(undefined);
+  mocks.currentPlatform.mockReturnValue({ os: "windows", session: "native" });
   mocks.listen.mockImplementation(async (event, handler) => {
     if (event === REMINDER_SHOW_EVENT) receiveReminder = handler;
     return mocks.unlisten;
@@ -118,5 +125,32 @@ describe("timer reminder window", () => {
     expect(document.querySelector("#idle-reminder-title")).toBeNull();
     expect(document.querySelector("#timer-reminder-title")).not.toBeNull();
     expect(renderedKinds).toEqual(["idle", "timer"]);
+  });
+
+  it("restores macOS presentation options after dismissing the reminder", async () => {
+    mocks.currentPlatform.mockReturnValue({ os: "macos", session: "native" });
+    render(
+      <I18nextProvider i18n={i18n}>
+        <TimerReminder />
+      </I18nextProvider>,
+    );
+
+    act(() => {
+      receiveReminder?.({
+        payload: {
+          requestId: "timer-request",
+          replyTo: "settings",
+          payload: { kind: "timer" },
+        },
+      });
+    });
+    fireEvent.click(screen.getByRole("button"));
+
+    await waitFor(() => {
+      expect(mocks.setSimpleFullscreen).toHaveBeenCalledWith(false);
+    });
+    expect(mocks.hide.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.setSimpleFullscreen.mock.invocationCallOrder[0],
+    );
   });
 });
