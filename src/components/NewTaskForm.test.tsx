@@ -109,6 +109,35 @@ function renderForm(
   return { onSubmit };
 }
 
+describe("new task customer select", () => {
+  it("shows Kimai's generated safe color for customers without a custom color", async () => {
+    apiMocks.getCustomers.mockResolvedValue([
+      {
+        id: 1,
+        name: "No custom color",
+        visible: true,
+        color: null,
+        "color-safe": "#5319e7",
+        comment: null,
+        country: "SK",
+        currency: "EUR",
+        number: null,
+      },
+    ]);
+    apiMocks.getActivities.mockResolvedValue([]);
+    const user = userEvent.setup();
+    renderForm({ showCustomerSelect: true, autoFocusProject: false });
+
+    await user.click(screen.getByLabelText("Customer"));
+    const option = await screen.findByRole("option", {
+      name: "No custom color",
+    });
+    const swatch = option.querySelector<HTMLElement>("span");
+
+    expect(swatch?.style.backgroundColor).toBe("rgb(83, 25, 231)");
+  });
+});
+
 describe("new task keyboard flow", () => {
   it("enables autofocus by default and remembers when the focus flow is disabled", async () => {
     apiMocks.getActivities.mockResolvedValue([

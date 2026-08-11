@@ -22,6 +22,8 @@ export interface KimaiCustomer {
   name: string;
   visible: boolean;
   color: string | null;
+  /** Effective UI color returned by Kimai, including its name-based fallback. */
+  "color-safe"?: string;
   comment: string | null;
   country: string;
   currency: string;

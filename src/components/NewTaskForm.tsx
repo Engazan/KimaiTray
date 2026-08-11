@@ -475,7 +475,11 @@ export default function NewTaskForm({
             <FieldLabel htmlFor={customerControlId}>{t("newTask.customer")}</FieldLabel>
             <SearchableSelect
               id={customerControlId}
-              options={customers.map((c) => ({ value: c.id, label: c.name, color: c.color }))}
+              options={customers.map((c) => ({
+                value: c.id,
+                label: c.name,
+                color: c["color-safe"] || c.color,
+              }))}
               value={customerId}
               onChange={handleCustomerChange}
               placeholder={t("newTask.allCustomers")}
