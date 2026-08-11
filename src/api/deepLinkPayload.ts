@@ -23,6 +23,13 @@ export interface NewTimerDeepLink extends TimerDeepLinkFields {
 
 export type KimaiTrayDeepLink = StartTimerDeepLink | NewTimerDeepLink;
 
+export function resolveDeepLinkConnectionId(
+  deepLink: KimaiTrayDeepLink,
+  activeConnectionId: string,
+): string {
+  return deepLink.connectionId ?? activeConnectionId;
+}
+
 const MAX_URL_LENGTH = 16_384;
 const MAX_DESCRIPTION_LENGTH = 4_000;
 const MAX_CUSTOM_FIELDS = 32;

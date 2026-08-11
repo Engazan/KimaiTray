@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseKimaiTrayDeepLink,
   parseStartTimerDeepLink,
+  resolveDeepLinkConnectionId,
 } from "./deepLinkPayload";
 
 describe("KimaiTray start-timer deep links", () => {
@@ -46,6 +47,24 @@ describe("KimaiTray start-timer deep links", () => {
         issue_link: "https://git.example.test/team/repo/-/issues/7",
       },
     });
+  });
+
+  it("uses the active connection when the connection parameter is omitted", () => {
+    const parsed = parseStartTimerDeepLink(
+      "kimaitray://start?project=12&activity=34",
+    );
+
+    expect(resolveDeepLinkConnectionId(parsed, "active-connection")).toBe(
+      "active-connection",
+    );
+  });
+
+  it("prefers an explicitly requested connection over the active one", () => {
+    const parsed = parseStartTimerDeepLink(
+      "kimaitray://start?connection=work&project=12&activity=34",
+    );
+
+    expect(resolveDeepLinkConnectionId(parsed, "active-connection")).toBe("work");
   });
 
   it("does not treat an open-only link as an immediate start", () => {

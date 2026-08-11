@@ -88,6 +88,7 @@ import {
 import { subscribeToDeepLinks } from "../api/deepLink";
 import {
   parseKimaiTrayDeepLink,
+  resolveDeepLinkConnectionId,
   type KimaiTrayDeepLink,
 } from "../api/deepLinkPayload";
 
@@ -372,7 +373,10 @@ export default function TrayPopup() {
       removePending();
     };
 
-    const requestedConnection = pending.request.connectionId;
+    const requestedConnection = resolveDeepLinkConnectionId(
+      pending.request,
+      activeConnectionId,
+    );
     if (requestedConnection && requestedConnection !== activeConnectionId) {
       if (!connections.some((connection) => connection.id === requestedConnection)) {
         failPending(`Deep-link connection "${requestedConnection}" does not exist`);
