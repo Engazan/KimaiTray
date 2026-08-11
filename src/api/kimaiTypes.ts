@@ -37,6 +37,8 @@ export interface KimaiProject {
   visible: boolean;
   billable: boolean;
   color: string | null;
+  /** Effective UI color returned by Kimai, including its name-based fallback. */
+  "color-safe"?: string;
   comment: string | null;
   globalActivities: boolean;
 }
@@ -48,6 +50,8 @@ export interface KimaiActivity {
   visible: boolean;
   billable: boolean;
   color: string | null;
+  /** Effective UI color returned by Kimai, including its name-based fallback. */
+  "color-safe"?: string;
   comment: string | null;
 }
 

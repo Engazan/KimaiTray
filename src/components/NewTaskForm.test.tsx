@@ -109,7 +109,7 @@ function renderForm(
   return { onSubmit };
 }
 
-describe("new task customer select", () => {
+describe("new task entity selects", () => {
   it("shows Kimai's generated safe color for customers without a custom color", async () => {
     apiMocks.getCustomers.mockResolvedValue([
       {
@@ -131,6 +131,65 @@ describe("new task customer select", () => {
     await user.click(screen.getByLabelText("Customer"));
     const option = await screen.findByRole("option", {
       name: "No custom color",
+    });
+    const swatch = option.querySelector<HTMLElement>("span");
+
+    expect(swatch?.style.backgroundColor).toBe("rgb(83, 25, 231)");
+  });
+
+  it("shows Kimai's generated safe color for projects without a custom color", async () => {
+    apiMocks.getProjects.mockResolvedValue([
+      {
+        id: 1,
+        name: "No custom project color",
+        customer: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        "color-safe": "#2ECC40",
+        comment: null,
+        globalActivities: false,
+      },
+    ]);
+    apiMocks.getActivities.mockResolvedValue([]);
+    const user = userEvent.setup();
+    renderForm({ autoFocusProject: false });
+
+    await user.click(screen.getByLabelText("Project"));
+    const option = await screen.findByRole("option", {
+      name: "No custom project color",
+    });
+    const swatch = option.querySelector<HTMLElement>("span");
+
+    expect(swatch?.style.backgroundColor).toBe("rgb(46, 204, 64)");
+  });
+
+  it("shows Kimai's generated safe color for activities without a custom color", async () => {
+    apiMocks.getActivities.mockResolvedValue([
+      {
+        id: 10,
+        name: "No custom activity color",
+        project: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        "color-safe": "#5319e7",
+        comment: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderForm({ autoFocusProject: false });
+
+    await user.click(screen.getByLabelText("Project"));
+    await user.click(await screen.findByRole("option", { name: "Alpha" }));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Activity").textContent).toContain(
+        "No custom activity color",
+      ),
+    );
+    await user.click(screen.getByLabelText("Activity"));
+    const option = await screen.findByRole("option", {
+      name: "No custom activity color",
     });
     const swatch = option.querySelector<HTMLElement>("span");
 

@@ -494,7 +494,11 @@ export default function NewTaskForm({
           <FieldLabel htmlFor={projectControlId} required>{t("newTask.project")}</FieldLabel>
           <SearchableSelect
             id={projectControlId}
-            options={filteredProjects.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
+            options={filteredProjects.map((p) => ({
+              value: p.id,
+              label: p.name,
+              color: p["color-safe"] || p.color,
+            }))}
             value={projectId}
             onChange={handleProjectChange}
             placeholder={t("newTask.selectProject")}
@@ -507,7 +511,11 @@ export default function NewTaskForm({
           <FieldLabel htmlFor={activityControlId} required>{t("newTask.activity")}</FieldLabel>
           <SearchableSelect
             id={activityControlId}
-            options={filteredActivities.map((a) => ({ value: a.id, label: a.name, color: a.color }))}
+            options={filteredActivities.map((a) => ({
+              value: a.id,
+              label: a.name,
+              color: a["color-safe"] || a.color,
+            }))}
             value={activityId}
             onChange={handleActivityChange}
             placeholder={projectId == null ? t("newTask.selectProjectFirst") : t("newTask.selectActivity")}
