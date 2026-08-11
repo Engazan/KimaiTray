@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KimaiTray – GitLab issue button
 // @namespace    https://github.com/Engazan/KimaiTray
-// @version      1.2.0
+// @version      1.2.1
 // @description  Adds a button to GitLab issue breadcrumbs that opens a prefilled new-timer form in KimaiTray.
 // @author       KimaiTray contributors
 // @match        *://*/*
@@ -25,7 +25,6 @@
   const DRAWER_ACTIONS_SELECTOR =
     ".gl-flex.gl-grow.gl-items-center.gl-gap-2";
   const SETTING_GITLAB_URL = "gitlabBaseUrl";
-  const SETTING_CONNECTION = "kimaiConnectionId";
   const SETTING_CUSTOM_FIELD = "customPluginField";
 
   function normalizeBaseUrl(rawValue) {
@@ -105,9 +104,7 @@
 
   function buildDeepLink(issueUrl) {
     const params = new URLSearchParams({ issue: issueUrl });
-    const connectionId = GM_getValue(SETTING_CONNECTION, "").trim();
     const customField = GM_getValue(SETTING_CUSTOM_FIELD, "").trim();
-    if (connectionId) params.set("connection", connectionId);
     if (customField) params.set(`custom.${customField}`, issueUrl);
     return `kimaitray://new?${params.toString()}`;
   }
@@ -243,12 +240,6 @@
       return;
     }
 
-    const connectionId = window.prompt(
-      "KimaiTray connection ID (nepovinné; prázdne = aktívne pripojenie):",
-      GM_getValue(SETTING_CONNECTION, ""),
-    );
-    if (connectionId === null) return;
-
     const customField = window.prompt(
       "Custom plugin metadata name (nepovinné; pre Creative Issue Link použi issue_link):",
       GM_getValue(SETTING_CUSTOM_FIELD, ""),
@@ -256,7 +247,6 @@
     if (customField === null) return;
 
     GM_setValue(SETTING_GITLAB_URL, normalizedBase);
-    GM_setValue(SETTING_CONNECTION, connectionId.trim());
     GM_setValue(SETTING_CUSTOM_FIELD, customField.trim());
     window.alert("KimaiTray GitLab userscript bol nastavený.");
     scheduleButtonRefresh();
@@ -264,7 +254,6 @@
 
   GM_registerMenuCommand("KimaiTray: vymazať nastavenia", () => {
     GM_setValue(SETTING_GITLAB_URL, "");
-    GM_setValue(SETTING_CONNECTION, "");
     GM_setValue(SETTING_CUSTOM_FIELD, "");
     removeButton();
   });
