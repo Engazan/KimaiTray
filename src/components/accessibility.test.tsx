@@ -153,6 +153,71 @@ describe("accessible custom controls", () => {
     );
   });
 
+  it("supports empty selection, reverse navigation, escape and outside clicks", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderLocalized(<SearchableSelect
+      id="colored-select"
+      options={[{ value: 1, label: "Alpha", color: "#f00" }, { value: 2, label: "Beta", color: null }]}
+      value={1}
+      onChange={onChange}
+      placeholder="Choose"
+      allowEmpty
+      emptyLabel="None"
+    />);
+    await user.click(screen.getByRole("button", { name: /alpha/i }));
+    await user.keyboard("{ArrowUp}{Enter}");
+    expect(onChange).toHaveBeenCalledWith(2);
+
+    await user.click(screen.getByRole("button", { name: /alpha/i }));
+    await user.click(screen.getByRole("option", { name: "None" }));
+    expect(onChange).toHaveBeenLastCalledWith(null);
+
+    await user.click(screen.getByRole("button", { name: /alpha/i }));
+    const emptyInput = await screen.findByRole("combobox");
+    fireEvent.change(emptyInput, { target: { value: "missing" } });
+    fireEvent.keyDown(emptyInput, { key: "Enter" });
+    expect(onChange).toHaveBeenLastCalledWith(null);
+
+    await user.click(screen.getByRole("button", { name: /alpha/i }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    await user.click(screen.getByRole("button", { name: /alpha/i }));
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("handles empty results, disabled focus requests and direct option clicks", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = renderLocalized(<SearchableSelect
+      options={[]}
+      value={null}
+      onChange={onChange}
+      placeholder="Empty"
+      disabled
+      focusRequest={1}
+    />);
+    expect(screen.queryByRole("combobox")).toBeNull();
+    rerender(<I18nextProvider i18n={i18n}><SearchableSelect
+      options={[]}
+      value={null}
+      onChange={onChange}
+      placeholder="Empty"
+      focusRequest={2}
+    /></I18nextProvider>);
+    const input = await screen.findByRole("combobox");
+    fireEvent.keyDown(input, { key: "x" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+
+    cleanup();
+    renderLocalized(<SearchableSelect options={[{ value: "a", label: "A" }]} value={null} onChange={onChange} placeholder="Pick" />);
+    await user.click(screen.getByRole("button", { name: /pick/i }));
+    await user.click(screen.getByRole("option", { name: "A" }));
+    expect(onChange).toHaveBeenCalledWith("a");
+  });
+
   it("exposes API errors as an escapable modal dialog", async () => {
     renderLocalized(
       <>
@@ -239,11 +304,35 @@ describe("accessible custom controls", () => {
     const dialog = screen.getByRole("dialog", { name: /you were idle/i });
     const buttons = screen.getAllByRole("button");
     expect(document.activeElement).toBe(buttons[0]);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(buttons[buttons.length - 1]);
     buttons[buttons.length - 1]?.focus();
     await user.tab();
     expect(document.activeElement).toBe(buttons[0]);
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(screen.getByRole("alert").textContent).toMatch(/failed to stop/i);
+  });
+
+  it("formats every idle duration and dispatches all decisions", () => {
+    const actions = [vi.fn(), vi.fn(), vi.fn(), vi.fn()];
+    const timer = {
+      id: 1, projectId: 2, activityId: 3, project: "Project", projectColor: "", activityColor: "", customerColor: "",
+      activity: "Activity", description: "", tags: [], beginSeconds: 0, beginIso: "2026-01-01T00:00:00Z",
+    };
+    const { rerender } = renderLocalized(<IdleDialog timer={timer} idleStartedAt={new Date()} idleDurationSeconds={3661}
+      onContinue={actions[0]} onStopAtIdleStart={actions[1]} onStopNow={actions[2]} onStopAndStartNew={actions[3]} isProcessing={false} />);
+    expect(screen.getByText(/1h 1m/)).toBeTruthy();
+    screen.getAllByRole("button").forEach((button) => fireEvent.click(button));
+    actions.forEach((action) => expect(action).toHaveBeenCalledOnce());
+
+    rerender(<I18nextProvider i18n={i18n}><IdleDialog timer={timer} idleStartedAt={new Date()} idleDurationSeconds={120}
+      onContinue={actions[0]} onStopAtIdleStart={actions[1]} onStopNow={actions[2]} onStopAndStartNew={actions[3]} isProcessing={false} /></I18nextProvider>);
+    expect(screen.getByText(/2 min/)).toBeTruthy();
+    rerender(<I18nextProvider i18n={i18n}><IdleDialog timer={timer} idleStartedAt={new Date()} idleDurationSeconds={5}
+      onContinue={actions[0]} onStopAtIdleStart={actions[1]} onStopNow={actions[2]} onStopAndStartNew={actions[3]} isProcessing /></I18nextProvider>);
+    expect(screen.getByText(/5s/)).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "x" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Tab" });
   });
 
   it("supports keyboard tag selection and removal", async () => {

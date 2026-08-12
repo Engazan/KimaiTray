@@ -142,4 +142,35 @@ describe("IssueIntegrationDetail", () => {
     render(<IssueIntegrationDetail {...props()} />);
     await waitFor(() => expect(document.querySelector('input[type="password"]')).toHaveProperty("value", ""));
   });
+
+  it("edits GitHub API/manual repository fields and safely ignores an empty connection", async () => {
+    const user = userEvent.setup();
+    const noConnection = props(configured({ provider: "github" }));
+    const { unmount } = render(<IssueIntegrationDetail {...noConnection} connectionId="" />);
+    fireEvent.change(screen.getByPlaceholderText("integrations.baseUrlPlaceholder"), { target: { value: "https://git.test" } });
+    expect(noConnection.update).not.toHaveBeenCalled();
+    unmount();
+
+    const p = props(configured({ provider: "github" }));
+    render(<IssueIntegrationDetail {...p} />);
+    await waitFor(() => expect(document.querySelector('input[type="password"]')).toHaveProperty("value", "secret"));
+    fireEvent.change(screen.getAllByRole("textbox").find((input) => input.getAttribute("placeholder") === "integrations.apiBaseUrlPlaceholder")!, { target: { value: "https://api.github.test" } });
+    await user.click(screen.getByRole("button", { name: "integrations.repoEnterManually" }));
+    fireEvent.change(screen.getByPlaceholderText("integrations.projectPathOrRepoPlaceholder"), { target: { value: "owner/repo" } });
+    expect(p.update).toHaveBeenCalledWith("issueIntegrations", expect.any(Object));
+  });
+
+  it("tolerates optional metadata load failures after a successful test", async () => {
+    const user = userEvent.setup();
+    mocks.provider.fetchLabels.mockRejectedValueOnce(new Error("labels"));
+    mocks.provider.fetchRepos.mockRejectedValueOnce(new Error("repos"));
+    render(<IssueIntegrationDetail {...props()} />);
+    await waitFor(() => expect(document.querySelector('input[type="password"]')).toHaveProperty("value", "secret"));
+    await user.click(screen.getByRole("button", { name: "integrations.testConnection" }));
+    expect(await screen.findByText("integrations.connectionSuccess")).toBeTruthy();
+
+    mocks.provider.fetchLabels.mockResolvedValueOnce([{ name: "bug", color: "#f00" }]);
+    await user.click(screen.getByRole("button", { name: "integrations.testConnection" }));
+    await user.click(await screen.findByRole("button", { name: "integrations.filterModeInclude" }));
+  });
 });

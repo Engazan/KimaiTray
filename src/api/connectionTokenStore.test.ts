@@ -95,4 +95,10 @@ describe("connection token storage", () => {
     expect(secureStore.saveApiToken).not.toHaveBeenCalled();
     expect(secureStore.deleteApiToken).not.toHaveBeenCalled();
   });
+
+  it("returns null when neither scoped nor legacy credentials exist", async () => {
+    secureStore.getApiToken.mockResolvedValue(null);
+    await expect(getConnectionToken("connection-a", "legacy-url")).resolves.toBeNull();
+    await expect(getConnectionToken("", undefined)).resolves.toBeNull();
+  });
 });

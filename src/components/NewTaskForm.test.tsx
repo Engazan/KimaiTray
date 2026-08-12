@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
@@ -13,6 +13,12 @@ import {
   CREATIVE_ISSUE_LINK_INPUT_ID,
   getEnabledPluginCustomInputs,
 } from "../plugins/customInputs";
+
+vi.mock("./DateTimePicker", () => ({
+  default: ({ id, value, onChange, disabled }: any) => (
+    <input id={id} aria-label="mock-date-time" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
+  ),
+}));
 
 const apiMocks = vi.hoisted(() => ({
   getCustomers: vi.fn(),
@@ -73,7 +79,10 @@ beforeEach(() => {
   ]);
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const client = {
   connectionId: "connection-a",
@@ -87,7 +96,7 @@ function renderForm(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  const result = render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <NewTaskForm
@@ -106,7 +115,7 @@ function renderForm(
       </QueryClientProvider>
     </I18nextProvider>,
   );
-  return { onSubmit };
+  return { ...result, onSubmit };
 }
 
 describe("new task entity selects", () => {
@@ -198,6 +207,26 @@ describe("new task entity selects", () => {
 });
 
 describe("new task keyboard flow", () => {
+  it("uses an in-memory autofocus preference when storage is unavailable", async () => {
+    vi.stubGlobal("localStorage", undefined);
+    const user = userEvent.setup();
+    renderForm({ autoFocusProject: false });
+    await user.click(screen.getByRole("button", { name: "Disable autofocus" }));
+    expect(screen.getByRole("button", { name: "Enable autofocus" })).toBeTruthy();
+  });
+
+  it("falls back when reading or writing the autofocus preference throws", async () => {
+    const storage = {
+      getItem: vi.fn(() => { throw new Error("read blocked"); }),
+      setItem: vi.fn(() => { throw new Error("write blocked"); }),
+    };
+    vi.stubGlobal("localStorage", storage);
+    const user = userEvent.setup();
+    renderForm({ autoFocusProject: false });
+    await user.click(screen.getByRole("button", { name: "Disable autofocus" }));
+    expect(storage.setItem).toHaveBeenCalled();
+  });
+
   it("enables autofocus by default and remembers when the focus flow is disabled", async () => {
     apiMocks.getActivities.mockResolvedValue([
       {
@@ -648,5 +677,121 @@ describe("new task keyboard flow", () => {
       }),
       expect.objectContaining({ id: 42 }),
     );
+  });
+
+  it("appends an auto-inserted issue URL to an existing description", async () => {
+    integrationMocks.useIssues.mockReturnValue({
+      issues: [{ id: 9, title: "Existing note", state: "opened", webUrl: "https://git.test/9", labels: [], author: "a" }],
+      isLoading: false, isError: false, error: null,
+    });
+    const user = userEvent.setup();
+    renderForm({
+      autoFocusProject: false,
+      showNote: true,
+      showIssuePicker: true,
+      issueToken: "token",
+      initialValues: { description: "Keep this" },
+      issueIntegrationConfig: {
+        enabled: true, provider: "gitlab", baseUrl: "https://git.test", apiBaseUrl: "", projectPathOrRepo: "", defaultState: "opened",
+        assigneeOnly: false, syncTime: false, autoInsertUrl: true, showTimeEstimate: false, filterLabels: [], filterLabelsMode: "include",
+      },
+    });
+    await user.click(screen.getByLabelText("Issue"));
+    await user.click(await screen.findByRole("option", { name: /#9 Existing note/ }));
+    expect((screen.getByLabelText("Description") as HTMLTextAreaElement).value).toBe("Keep this\nhttps://git.test/9");
+  });
+
+  it("focuses the issue picker when no repository picker is available", async () => {
+    apiMocks.getActivities.mockResolvedValue([{ id: 10, name: "Work", project: 1, visible: true, billable: true, color: null, comment: null }]);
+    integrationMocks.useIssues.mockReturnValue({
+      issues: [{ id: 1, title: "Issue", state: "opened", webUrl: "https://git.test/1", labels: [], author: "a" }],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    const user = userEvent.setup();
+    renderForm({
+      showIssuePicker: true,
+      issueToken: "token",
+      issueIntegrationConfig: {
+        enabled: true, provider: "gitlab", baseUrl: "https://git.test", apiBaseUrl: "", projectPathOrRepo: "", defaultState: "opened",
+        assigneeOnly: false, syncTime: false, autoInsertUrl: false, showTimeEstimate: false, filterLabels: [], filterLabelsMode: "include",
+      },
+    });
+    await user.type(await screen.findByRole("combobox"), "Alpha");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("combobox")));
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Start" })));
+  });
+
+  it("refreshes entity lists, changes customer and cancels from both controls", async () => {
+    apiMocks.getCustomers.mockResolvedValue([{ id: 1, name: "Customer", visible: true, color: null, comment: null, country: "SK", currency: "EUR", number: null }]);
+    apiMocks.getActivities.mockResolvedValue([]);
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    renderForm({ showCustomerSelect: true, onCancel, autoFocusProject: false });
+    const projectsBeforeRefresh = apiMocks.getProjects.mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Refresh projects, activities and tags" }));
+    await waitFor(() => expect(apiMocks.getProjects.mock.calls.length).toBeGreaterThan(projectsBeforeRefresh));
+    await user.click(screen.getByLabelText("Customer"));
+    await user.click(await screen.findByRole("option", { name: "Customer" }));
+    await user.click(screen.getAllByRole("button", { name: "Cancel" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Cancel" })[1]);
+    expect(onCancel).toHaveBeenCalledTimes(2);
+  });
+
+  it("edits note, tags and custom time and submits all optional values", async () => {
+    apiMocks.getActivities.mockResolvedValue([{ id: 10, name: "Work", project: 1, visible: true, billable: true, color: null, comment: null }]);
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({ autoFocusProject: false, showNote: true, showTags: true, showCustomStartTime: true });
+    await user.click(screen.getByRole("button", { name: "Project" }));
+    await user.click(await screen.findByRole("option", { name: "Alpha" }));
+    await waitFor(() => expect(screen.getByLabelText("Activity").textContent).toContain("Work"));
+    await user.type(screen.getByLabelText("Description"), " Note ");
+    await user.click(screen.getByRole("button", { name: "More options" }));
+    await user.type(screen.getByLabelText("Tags"), "tag");
+    await user.click(screen.getByRole("button", { name: "Custom" }));
+    await user.type(screen.getByLabelText("mock-date-time"), "2020-01-01T10:00");
+    await user.click(screen.getByRole("button", { name: "Start" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ begin: "2020-01-01T10:00:00", description: "Note" }), null);
+    await user.click(screen.getByRole("button", { name: "Use now" }));
+    await user.click(screen.getByRole("button", { name: "More options" }));
+  });
+
+  it("ignores submit shortcuts while incomplete and follows changed integration configuration", async () => {
+    const firstConfig: NonNullable<
+      ComponentProps<typeof NewTaskForm>["issueIntegrationConfig"]
+    > = {
+      enabled: true, provider: "gitlab", baseUrl: "https://one.test", apiBaseUrl: "", projectPathOrRepo: "one/repo", defaultState: "opened",
+      assigneeOnly: false, syncTime: false, autoInsertUrl: false, showTimeEstimate: false, filterLabels: [], filterLabelsMode: "include",
+    };
+    const { onSubmit, rerender, container } = renderForm({ autoFocusProject: false, showIssuePicker: true, issueToken: "token", issueIntegrationConfig: firstConfig });
+    fireEvent.keyDown(container.firstElementChild!, { key: "Enter", ctrlKey: true });
+    expect(onSubmit).not.toHaveBeenCalled();
+    rerender(
+      <I18nextProvider i18n={i18n}>
+        <QueryClientProvider client={new QueryClient()}>
+          <NewTaskForm client={client} hasActiveTimer={false} onSubmit={onSubmit} onCancel={vi.fn()} isSubmitting={false} showNote={false} showTags={false} showCustomerSelect={false} showCustomStartTime={false} autoFocusProject={false} showIssuePicker issueToken="token" issueIntegrationConfig={{ ...firstConfig, baseUrl: "https://two.test", projectPathOrRepo: "two/repo" }} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+    expect(screen.getByLabelText("Repository").textContent).toContain("two/repo");
+  });
+
+  it("submits initial tags and shows every submit-state label", async () => {
+    apiMocks.getActivities.mockResolvedValue([{ id: 10, name: "Work", project: 1, visible: true, billable: true, color: null, comment: null }]);
+    const user = userEvent.setup();
+    const { onSubmit, rerender } = renderForm({ autoFocusProject: false, initialValues: { tags: ["preset"] } });
+    await user.click(screen.getByRole("button", { name: "Project" }));
+    await user.click(await screen.findByRole("option", { name: "Alpha" }));
+    await waitFor(() => expect(screen.getByLabelText("Activity").textContent).toContain("Work"));
+    await user.click(screen.getByRole("button", { name: "Start" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ["preset"] }), null);
+
+    rerender(<I18nextProvider i18n={i18n}><QueryClientProvider client={new QueryClient()}><NewTaskForm client={client} hasActiveTimer onSubmit={onSubmit} onCancel={vi.fn()} isSubmitting={false} showNote={false} showTags={false} showCustomerSelect={false} showCustomStartTime={false} /></QueryClientProvider></I18nextProvider>);
+    expect(screen.getByRole("button", { name: "Stop & Start" })).toBeTruthy();
+    rerender(<I18nextProvider i18n={i18n}><QueryClientProvider client={new QueryClient()}><NewTaskForm client={client} hasActiveTimer={false} onSubmit={onSubmit} onCancel={vi.fn()} isSubmitting showNote={false} showTags={false} showCustomerSelect={false} showCustomStartTime={false} /></QueryClientProvider></I18nextProvider>);
+    expect(screen.getByTitle("Use Ctrl/Cmd + Enter to start a task from the new-task form.").querySelector(".animate-spin")).toBeTruthy();
   });
 });

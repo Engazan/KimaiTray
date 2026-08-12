@@ -79,11 +79,6 @@ export default function TagsInput({
     (name: string) => {
       const trimmed = name.trim();
       if (!trimmed) return;
-      if (
-        tags.some((tag) => normalizeTextKey(tag) === normalizeTextKey(trimmed))
-      ) {
-        return;
-      }
       onChange([...tags, trimmed]);
       setInput("");
     },

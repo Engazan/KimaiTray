@@ -107,19 +107,19 @@ export default function AboutSection() {
           <DonateButton
             label="Ko-fi"
             color="#FF5E5B"
-            onClick={() => openUrl("https://ko-fi.com/kimaitray").catch(() => {})}
+            href="https://ko-fi.com/kimaitray"
             disabled
           />
           <DonateButton
             label="GitHub Sponsors"
             color="#db61a2"
-            onClick={() => openUrl("https://github.com/sponsors/engazan").catch(() => {})}
+            href="https://github.com/sponsors/engazan"
           />
           <DonateButton
             label="Buy Me a Coffee"
             color="#FFDD00"
             textDark
-            onClick={() => openUrl("https://buymeacoffee.com/kimaitray").catch(() => {})}
+            href="https://buymeacoffee.com/kimaitray"
             disabled
           />
         </div>
@@ -136,19 +136,19 @@ function DonateButton({
   label,
   color,
   textDark,
-  onClick,
+  href,
   disabled,
 }: {
   label: string;
   color: string;
   textDark?: boolean;
-  onClick: () => void;
+  href: string;
   disabled?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={disabled ? undefined : onClick}
+      onClick={disabled ? undefined : () => openUrl(href).catch(() => {})}
       disabled={disabled}
       className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-opacity
         focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-400

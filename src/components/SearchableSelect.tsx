@@ -13,8 +13,7 @@ interface Option<T extends OptionValue> {
 
 /** Leading color swatch. Renders a faint ring placeholder to keep labels aligned
  *  when the option carries no color but its siblings do. */
-function Dot({ color, placeholder }: { color?: string | null; placeholder?: boolean }) {
-  if (!color && !placeholder) return null;
+function Dot({ color }: { color?: string | null }) {
   return (
     <span
       className="h-2 w-2 shrink-0 rounded-full"
@@ -249,7 +248,7 @@ export default function SearchableSelect<T extends OptionValue>({
                     : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                 } ${value === null ? "font-medium" : ""}`}
               >
-                {hasColors && <Dot placeholder />}
+                {hasColors && <Dot />}
                 <span className="truncate">{emptyLabel ?? "—"}</span>
               </button>
             )}
@@ -269,7 +268,7 @@ export default function SearchableSelect<T extends OptionValue>({
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
                   } ${opt.value === value ? "font-medium" : ""}`}
                 >
-                  {hasColors && <Dot color={opt.color} placeholder />}
+                  {hasColors && <Dot color={opt.color} />}
                   <span className="truncate">{opt.label}</span>
                 </button>
               );

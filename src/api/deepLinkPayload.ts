@@ -61,7 +61,6 @@ function positiveInteger(params: URLSearchParams, name: string): number {
 
 function parseIssueUrl(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
-  if (raw.length > 2_048) throw new Error("Deep-link issue URL is too long");
   let url: URL;
   try {
     url = new URL(raw);

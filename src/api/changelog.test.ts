@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimInstalledChangelog,
   extractVersionChangelog,
@@ -13,6 +13,7 @@ import {
 
 describe("update changelog", () => {
   beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
 
   it("is claimed once only by the installed target version", () => {
     const entry = { version: "2.1.0", body: "### Improvements\n\n- Faster" };
@@ -72,5 +73,67 @@ describe("update changelog", () => {
 
     forgetQueuedChangelogWindow(first);
     expect(readQueuedChangelogWindow()).toBeNull();
+  });
+
+  it.each([
+    null,
+    [],
+    {},
+    { version: "", body: "notes" },
+    { version: "x".repeat(65), body: "notes" },
+    { version: "1", body: 3 },
+    { version: "1", body: "x".repeat(100_001) },
+  ])("rejects invalid changelog entries %#", (entry) => {
+    expect(queueChangelogWindow(entry as never)).toBe(false);
+    rememberPendingChangelog(entry as never);
+    expect(localStorage).toHaveLength(0);
+  });
+
+  it("handles unavailable and failing storage without throwing", () => {
+    const original = localStorage;
+    vi.stubGlobal("localStorage", undefined);
+    expect(claimInstalledChangelog("1")).toBeNull();
+    expect(queueChangelogWindow({ version: "1", body: "x" })).toBe(false);
+    expect(readQueuedChangelogWindow()).toBeNull();
+    rememberPendingChangelog({ version: "1", body: "x" });
+    forgetPendingChangelog("1");
+
+    const failing = {
+      getItem: vi.fn(() => { throw new Error("read"); }),
+      setItem: vi.fn(() => { throw new Error("write"); }),
+      removeItem: vi.fn(() => { throw new Error("remove"); }),
+    };
+    vi.stubGlobal("localStorage", failing);
+    expect(claimInstalledChangelog("1")).toBeNull();
+    expect(queueChangelogWindow({ version: "1", body: "x" })).toBe(false);
+    expect(readQueuedChangelogWindow()).toBeNull();
+    rememberPendingChangelog({ version: "1", body: "x" });
+    forgetPendingChangelog("1");
+    forgetQueuedChangelogWindow({ version: "1", body: "x" });
+    expect(failing.removeItem).toHaveBeenCalled();
+    vi.stubGlobal("localStorage", original);
+  });
+
+  it("cleans invalid queued values and covers empty changelog boundaries", () => {
+    localStorage.setItem("kimai:queuedChangelogWindow", JSON.stringify({ version: "", body: "x" }));
+    expect(readQueuedChangelogWindow()).toBeNull();
+    expect(localStorage).toHaveLength(0);
+    expect(claimInstalledChangelog("")).toBeNull();
+    expect(extractVersionChangelog("## [1.0.0]", "")).toBeNull();
+    expect(extractVersionChangelog("## [1.0.0]", "1.0.0")).toBeNull();
+    expect(extractVersionChangelog("## 1.0.0\nbody", "1.0.0")).toBe("body");
+  });
+
+  it("removes malformed pending notes when explicitly forgotten", () => {
+    localStorage.setItem("kimai:pendingChangelog", "{");
+    forgetPendingChangelog("1");
+    expect(localStorage).toHaveLength(0);
+  });
+
+  it("handles empty and structurally invalid pending values", () => {
+    forgetPendingChangelog("missing");
+    localStorage.setItem("kimai:pendingChangelog", JSON.stringify({ version: "1" }));
+    expect(claimInstalledChangelog("1")).toBeNull();
+    expect(localStorage).toHaveLength(0);
   });
 });

@@ -53,7 +53,6 @@ export function getDailyGoalProgressState(
 }
 
 function formatRemaining(seconds: number): string {
-  if (seconds <= 0) return formatDuration(0);
   return formatDuration(Math.ceil(seconds / 60) * 60);
 }
 

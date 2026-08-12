@@ -44,6 +44,8 @@ describe("Kimai response entity validation", () => {
     expect(isKimaiCustomer(null)).toBe(false);
     expect(isKimaiUser({ id: 5, username: "user", alias: 123 })).toBe(false);
     expect(isKimaiVersion({ version: 230 })).toBe(false);
+    expect(isKimaiProject(null)).toBe(false);
+    expect(isKimaiTimesheet(null)).toBe(false);
   });
 
   it("rejects semantically invalid timesheet values", () => {

@@ -179,15 +179,13 @@ export default function CategoryModePanel({
   };
 
   const handleLeafClick = (leaf: CategoryLeaf) => {
-    if (!mapping.has(leaf.activityName)) return; // no such activity → disabled
     if (leaf.requiresProject) {
       setPendingLeaf(leaf);
       setProjectFilter("");
       setView("project");
       return;
     }
-    if (config.defaultProjectId == null) return; // default project not set
-    void startLeaf(leaf, config.defaultProjectId);
+    void startLeaf(leaf, config.defaultProjectId!);
   };
 
   const continueLast =

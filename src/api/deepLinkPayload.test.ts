@@ -82,4 +82,30 @@ describe("KimaiTray start-timer deep links", () => {
   ])("rejects unsupported or unsafe input: %s", (url) => {
     expect(() => parseStartTimerDeepLink(url)).toThrow();
   });
+
+  it("trims optional values, deduplicates tags and ignores empty custom values", () => {
+    expect(parseStartTimerDeepLink(
+      "kimaitray://start?project=1&activity=2&connection=%20work%20&begin=%20now%20&label=%20Label%20&tag=a&tag=%20a%20&tags=%2Cb%2C&custom.empty=%20%20",
+    )).toMatchObject({ connectionId: "work", begin: "now", label: "Label", tags: ["a", "b"], customFields: {} });
+  });
+
+  it.each([
+    ["invalid URL", "not a url"],
+    ["oversized link", `kimaitray://new?description=${"x".repeat(16_400)}`],
+    ["path", "kimaitray://new/nested"],
+    ["description", `kimaitray://new?description=${"x".repeat(4_001)}`],
+    ["zero id", "kimaitray://start?project=0&activity=2"],
+    ["unsafe id", "kimaitray://start?project=999999999999999999999&activity=2"],
+    ["invalid issue", "kimaitray://new?issue=invalid"],
+    ["credential issue", "kimaitray://new?issue=https%3A%2F%2Fu%3Ap%40example.test"],
+    ["long issue", `kimaitray://new?issue=https%3A%2F%2Fexample.test%2F${"x".repeat(2_050)}`],
+    ["long tag", `kimaitray://new?tag=${"x".repeat(257)}`],
+    ["many tags", `kimaitray://new?${Array.from({ length: 51 }, (_, i) => `tag=${i}`).join("&")}`],
+    ["empty custom name", "kimaitray://new?custom.%20=x"],
+    ["long custom name", `kimaitray://new?custom.${"x".repeat(257)}=v`],
+    ["long custom value", `kimaitray://new?custom.key=${"x".repeat(4_001)}`],
+    ["many custom fields", `kimaitray://new?${Array.from({ length: 33 }, (_, i) => `custom.k${i}=v`).join("&")}`],
+  ])("rejects %s", (_name, url) => {
+    expect(() => parseKimaiTrayDeepLink(url)).toThrow();
+  });
 });

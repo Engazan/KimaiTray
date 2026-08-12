@@ -143,8 +143,7 @@ export function useAppearance() {
               pendingHeight = nextHeight;
               if (resizeTimer) clearTimeout(resizeTimer);
               resizeTimer = setTimeout(() => {
-                if (pendingHeight == null) return;
-                const height = pendingHeight;
+                const height = pendingHeight!;
                 pendingHeight = null;
                 void patchSettings({ popupHeight: height }).catch(() => {});
               }, 250);

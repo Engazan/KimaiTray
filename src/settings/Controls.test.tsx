@@ -123,6 +123,19 @@ describe("settings controls", () => {
     fireEvent.keyDown(window, { key: "k", code: "KeyK", ctrlKey: true, shiftKey: true });
     expect(onChange).toHaveBeenCalledWith("CommandOrControl+Shift+K");
 
+    await user.click(screen.getByRole("button", { name: "shortcuts.notSet" }));
+    fireEvent.keyDown(window, { key: "7", code: "Digit7", altKey: true });
+    expect(onChange).toHaveBeenLastCalledWith("Alt+7");
+
+    await user.click(screen.getByRole("button", { name: "shortcuts.notSet" }));
+    fireEvent.keyDown(window, { key: "F8", code: "F8", metaKey: true });
+    expect(onChange).toHaveBeenLastCalledWith("CommandOrControl+F8");
+
+    await user.click(screen.getByRole("button", { name: "shortcuts.notSet" }));
+    fireEvent.keyDown(window, { key: "F9", code: "F9" });
+    expect(onChange).toHaveBeenCalledTimes(3);
+    fireEvent.keyDown(window, { key: "Escape", code: "Escape" });
+
     rerender(<ShortcutInput value="CommandOrControl+1" onChange={onChange} />);
     await user.click(screen.getByTitle("shortcuts.clearShortcut"));
     expect(onChange).toHaveBeenLastCalledWith("");

@@ -23,7 +23,7 @@ vi.mock("../settings/service", async (importOriginal) => {
 });
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => ({
   hide: mocks.hide, show: mocks.show, setFocus: mocks.focus,
-  listen: (_name: string, cb: any) => { mocks.event = cb; mocks.listen(); return Promise.resolve(vi.fn()); },
+  listen: (_name: string, cb: any) => { mocks.event = cb; return mocks.listen(); },
 }) }));
 vi.mock("../hooks/useLanguageSync", () => ({ useLanguageSync: vi.fn() }));
 vi.mock("../utils/logger", () => ({ logger: { error: mocks.logger } }));
@@ -34,6 +34,7 @@ beforeEach(() => {
   mocks.readQueued.mockImplementation(() => mocks.queued);
   mocks.loadSettings.mockResolvedValue({ ...defaultSettings, theme: "dark", accentStyle: "purple", reduceVisualEffects: true });
   mocks.onSettingsChange.mockResolvedValue(vi.fn());
+  mocks.listen.mockResolvedValue(vi.fn());
   mocks.hide.mockResolvedValue(undefined); mocks.show.mockResolvedValue(undefined); mocks.focus.mockResolvedValue(undefined);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => { cb(0); return 1; });
   vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
@@ -80,5 +81,15 @@ describe("Changelog window", () => {
     mocks.show.mockRejectedValueOnce(new Error("show failed"));
     render(<Changelog />);
     await waitFor(() => expect(mocks.logger).toHaveBeenCalledWith(expect.stringContaining("show failed")));
+  });
+
+  it("cleans up a native listener that resolves after unmount", async () => {
+    let resolveListen!: (cleanup: () => void) => void;
+    const cleanupListener = vi.fn();
+    mocks.listen.mockReturnValueOnce(new Promise((resolve) => { resolveListen = resolve; }));
+    const { unmount } = render(<Changelog />);
+    unmount();
+    await act(async () => resolveListen(cleanupListener));
+    expect(cleanupListener).toHaveBeenCalled();
   });
 });

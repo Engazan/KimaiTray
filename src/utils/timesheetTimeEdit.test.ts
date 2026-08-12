@@ -28,6 +28,10 @@ function entry(overrides: Partial<TodayEntry> = {}): TodayEntry {
 }
 
 describe("timesheet time edit payload", () => {
+  it("rejects running entries without an end timestamp", () => {
+    expect(buildTimesheetTimeUpdate(entry({ endIso: null, isRunning: true }), "2026-07-22T09:00", "")).toEqual({ ok: false, error: "invalid" });
+  });
+
   it("does not overwrite unchanged fields or their seconds", () => {
     const current = entry();
     const draft = initialTimesheetTimeDraft(current);

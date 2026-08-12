@@ -113,4 +113,11 @@ describe("application updater state", () => {
     expect(mocks.checkForUpdate).toHaveBeenCalledOnce();
     await act(async () => finish?.(null));
   });
+
+  it("ignores install requests when no update is available", async () => {
+    const { result } = renderHook(() => useUpdater(false));
+    await waitFor(() => expect(result.current.upToDate).toBe(true));
+    expect(result.current.install).toBeNull();
+    expect(mocks.installUpdate).not.toHaveBeenCalled();
+  });
 });

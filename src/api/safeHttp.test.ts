@@ -123,7 +123,7 @@ describe("safe HTTP redirects", () => {
       }
       if (command === "cancel_http_request") {
         rejectRequest("HTTP request cancelled");
-        return Promise.resolve();
+        return Promise.reject(new Error("native cancellation already completed"));
       }
       return Promise.reject(new Error("unexpected command"));
     });

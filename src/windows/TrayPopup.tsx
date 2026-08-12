@@ -524,7 +524,7 @@ export default function TrayPopup() {
     switchConnection,
   ]);
 
-  const pauseResumeTimerRef = useRef<() => void>(() => {});
+  const pauseResumeTimerRef = useRef<(() => void) | null>(null);
   pauseResumeTimerRef.current = () => {
     if (timer) {
       pauseTimer();
@@ -538,7 +538,7 @@ export default function TrayPopup() {
     if (mostRecent) resumeTimer(mostRecent.id);
   };
 
-  const continueLastTaskRef = useRef<() => void>(() => {});
+  const continueLastTaskRef = useRef<(() => void) | null>(null);
   continueLastTaskRef.current = () => {
     const task = tasks[0];
     if (!task) return;
@@ -555,7 +555,7 @@ export default function TrayPopup() {
     );
   };
 
-  const editActiveNoteRef = useRef<() => void>(() => {});
+  const editActiveNoteRef = useRef<(() => void) | null>(null);
   editActiveNoteRef.current = () => {
     if (!timer) return;
     setShowNewTask(false);
@@ -591,7 +591,7 @@ export default function TrayPopup() {
     if (idleState !== "returned" || !idleSettings.showIdleNotification) return;
     import("@tauri-apps/plugin-notification").then(({ sendNotification }) => {
       const mins = Math.round(idleDurationSeconds / 60);
-      sendNotification({
+      return sendNotification({
         title: "KimaiTray",
         body: t("notifications.idleWhileTracking", { minutes: mins, project: timer?.project ?? "timer" }),
       });
@@ -721,7 +721,7 @@ export default function TrayPopup() {
   useEffect(() => {
     const win = getCurrentWindow();
     const unlisten = win.listen("kimai://pause-resume-timer", () => {
-      pauseResumeTimerRef.current();
+      pauseResumeTimerRef.current?.();
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
@@ -729,7 +729,7 @@ export default function TrayPopup() {
   useEffect(() => {
     const win = getCurrentWindow();
     const unlisten = win.listen("kimai://continue-last-task", () => {
-      continueLastTaskRef.current();
+      continueLastTaskRef.current?.();
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
@@ -737,7 +737,7 @@ export default function TrayPopup() {
   useEffect(() => {
     const win = getCurrentWindow();
     const unlisten = win.listen("kimai://edit-active-note", () => {
-      editActiveNoteRef.current();
+      editActiveNoteRef.current?.();
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);

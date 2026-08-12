@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   saveLast: vi.fn(),
   projects: [] as any[],
   projectsLoading: false,
+  getProjects: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -31,7 +32,8 @@ vi.mock("./categoryLastActivityStore", () => ({
   loadCategoryLastActivity: mocks.loadLast,
   saveCategoryLastActivity: mocks.saveLast,
 }));
-vi.mock("@tanstack/react-query", () => ({ useQuery: () => ({ data: mocks.projects, isLoading: mocks.projectsLoading }) }));
+vi.mock("../api/projectApi", () => ({ getProjects: mocks.getProjects }));
+vi.mock("@tanstack/react-query", () => ({ useQuery: ({ queryFn, enabled }: any) => { if (enabled) void queryFn(); return { data: mocks.projects, isLoading: mocks.projectsLoading }; } }));
 vi.mock("./CategoryButton", () => ({
   default: ({ label, sublabel, onClick, disabled, isStarting }: any) => (
     <button type="button" onClick={onClick} disabled={disabled} data-starting={isStarting ? "yes" : "no"}>
@@ -71,6 +73,7 @@ beforeEach(() => {
   });
   mocks.loadLast.mockResolvedValue(null);
   mocks.saveLast.mockResolvedValue(undefined);
+  mocks.getProjects.mockResolvedValue([]);
 });
 afterEach(cleanup);
 
@@ -192,5 +195,27 @@ describe("CategoryModePanel", () => {
     await user.click(screen.getByRole("button", { name: "Work" }));
     await user.click(screen.getByRole("button", { name: "Project task" }));
     expect(screen.getByText("categoryMode.noProjects")).toBeTruthy();
+  });
+
+  it("does not record unresolved or failed starts", async () => {
+    const user = userEvent.setup();
+    const failedStart = vi.fn().mockResolvedValue(null);
+    const { unmount } = render(<CategoryModePanel {...props(failedStart)} />);
+    await user.click(screen.getByRole("button", { name: "Work" }));
+    await user.click(screen.getByRole("button", { name: "Direct" }));
+    await waitFor(() => expect(failedStart).toHaveBeenCalled());
+    expect(mocks.saveLast).not.toHaveBeenCalled();
+    unmount();
+
+    let directCalls = 0;
+    mocks.resolve.mockImplementation((name: string, projectId: number) => {
+      if (name === "DirectActivity" && projectId === 10) return directCalls++ === 0 ? 101 : null;
+      return name === "ProjectActivity" && projectId === 11 ? 202 : null;
+    });
+    const startTask = vi.fn();
+    render(<CategoryModePanel {...props(startTask)} />);
+    await user.click(screen.getByRole("button", { name: "Work" }));
+    await user.click(screen.getByRole("button", { name: "Direct" }));
+    expect(startTask).not.toHaveBeenCalled();
   });
 });

@@ -73,6 +73,11 @@ describe("remote category configuration", () => {
       fetchRemoteCategoryConfig("https://config.example.test/categories.json"),
     ).resolves.toBeNull();
 
+    http.safeHttpFetch.mockResolvedValueOnce({ ok: false });
+    await expect(
+      fetchRemoteCategoryConfig("https://config.example.test/categories.json"),
+    ).resolves.toBeNull();
+
     http.safeHttpFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ categories: "invalid" }),

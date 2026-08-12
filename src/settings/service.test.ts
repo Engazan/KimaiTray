@@ -7,6 +7,8 @@ const storeMocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   emit: vi.fn(),
   listen: vi.fn(),
+  onKeyChange: vi.fn(),
+  migrate: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-store", () => ({ load: storeMocks.load }));
@@ -15,15 +17,20 @@ vi.mock("@tauri-apps/api/event", () => ({
   emit: storeMocks.emit,
   listen: storeMocks.listen,
 }));
+vi.mock("../api/storeMigrations", () => ({ migrateLegacyStore: storeMocks.migrate }));
 
-import { defaultSettings, loadSettings, mergeSettings } from "./service";
+import { defaultSettings, loadSettings, mergeSettings, onSettingsChange, patchSettings } from "./service";
 
 describe("settings schema defaults", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     storeMocks.load.mockResolvedValue({
       get: storeMocks.get,
+      onKeyChange: storeMocks.onKeyChange,
     });
+    storeMocks.emit.mockResolvedValue(undefined);
+    storeMocks.listen.mockResolvedValue(vi.fn());
+    storeMocks.onKeyChange.mockResolvedValue(vi.fn());
   });
 
   it("keeps the shared native settings contract aligned with AppSettings", () => {
@@ -200,5 +207,107 @@ describe("settings schema defaults", () => {
     expect(storeMocks.invoke).toHaveBeenCalledWith("patch_settings", {
       request: { values: { uiSize: "small" }, expected: undefined },
     });
+  });
+
+  it("filters non-record and overlong nested entries", () => {
+    const longId = "x".repeat(257);
+    const merged = mergeSettings({
+      connections: [null, "bad", { id: "ok", name: "Name", url: "https://x" }],
+      features: { [longId]: {}, invalid: null },
+      plugins: { [longId]: {}, invalid: null },
+      issueIntegrations: { [longId]: {}, invalid: null },
+    } as unknown as Partial<typeof defaultSettings>);
+    expect(merged.connections).toHaveLength(1);
+    expect(merged.features).toEqual({});
+    expect(merged.plugins).toEqual({});
+    expect(merged.issueIntegrations).toEqual({});
+  });
+
+  it("loads defaults for an empty or failed store", async () => {
+    storeMocks.get.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error("read"));
+    expect(await loadSettings()).toEqual(defaultSettings);
+    expect(await loadSettings()).toEqual(defaultSettings);
+  });
+
+  it("claims a legacy connection and derives its host name", async () => {
+    storeMocks.get.mockResolvedValue({ kimaiUrl: "https://legacy.example/path", connections: [] });
+    storeMocks.migrate.mockResolvedValue({
+      kimaiUrl: "https://legacy.example/path",
+      connections: [{ id: "generated", name: "legacy.example", url: "https://legacy.example/path" }],
+      activeConnectionId: "generated",
+    });
+    const settings = await loadSettings();
+    expect(storeMocks.migrate).toHaveBeenCalledWith(expect.objectContaining({ type: "settingsConnection", name: "legacy.example" }));
+    expect(settings.activeConnectionId).toBe("generated");
+  });
+
+  it("keeps loading when the legacy URL or native claim is invalid", async () => {
+    storeMocks.get.mockResolvedValue({ kimaiUrl: "not a url", connections: [] });
+    storeMocks.migrate.mockRejectedValue(new Error("claim"));
+    const settings = await loadSettings();
+    expect(storeMocks.migrate).toHaveBeenCalledWith(expect.objectContaining({ name: "Kimai" }));
+    expect(settings.kimaiUrl).toBe("not a url");
+  });
+
+  it("migrates flat features to every connection", async () => {
+    storeMocks.get.mockResolvedValue({
+      connections: [
+        { id: "a", name: "A", url: "https://a" },
+        { id: "b", name: "B", url: "https://b" },
+      ],
+      featureNote: false,
+      featureTags: true,
+      featureCustomerSelect: false,
+      featureCustomStartTime: false,
+      featurePausedTimerDescriptionHover: true,
+    });
+    storeMocks.invoke.mockResolvedValue({ value: {} });
+    const settings = await loadSettings();
+    expect(settings.features.a).toMatchObject({ featureNote: false, featureTags: true });
+    expect(settings.features.b).toMatchObject({ featureCustomerSelect: false });
+    expect(storeMocks.invoke).toHaveBeenCalledWith("patch_settings", expect.objectContaining({ request: expect.objectContaining({ values: { features: settings.features } }) }));
+  });
+
+  it("migrates the legacy per-connection category mode", async () => {
+    storeMocks.get.mockResolvedValue({
+      connections: [{ id: "a", name: "A", url: "https://a" }],
+      features: { a: { featureCsMode: true } },
+    });
+    storeMocks.invoke.mockResolvedValue({ value: {} });
+    const settings = await loadSettings();
+    expect(settings.features.a.featureCategoryMode).toBe(true);
+    expect(storeMocks.invoke).toHaveBeenCalled();
+  });
+
+  it("patches settings despite event failures", async () => {
+    storeMocks.invoke.mockResolvedValue({ value: { theme: "dark" } });
+    storeMocks.emit.mockRejectedValue(new Error("event"));
+    const settings = await patchSettings({ theme: "dark" }, { theme: "light" });
+    expect(settings.theme).toBe("dark");
+    expect(storeMocks.invoke).toHaveBeenCalledWith("patch_settings", { request: { values: { theme: "dark" }, expected: { theme: "light" } } });
+  });
+
+  it("subscribes to store and event changes and cleans both listeners", async () => {
+    const storeUnlisten = vi.fn();
+    const eventUnlisten = vi.fn();
+    let storeCallback!: (value: any) => void;
+    let eventCallback!: (event: any) => void;
+    storeMocks.onKeyChange.mockImplementation(async (_key, callback) => {
+      storeCallback = callback;
+      return storeUnlisten;
+    });
+    storeMocks.listen.mockImplementation(async (_event, callback) => {
+      eventCallback = callback;
+      return eventUnlisten;
+    });
+    const callback = vi.fn();
+    const unlisten = await onSettingsChange(callback);
+    storeCallback({ theme: "dark" });
+    eventCallback({ payload: { theme: "transparent" } });
+    expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({ theme: "dark" }));
+    expect(callback).toHaveBeenNthCalledWith(2, expect.objectContaining({ theme: "transparent" }));
+    unlisten();
+    expect(storeUnlisten).toHaveBeenCalled();
+    expect(eventUnlisten).toHaveBeenCalled();
   });
 });

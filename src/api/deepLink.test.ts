@@ -4,10 +4,11 @@ const plugin = vi.hoisted(() => ({
   getCurrent: vi.fn<() => Promise<string[] | null>>(),
   onOpenUrl: vi.fn(),
 }));
+const log = vi.hoisted(() => ({ error: vi.fn() }));
 
 vi.mock("@tauri-apps/plugin-deep-link", () => plugin);
 vi.mock("../utils/logger", () => ({
-  logger: { error: vi.fn() },
+  logger: log,
 }));
 
 describe("deep-link subscription", () => {
@@ -65,5 +66,29 @@ describe("deep-link subscription", () => {
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);
     expect(plugin.onOpenUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues live URLs without subscribers and drains them on subscribe", async () => {
+    let liveHandler: ((urls: string[]) => void) | undefined;
+    plugin.onOpenUrl.mockImplementation(async (handler: (urls: string[]) => void) => { liveHandler = handler; return vi.fn(); });
+    const module = await import("./deepLink");
+    const first = vi.fn();
+    const unsubscribe = module.subscribeToDeepLinks(first);
+    await vi.waitFor(() => expect(liveHandler).toBeTypeOf("function"));
+    unsubscribe();
+    liveHandler?.(["kimaitray://new"]);
+    const second = vi.fn();
+    module.subscribeToDeepLinks(second);
+    expect(second).toHaveBeenCalledWith("kimaitray://new");
+  });
+
+  it("logs initialization failures and retries on the next subscription", async () => {
+    plugin.onOpenUrl.mockRejectedValueOnce(new Error("plugin")).mockResolvedValueOnce(vi.fn());
+    const { subscribeToDeepLinks } = await import("./deepLink");
+    const unsubscribe = subscribeToDeepLinks(vi.fn());
+    await vi.waitFor(() => expect(log.error).toHaveBeenCalledWith(expect.stringContaining("Failed to initialize")));
+    unsubscribe();
+    subscribeToDeepLinks(vi.fn());
+    await vi.waitFor(() => expect(plugin.onOpenUrl).toHaveBeenCalledTimes(2));
   });
 });

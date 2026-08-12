@@ -124,7 +124,6 @@ export default function TimesheetEditDialog({
   };
 
   const submit = async () => {
-    if (!changed || isSaving) return;
     const result = buildTimesheetTimeUpdate(entry, begin, end);
     if (!result.ok) {
       setError(validationMessage(result.error, t));

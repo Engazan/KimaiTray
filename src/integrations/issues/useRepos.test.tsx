@@ -112,4 +112,12 @@ describe("issue repository query isolation", () => {
     second.unmount();
     queryClient.clear();
   });
+
+  it("does not create a provider without complete enabled configuration", () => {
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    const { result } = renderHook(() => useRepos(null, null, "connection"), { wrapper });
+    expect(result.current.repos).toEqual([]);
+    expect(providerMocks.createIssueProvider).not.toHaveBeenCalled();
+  });
 });

@@ -305,7 +305,6 @@ export function usePauseTimer(
       setStoppingExitScope(scope);
       stopExitTimerRef.current = setTimeout(() => {
         stopExitTimerRef.current = null;
-        if (sessionScopeRef.current !== scope) return;
 
         // Remove the stopped entry at the end of the exit animation so a
         // quick API response cannot cut the animation short or make the card
@@ -324,10 +323,6 @@ export function usePauseTimer(
       }, STOP_EXIT_ANIMATION_MS);
     },
     onError: (err: Error, { scope }) => {
-      if (stopExitTimerRef.current) {
-        clearTimeout(stopExitTimerRef.current);
-        stopExitTimerRef.current = null;
-      }
       if (stopActiveInFlightRef.current === scope) {
         stopActiveInFlightRef.current = null;
       }

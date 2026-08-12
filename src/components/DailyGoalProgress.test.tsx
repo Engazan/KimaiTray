@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import DailyGoalProgress, {
   getDailyGoalProgressState,
 } from "./DailyGoalProgress";
@@ -16,6 +16,8 @@ vi.mock("react-i18next", () => ({
     i18n: { resolvedLanguage: "en" },
   }),
 }));
+
+afterEach(cleanup);
 
 describe("daily goal progress", () => {
   it("targets the required goal first and estimates its completion", () => {
@@ -62,6 +64,13 @@ describe("daily goal progress", () => {
     expect(state.estimatedCompletionMs).toBeNull();
   });
 
+  it("normalizes negative work and invalid goal ordering", () => {
+    const state = getDailyGoalProgressState(-10, 0, -5, false, 0);
+    expect(state.progressPercent).toBe(0);
+    expect(state.requiredMarkerPercent).toBe(100);
+    expect(state.remainingSeconds).toBe(60);
+  });
+
   it("renders compact by default and toggles the accessible details", async () => {
     const user = userEvent.setup();
     render(
@@ -97,5 +106,21 @@ describe("daily goal progress", () => {
       screen.getByRole("button", { name: "today.collapseDailyGoal" }),
     );
     expect(screen.queryByText("today.startTimerForEstimate")).toBeNull();
+  });
+
+  it("renders a running estimate and completed status details", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DailyGoalProgress
+      totalDuration={30}
+      requiredMinutes={1}
+      fullMinutes={2}
+      isTimerRunning
+      nowMs={0}
+    />);
+    await user.click(screen.getByRole("button", { name: "today.expandDailyGoal" }));
+    expect(screen.queryByText("today.startTimerForEstimate")).toBeNull();
+
+    rerender(<DailyGoalProgress totalDuration={180} requiredMinutes={1} fullMinutes={2} isTimerRunning={false} nowMs={0} />);
+    expect(screen.getByText("today.dailyGoalComplete")).toBeTruthy();
   });
 });

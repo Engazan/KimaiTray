@@ -46,16 +46,17 @@ export function useUpdater(autoUpdate = true): UpdaterState {
         install: null,
       }));
 
-      const runInstall = async (update: Awaited<ReturnType<typeof checkForUpdate>>) => {
-        if (!update) return;
-      setState((s) => ({ ...s, downloading: true, error: null }));
-      try {
+      const runInstall = async (
+        update: NonNullable<Awaited<ReturnType<typeof checkForUpdate>>>,
+      ) => {
+        setState((s) => ({ ...s, downloading: true, error: null }));
+        try {
           await installUpdate(update);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        logger.error(`Update install failed: ${msg}`);
-        setState((s) => ({ ...s, downloading: false, error: msg }));
-      }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logger.error(`Update install failed: ${msg}`);
+          setState((s) => ({ ...s, downloading: false, error: msg }));
+        }
       };
 
       try {

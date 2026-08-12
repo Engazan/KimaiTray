@@ -68,15 +68,14 @@ export default function TestSection({ settings, appVersion }: Props) {
   }, [fromConn, result]);
 
   const handleMove = useCallback(async () => {
-    if (!fromConn || !toConn || fromConn.id === toConn.id) return;
     setMoving(true);
     setResult(null);
     try {
       const count = await moveFavorites(
-        fromConn.id,
-        toConn.id,
-        fromConn.url,
-        toConn.url,
+        fromConn!.id,
+        toConn!.id,
+        fromConn!.url,
+        toConn!.url,
       );
       setResult(count > 0 ? { type: "moved", count } : { type: "nothing" });
     } catch {

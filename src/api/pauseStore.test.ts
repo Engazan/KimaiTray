@@ -101,4 +101,27 @@ describe("paused timer resume reconciliation", () => {
       type: "clear",
     });
   });
+
+  it("keeps failed removals hidden while a background retry is in flight", async () => {
+    const other = { ...paused, id: "other" };
+    storeMocks.migrateLegacyStore.mockResolvedValue([paused, other]);
+    let resolveRetry!: (value: PausedTimerData[]) => void;
+    storeMocks.mutateArrayStore
+      .mockRejectedValueOnce(new Error("first"))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveRetry = resolve; }));
+
+    await expect(removeResumedTimer(paused.id)).resolves.toEqual([other]);
+    await expect(loadPausedTimers()).resolves.toEqual([other]);
+    expect(storeMocks.mutateArrayStore).toHaveBeenCalledTimes(2);
+    resolveRetry([other]);
+    await vi.waitFor(() => expect(storeMocks.mutateArrayStore).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps a removal pending when its background retry also fails", async () => {
+    const retrying = { ...paused, id: "retry-failure" };
+    storeMocks.migrateLegacyStore.mockResolvedValue([retrying]);
+    storeMocks.mutateArrayStore.mockRejectedValue(new Error("disk locked"));
+    await expect(removeResumedTimer(retrying.id)).resolves.toEqual([]);
+    await vi.waitFor(() => expect(storeMocks.mutateArrayStore).toHaveBeenCalledTimes(2));
+  });
 });

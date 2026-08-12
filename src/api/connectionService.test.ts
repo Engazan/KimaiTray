@@ -136,4 +136,14 @@ describe("Kimai connection verification", () => {
       insecure: false,
     });
   });
+
+  it("returns generic validation failures without classifying them as API errors", async () => {
+    mocks.safeHttpFetch.mockResolvedValue(jsonResponse({ invalid: true }));
+    await expect(testConnection("https://kimai.test", "secret")).resolves.toMatchObject({
+      success: false,
+      error: "Failed to parse server response",
+      insecure: false,
+    });
+  });
+
 });

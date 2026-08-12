@@ -120,7 +120,7 @@ export function isInsecureUrl(url: string): boolean {
     const parsed = new URL(url);
     if (parsed.protocol === "https:") return false;
     const host = parsed.hostname;
-    return host !== "localhost" && host !== "127.0.0.1" && host !== "::1";
+    return host !== "localhost" && host !== "127.0.0.1" && host !== "::1" && host !== "[::1]";
   } catch {
     return true;
   }

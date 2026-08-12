@@ -281,8 +281,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const handleSyncNow = async () => {
-    const url = config.sourceUrl?.trim();
-    if (!url) return;
+    const url = config.sourceUrl!.trim();
     setSyncing(true);
     setSyncError(false);
     const remote = await fetchRemoteCategoryConfig(url, connectionId);
@@ -365,7 +364,6 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
   };
   const moveCategory = (ci: number, dir: -1 | 1) => {
     const target = ci + dir;
-    if (target < 0 || target >= config.categories.length) return;
     const next = clone(config);
     [next.categories[ci], next.categories[target]] = [
       next.categories[target],

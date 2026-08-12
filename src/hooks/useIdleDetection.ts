@@ -67,17 +67,14 @@ export function useIdleDetection(
 
         // User returned (not idle anymore)
         if (previousState === "idle") {
-          const start = idleStartRef.current;
-          if (start && start.getTime() !== lastHandledRef.current) {
+          const start = idleStartRef.current!;
+          if (start.getTime() !== lastHandledRef.current) {
             setIdleDurationSeconds(
               Math.round((Date.now() - start.getTime()) / 1000),
             );
             updateIdleState("returned");
             return;
           }
-          idleStartRef.current = null;
-          updateIdleState("active");
-          return;
         }
 
         if (previousState === "handled") {

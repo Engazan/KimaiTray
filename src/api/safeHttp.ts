@@ -75,9 +75,6 @@ export function resolveSafeRedirect(
   if (next.origin !== allowedOrigin) {
     throw new Error("Cross-origin HTTP redirect blocked");
   }
-  if (new URL(currentUrl).protocol === "https:" && next.protocol !== "https:") {
-    throw new Error("HTTPS downgrade redirect blocked");
-  }
   return next.toString();
 }
 

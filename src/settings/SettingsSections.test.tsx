@@ -233,7 +233,12 @@ describe("feature and plugin settings", () => {
 
     for (const toggle of screen.getAllByRole("switch")) await user.click(toggle);
     fireEvent.change(screen.getByLabelText("featuresSettings.requiredGoalHours"), { target: { value: "30" } });
+    fireEvent.change(screen.getByLabelText("featuresSettings.requiredGoalMinutes"), { target: { value: "30" } });
+    fireEvent.change(screen.getByLabelText("featuresSettings.fullGoalHours"), { target: { value: "7" } });
     fireEvent.change(screen.getByLabelText("featuresSettings.fullGoalMinutes"), { target: { value: "0" } });
+    const requiredMinutes = screen.getByLabelText("featuresSettings.requiredGoalMinutes") as HTMLInputElement;
+    Object.defineProperty(requiredMinutes, "value", { configurable: true, get: () => "NaN" });
+    fireEvent.change(requiredMinutes);
 
     expect(update).toHaveBeenCalledWith("features", expect.objectContaining({
       conn: expect.objectContaining({ featureNote: false }),
@@ -258,6 +263,18 @@ describe("feature and plugin settings", () => {
     rerender(<FeaturesSection settings={configured} update={vi.fn()} connectionId="" />);
     expect(screen.getByText("connection.saveFirstForFeatures")).toBeTruthy();
   });
+
+  it("uses feature defaults when a saved connection has no feature record", async () => {
+    const user = userEvent.setup();
+    const update = vi.fn();
+    const configured = settings({
+      connections: [{ id: "conn", name: "Kimai", url: "https://kimai.test" }],
+      features: {},
+    });
+    render(<FeaturesSection settings={configured} update={update} connectionId="conn" />);
+    await user.click(screen.getAllByRole("switch")[0]);
+    expect(update).toHaveBeenCalledWith("features", expect.objectContaining({ conn: expect.any(Object) }));
+  });
 });
 
 describe("shortcuts, integrations and about", () => {
@@ -272,6 +289,13 @@ describe("shortcuts, integrations and about", () => {
     fireEvent.keyDown(window, { key: "p", code: "KeyP", ctrlKey: true });
     expect(update).toHaveBeenCalledWith("shortcutStartStopTimer", "CommandOrControl+P");
     unmount();
+
+    const unique = settings({ shortcutTogglePopup: "CommandOrControl+U" });
+    const uniqueView = render(
+      <ShortcutsSection settings={unique} update={vi.fn()} />,
+    );
+    expect(screen.queryByText("shortcuts.conflict")).toBeNull();
+    uniqueView.unmount();
 
     mocks.supportsGlobalShortcuts = false;
     render(<ShortcutsSection settings={settings()} update={vi.fn()} />);
@@ -303,6 +327,16 @@ describe("shortcuts, integrations and about", () => {
     expect(mocks.openUrl).toHaveBeenCalledTimes(3);
     expect((screen.getByRole("button", { name: /aboutSection.website/ }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Ko-fi" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("tolerates rejected external-link opens", async () => {
+    const user = userEvent.setup();
+    mocks.openUrl.mockRejectedValue(new Error("blocked"));
+    render(<AboutSection />);
+    await user.click(screen.getByRole("button", { name: /aboutSection.githubRepo/ }));
+    await user.click(screen.getByRole("button", { name: "GitHub Sponsors" }));
+    await Promise.resolve();
+    expect(mocks.openUrl).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -4,6 +4,7 @@ import i18n from "../shared/i18n";
 
 interface Props {
   children: ReactNode;
+  onReload?: () => void;
 }
 
 interface State {
@@ -39,7 +40,9 @@ export class ErrorBoundary extends Component<Props, State> {
             {this.state.error?.message}
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={
+              this.props.onReload ?? window.location.reload.bind(window.location)
+            }
             style={{
               marginTop: 16,
               padding: "6px 20px",

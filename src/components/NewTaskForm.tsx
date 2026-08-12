@@ -257,7 +257,6 @@ export default function NewTaskForm({
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
-    if (refreshing) return;
     setRefreshing(true);
     try {
       await Promise.all([
@@ -269,7 +268,7 @@ export default function NewTaskForm({
     } finally {
       setRefreshing(false);
     }
-  }, [qc, client.cacheScope, refreshing]);
+  }, [qc, client.cacheScope]);
 
   const customers = customersQ.data ?? [];
 

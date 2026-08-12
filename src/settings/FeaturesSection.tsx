@@ -79,7 +79,6 @@ export default function FeaturesSection({ settings, update, connectionId }: Prop
 
   const updateFeature = useCallback(
     <K extends keyof FeatureSettings>(key: K, value: FeatureSettings[K]) => {
-      if (!connectionId) return;
       const current = {
         ...defaultFeatureSettings,
         ...(settings.features[connectionId] ?? {}),
@@ -94,7 +93,6 @@ export default function FeaturesSection({ settings, update, connectionId }: Prop
 
   const updateFeatures = useCallback(
     (values: Partial<FeatureSettings>) => {
-      if (!connectionId) return;
       const current = {
         ...defaultFeatureSettings,
         ...(settings.features[connectionId] ?? {}),

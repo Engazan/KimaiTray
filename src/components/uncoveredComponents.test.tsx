@@ -17,6 +17,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
+    i18n: { resolvedLanguage: "en" },
   }),
 }));
 vi.mock("@tauri-apps/api/window", () => ({
@@ -189,6 +190,7 @@ describe("previously uncovered tray components", () => {
     expect(screen.getByText("Favorite Project")).toBeTruthy();
     expect(screen.getByText("ACME · Build tests")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "common.start" }));
+    fireEvent.click(screen.getByText("Favorite Project"));
     fireEvent.click(
       screen.getByRole("button", { name: "favorites.removeFromFavorites" }),
     );
@@ -238,6 +240,23 @@ describe("previously uncovered tray components", () => {
     expect(onHide).toHaveBeenCalledWith(recent);
     expect(onStart).toHaveBeenCalledWith(recent);
     expect(onDelete).toHaveBeenCalledWith(recent);
+
+    rerender(
+      <RecentTasksList
+        tasks={[recent]}
+        onStart={onStart}
+        onHide={onHide}
+        onDelete={onDelete}
+        onToggleFavorite={onToggleFavorite}
+        isFavorite={() => true}
+        startingKey={recent.key}
+        deletingId={recent.timesheetId}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "favorites.removeFromFavorites" })).toBeTruthy();
+    fireEvent.click(screen.getByText("Recent Project"));
+    fireEvent.click(screen.getByRole("button", { name: "recentActions.deleteFromKimai" }));
+    expect((document.querySelector(".absolute button") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("allows cancelling recent deletion and supports a headerless hidden action", () => {
@@ -315,6 +334,18 @@ describe("previously uncovered tray components", () => {
     ).toBe(true);
   });
 
+  it("renders paused timer spinner and empty-description variants", () => {
+    const emptyPaused = { ...paused, description: " ", tags: [], activityColor: "", customerColor: "" };
+    const { rerender } = render(<PausedTimerCard paused={emptyPaused} onResume={vi.fn()} onStop={vi.fn()} compact showDescriptionOnHover />);
+    expect(screen.queryByTitle("Review pull request")).toBeNull();
+    rerender(<PausedTimerCard paused={emptyPaused} onResume={vi.fn()} onStop={vi.fn()} compact isStopping />);
+    expect((screen.getByRole("button", { name: "timer.stopTimer" }) as HTMLButtonElement).disabled).toBe(true);
+    rerender(<PausedTimerCard paused={emptyPaused} onResume={vi.fn()} onStop={vi.fn()} isResuming />);
+    expect((screen.getByRole("button", { name: "pause.resume" }) as HTMLButtonElement).disabled).toBe(true);
+    rerender(<PausedTimerCard paused={emptyPaused} onResume={vi.fn()} onStop={vi.fn()} isStopping />);
+    expect((screen.getByRole("button", { name: "timer.stopTimer" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it.each([
     ["loading", "common.loading"],
     ["empty", "tray.noActiveTimer"],
@@ -335,6 +366,22 @@ describe("previously uncovered tray components", () => {
       "kimai://navigate-section",
       "connection",
     );
+  });
+
+  it("renders every full empty state and tolerates a missing settings window", async () => {
+    const { rerender } = render(<EmptyTimerState variant="loading" />);
+    expect(screen.getByText("common.loading")).toBeTruthy();
+    rerender(<EmptyTimerState />);
+    expect(screen.getByText("tray.startHint")).toBeTruthy();
+    rerender(<EmptyTimerState variant="unconfigured" />);
+    const button = screen.getByRole("button", { name: "tray.setupConnection" });
+    fireEvent.mouseEnter(button);
+    expect(button.style.opacity).toBe("0.85");
+    fireEvent.mouseLeave(button);
+    expect(button.style.opacity).toBe("1");
+    mocks.getByLabel.mockResolvedValueOnce(null);
+    fireEvent.click(button);
+    await vi.waitFor(() => expect(mocks.getByLabel).toHaveBeenCalled());
   });
 
   it("shows connection status, opens Kimai and switches accounts", async () => {
@@ -363,6 +410,19 @@ describe("previously uncovered tray components", () => {
 
     expect(onOpenKimai).toHaveBeenCalledOnce();
     expect(onSwitchConnection).toHaveBeenCalledWith("b");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("closes the connection switcher on outside clicks", () => {
+    render(<HeaderStatus
+      status="connected"
+      connections={[{ id: "a", name: "Primary", url: "https://a.test" }, { id: "b", name: "B", url: "https://b.test" }]}
+      activeConnectionId="a"
+      onSwitchConnection={vi.fn()}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: /Primary/ }));
+    expect(screen.getByRole("listbox")).toBeTruthy();
+    fireEvent.mouseDown(document.body);
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
@@ -410,16 +470,33 @@ describe("previously uncovered tray components", () => {
     expect(onToggleSort).toHaveBeenCalledOnce();
     expect(onToggleExpand).toHaveBeenCalledOnce();
     expect(screen.getByText("Today Project")).toBeTruthy();
+
+    rerender(<TodaySection
+      {...base}
+      entries={[today]}
+      totalCount={1}
+      totalDuration={60}
+      hasMore
+      expanded
+      sortAsc
+      isLoading={false}
+      dailyGoal={{ requiredMinutes: 1, fullMinutes: 2, isTimerRunning: true }}
+    />);
+    fireEvent.click(screen.getByRole("button", { name: "today.newestFirst" }));
+    fireEvent.click(screen.getByRole("button", { name: "today.showLess" }));
+    expect(onToggleSort).toHaveBeenCalledTimes(2);
+    expect(onToggleExpand).toHaveBeenCalledTimes(2);
   });
 
   it("catches render failures, logs them and offers reload", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reload = vi.fn();
     function Broken(): never {
       throw new Error("render exploded");
     }
 
     render(
-      <ErrorBoundary>
+      <ErrorBoundary onReload={reload}>
         <Broken />
       </ErrorBoundary>,
     );
@@ -427,6 +504,8 @@ describe("previously uncovered tray components", () => {
     expect(screen.getByText("common.somethingWentWrong")).toBeTruthy();
     expect(screen.getByText("render exploded")).toBeTruthy();
     expect(screen.getByRole("button", { name: "common.reload" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "common.reload" }));
+    expect(reload).toHaveBeenCalledOnce();
     expect(mocks.loggerError).toHaveBeenCalledWith(
       expect.stringContaining("Uncaught error: render exploded"),
     );

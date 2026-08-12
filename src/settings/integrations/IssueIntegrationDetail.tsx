@@ -263,7 +263,6 @@ export default function IssueIntegrationDetail({
   }, [connectionId]);
 
   const loadRepos = useCallback(async () => {
-    if (!config.baseUrl || !issueToken) return;
     setReposLoading(true);
     try {
       const provider = createIssueProvider(config, issueToken);
@@ -324,7 +323,6 @@ export default function IssueIntegrationDetail({
   }, []);
 
   const handleTest = useCallback(async () => {
-    if (!connectionId) return;
     setTestStatus("testing");
     setTestMessage(t("integrations.testing"));
     setAvailableLabels([]);

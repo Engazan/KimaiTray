@@ -39,7 +39,20 @@ function setup(patch: ReturnType<typeof vi.fn>) {
   return { ...hook, invalidate };
 }
 
+function setupWithoutClient() {
+  const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return renderHook(() => useEditTimesheet(null), { wrapper });
+}
+
 describe("useEditTimesheet", () => {
+  it("rejects edits without a configured client", async () => {
+    const { result } = setupWithoutClient();
+    await act(async () => {
+      await expect(result.current.editTimesheet(42, {})).rejects.toThrow("not configured");
+    });
+  });
+
   it("propagates permission failures without invalidating cached entries", async () => {
     const forbidden = new KimaiApiError(403, "Forbidden", null, "forbidden");
     const patch = vi.fn().mockRejectedValue(forbidden);

@@ -6,6 +6,7 @@ node_modules/
 # build output
 dist/
 target/
+coverage/
 *.tgz
 
 # dotenv local overrides (checked-in .env.* are fine)

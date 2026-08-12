@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TrayPopup from "./TrayPopup";
@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   windowListen: vi.fn(),
   settingsShow: vi.fn(),
   settingsFocus: vi.fn(),
+  settingsGet: vi.fn(),
   queryClient: {},
   invalidate: vi.fn(),
   tray: {
@@ -41,6 +42,9 @@ const mocks = vi.hoisted(() => ({
   getVersion: vi.fn(),
   loggerError: vi.fn(),
   issueProvider: {} as any,
+  activeProps: null as any,
+  formIssue: null as any,
+  resizeCallback: null as null | (() => void),
   linked: { readSelection: vi.fn(), readMap: vi.fn(), storeTask: vi.fn(), storeTimer: vi.fn() },
   notification: vi.fn(),
 }));
@@ -57,7 +61,7 @@ vi.mock("@tauri-apps/api/window", () => ({
     },
     hide: mocks.windowHide,
   }),
-  Window: { getByLabel: vi.fn(() => Promise.resolve({ show: mocks.settingsShow, setFocus: mocks.settingsFocus })) },
+  Window: { getByLabel: mocks.settingsGet },
 }));
 vi.mock("@tauri-apps/plugin-notification", () => ({ sendNotification: mocks.notification }));
 
@@ -108,7 +112,11 @@ vi.mock("../api/changelog", () => ({ claimInstalledChangelog: mocks.changelog.cl
 vi.mock("../api/changelogWindow", () => ({ showChangelogWindow: mocks.changelog.show }));
 vi.mock("../api/deepLink", () => ({ subscribeToDeepLinks: (cb: (url: string) => void) => { mocks.deepLinkHandler = cb; return vi.fn(); } }));
 vi.mock("../api/deepLinkPayload", () => ({
-  parseKimaiTrayDeepLink: (url: string) => { if (url === "bad") throw new Error("invalid deep link"); return mocks.deepRequest; },
+  parseKimaiTrayDeepLink: (url: string) => {
+    if (url === "bad") throw new Error("invalid deep link");
+    if (url === "bad-string") throw "invalid string";
+    return mocks.deepRequest;
+  },
   resolveDeepLinkConnectionId: () => mocks.resolveConnection,
 }));
 vi.mock("../integrations/issues/issueProvider", () => ({ createIssueProvider: () => mocks.issueProvider }));
@@ -130,7 +138,7 @@ vi.mock("../utils/time", () => ({ toKimaiLocal: () => "2026-01-01T10:00:00" }));
 vi.mock("../settings/Controls", () => ({ formatAcceleratorForDisplay: (value: string) => `display:${value}` }));
 
 vi.mock("../components/HeaderStatus", () => ({ default: ({ onSwitchConnection, onOpenKimai }: any) => <div data-testid="header"><button onClick={() => onSwitchConnection("other")}>switch</button><button onClick={onOpenKimai}>open-kimai</button></div> }));
-vi.mock("../components/ActiveTimerCard", () => ({ default: ({ onStop, onPause, onEdit, onEditDescriptionRequestHandled }: any) => <div data-testid="active"><button onClick={onStop}>active-stop</button><button onClick={onPause}>active-pause</button><button onClick={onEdit}>active-edit</button><button onClick={onEditDescriptionRequestHandled}>note-handled</button></div> }));
+vi.mock("../components/ActiveTimerCard", () => ({ default: (props: any) => { mocks.activeProps = props; return <div data-testid="active"><button onClick={props.onStop}>active-stop</button><button onClick={props.onPause}>active-pause</button><button onClick={props.onEdit}>active-edit</button><button onClick={props.onEditDescriptionRequestHandled}>note-handled</button></div>; } }));
 vi.mock("../components/PausedTimerCard", () => ({ default: ({ paused, onResume, onStop, onDismissError }: any) => <div><button onClick={onResume}>resume-{paused.id}</button><button onClick={onStop}>discard-{paused.id}</button><button onClick={onDismissError}>pause-dismiss</button></div> }));
 vi.mock("../components/EmptyTimerState", () => ({ default: ({ variant = "empty" }: any) => <div>empty-{variant}</div> }));
 vi.mock("../components/RecentTasksList", () => ({ default: ({ tasks, onStart, onHide, onDelete, onToggleFavorite, onShowAll }: any) => <div data-testid="recent">{tasks[0] && <><button onClick={() => onStart(tasks[0])}>recent-start</button><button onClick={() => onHide(tasks[0])}>recent-hide</button><button onClick={() => onDelete(tasks[0])}>recent-delete</button><button onClick={() => onToggleFavorite(tasks[0])}>recent-favorite</button></>}<button onClick={onShowAll}>show-all</button></div> }));
@@ -144,7 +152,7 @@ vi.mock("../components/TrayLayoutControls", () => ({
   CollapsibleTraySection: ({ title, onToggle, children }: any) => <section><button onClick={onToggle}>{title}</button>{children}</section>,
   FocusTabs: ({ onChange }: any) => <button onClick={() => onChange("today")}>focus-today</button>,
 }));
-vi.mock("../components/NewTaskForm", () => ({ default: ({ onSubmit, onCancel, initialValues }: any) => <div data-testid="new-form">{JSON.stringify(initialValues)}<button onClick={() => onSubmit({ projectId: 10, activityId: 20, label: "New" }, null)}>submit-new</button><button onClick={onCancel}>cancel-new</button></div> }));
+vi.mock("../components/NewTaskForm", () => ({ default: ({ onSubmit, onCancel, initialValues }: any) => <div data-testid="new-form">{JSON.stringify(initialValues)}<button onClick={() => onSubmit({ projectId: 10, activityId: 20, label: "New" }, mocks.formIssue)}>submit-new</button><button onClick={onCancel}>cancel-new</button></div> }));
 vi.mock("../categorymode/CategoryModePanel", () => ({ default: () => <div>category-panel</div> }));
 vi.mock("../components/TodaySection", () => ({ default: ({ entries, onToggleExpand, onToggleSort, onRetry, onEditEntry }: any) => <div data-testid="today"><button onClick={onToggleExpand}>today-expand</button><button onClick={onToggleSort}>today-sort</button><button onClick={onRetry}>today-retry</button>{entries[0] && <button onClick={() => onEditEntry(entries[0])}>today-edit</button>}</div> }));
 vi.mock("../components/TimesheetEditDialog", () => ({ default: ({ onSave, onClose }: any) => <div data-testid="edit-dialog"><button onClick={() => onSave({})}>edit-save</button><button onClick={onClose}>edit-close</button></div> }));
@@ -159,6 +167,9 @@ beforeEach(() => {
   mocks.events.clear();
   mocks.deepLinkHandler = null;
   mocks.resolveConnection = null;
+  mocks.activeProps = null;
+  mocks.formIssue = null;
+  mocks.resizeCallback = null;
   mocks.kimai = {
     client: { connectionId: "conn", cacheScope: "conn" }, settingsReady: true, isConfigured: true,
     refreshInterval: 60, baseUrl: "https://kimai.test", openKimaiInBrowser: true,
@@ -183,6 +194,7 @@ beforeEach(() => {
   mocks.startTask.mockResolvedValue({ id: 99 });
   mocks.tray.register.mockResolvedValue(undefined);
   mocks.tray.open.mockResolvedValue(undefined);
+  mocks.settingsGet.mockResolvedValue({ show: mocks.settingsShow, setFocus: mocks.settingsFocus });
   mocks.getVersion.mockResolvedValue("1.0.0");
   mocks.changelog.claim.mockReturnValue(null);
   mocks.changelog.show.mockResolvedValue(true);
@@ -195,7 +207,7 @@ beforeEach(() => {
   mocks.issueProvider = { fetchIssueByUrl: vi.fn().mockResolvedValue(null), addSpentTime: vi.fn().mockResolvedValue(undefined) };
   mocks.linked.readSelection.mockReturnValue(undefined);
   mocks.linked.readMap.mockReturnValue({});
-  class ResizeObserverMock { observe() {} disconnect() {} }
+  class ResizeObserverMock { constructor(callback: () => void) { mocks.resizeCallback = callback; } observe() {} disconnect() {} }
   vi.stubGlobal("ResizeObserver", ResizeObserverMock);
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -365,9 +377,28 @@ describe("TrayPopup", () => {
     await waitFor(() => expect(mocks.timesheet.update).toHaveBeenCalled());
     mocks.events.get("idle-action")?.({ payload: { action: "stop-now" } });
     await waitFor(() => expect(mocks.timesheet.stop).toHaveBeenCalled());
+    mocks.timesheet.update.mockRejectedValue(new Error("update"));
     mocks.events.get("idle-action")?.({ payload: { action: "stop-and-new" } });
     await waitFor(() => expect(screen.getByTestId("new-form")).toBeTruthy());
     expect(mocks.idle.dismissIdle).toHaveBeenCalled();
+  });
+
+  it("completes stop-and-new through the primary idle update path", async () => {
+    mocks.active.timer = timer;
+    mocks.idle = {
+      idleState: "returned",
+      idleStartedAt: new Date("2026-01-01T09:00:00Z"),
+      idleDurationSeconds: 600,
+      dismissIdle: vi.fn(),
+    };
+    render(<TrayPopup />);
+
+    mocks.events.get("idle-action")?.({ payload: { action: "stop-and-new" } });
+
+    await waitFor(() => expect(mocks.timesheet.update).toHaveBeenCalled());
+    expect(mocks.invalidate).toHaveBeenCalled();
+    expect(mocks.idle.dismissIdle).toHaveBeenCalled();
+    expect(screen.getByTestId("new-form")).toBeTruthy();
   });
 
   it("auto-handles stop, discard and continue idle policies", async () => {
@@ -392,5 +423,510 @@ describe("TrayPopup", () => {
     mocks.changelog.show.mockResolvedValue(false);
     render(<TrayPopup />);
     await waitFor(() => expect(mocks.changelog.remember).toHaveBeenCalled());
+  });
+
+  it("handles native refresh/new-task events and a missing settings window", async () => {
+    const user = userEvent.setup();
+    mocks.settingsGet.mockResolvedValue(null);
+    render(<TrayPopup />);
+    mocks.events.get("kimai://refresh")?.();
+    expect(mocks.invalidate).toHaveBeenCalledWith(mocks.queryClient);
+    mocks.events.get("kimai://new-task")?.();
+    expect(await screen.findByTestId("new-form")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "cancel-new" }));
+    await user.click(screen.getByRole("button", { name: "settings" }));
+    expect(mocks.settingsShow).not.toHaveBeenCalled();
+  });
+
+  it("runs all today callbacks and edits, saves and closes an entry", async () => {
+    const user = userEvent.setup();
+    render(<TrayPopup />);
+    await user.click(screen.getByRole("button", { name: "today-expand" }));
+    await user.click(screen.getByRole("button", { name: "today-sort" }));
+    await user.click(screen.getByRole("button", { name: "today-retry" }));
+    await user.click(screen.getByRole("button", { name: "today-edit" }));
+    expect(screen.getByTestId("edit-dialog")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "edit-save" }));
+    await user.click(screen.getByRole("button", { name: "edit-close" }));
+    expect(mocks.today.setExpanded).toHaveBeenCalledWith(true);
+    expect(mocks.today.setSortAsc).toHaveBeenCalledWith(true);
+    expect(mocks.today.refetch).toHaveBeenCalled();
+    expect(mocks.editTimesheet).toHaveBeenCalled();
+    expect(screen.queryByTestId("edit-dialog")).toBeNull();
+  });
+
+  it("covers favorite removal, hidden tasks and empty shortcut guards", async () => {
+    const user = userEvent.setup();
+    mocks.favorite.isFavorite.mockReturnValue(true);
+    mocks.hidden.hiddenKeys = new Set([task.key]);
+    render(<TrayPopup />);
+    expect(screen.queryByRole("button", { name: "recent-start" })).toBeNull();
+    mocks.events.get("kimai://edit-active-note")?.();
+    cleanup();
+
+    mocks.hidden.hiddenKeys = new Set();
+    mocks.recent.tasks = [];
+    render(<TrayPopup />);
+    mocks.events.get("kimai://continue-last-task")?.();
+    mocks.events.get("kimai://pause-resume-timer")?.();
+    expect(mocks.startTask).not.toHaveBeenCalled();
+    cleanup();
+
+    mocks.recent.tasks = [task];
+    render(<TrayPopup />);
+    await user.click(screen.getByRole("button", { name: "recent-favorite" }));
+    expect(mocks.favorite.removeFavorite).toHaveBeenCalledWith(task.key);
+  });
+
+  it.each(["error", "offline"])("sets the error tray icon for %s status", (status) => {
+    mocks.active.status = status;
+    render(<TrayPopup />);
+    expect(mocks.tray.icon).toHaveBeenCalledWith("error");
+  });
+
+  it("uses hidden menu titles for paused timers and handles a scrolling paused list", () => {
+    mocks.pause.pausedTimers = [{ id: 1, project: "Only", pausedAt: 1 }];
+    mocks.pause.hasPausedTimers = true;
+    mocks.kimai.traySettings.menuBarLabelStyle = "hidden";
+    const { container } = render(<TrayPopup />);
+    expect(mocks.tray.title).toHaveBeenCalledWith("");
+    const list = container.querySelector(".overflow-y-auto") as HTMLElement;
+    Object.defineProperty(list, "scrollHeight", { value: 500, configurable: true });
+    Object.defineProperty(list, "clientHeight", { value: 100, configurable: true });
+    act(() => mocks.resizeCallback?.());
+    expect(list.style.maskImage).toContain("linear-gradient");
+  });
+
+  it("dismisses deep-link and pause errors with the correct action", async () => {
+    const user = userEvent.setup();
+    mocks.pause.pauseError = "pause failed";
+    const { unmount } = render(<TrayPopup />);
+    await user.click(screen.getByRole("button", { name: "error-dismiss" }));
+    expect(mocks.pause.dismissPauseError).toHaveBeenCalled();
+    unmount();
+
+    mocks.pause.pauseError = null;
+    render(<TrayPopup />);
+    mocks.deepLinkHandler?.("bad-string");
+    expect(await screen.findByText("invalid string")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "error-dismiss" }));
+    expect(screen.queryByText("invalid string")).toBeNull();
+  });
+
+  it("reports an unsuccessful repeated deep-link connection switch", async () => {
+    let resolveSwitch!: () => void;
+    mocks.kimai.switchConnection.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveSwitch = resolve;
+      }),
+    );
+    mocks.resolveConnection = "other";
+    mocks.deepRequest = { action: "new", customFields: {} };
+    render(<TrayPopup />);
+    mocks.deepLinkHandler?.("switch-twice");
+    await waitFor(() => expect(mocks.kimai.switchConnection).toHaveBeenCalledWith("other"));
+    await act(async () => resolveSwitch());
+    expect(await screen.findByText(/could not switch/)).toBeTruthy();
+  });
+
+  it("waits for settings and start readiness before processing queued deep links", async () => {
+    mocks.kimai.settingsReady = false;
+    mocks.kimai.isStarting = true;
+    mocks.deepRequest = { action: "new", description: "queued", tags: [], customFields: {} };
+    const { rerender } = render(<TrayPopup />);
+    mocks.deepLinkHandler?.("queued");
+    expect(screen.queryByTestId("new-form")).toBeNull();
+    mocks.kimai.settingsReady = true;
+    rerender(<TrayPopup />);
+    expect(screen.queryByTestId("new-form")).toBeNull();
+    mocks.kimai.isStarting = false;
+    rerender(<TrayPopup />);
+    expect(await screen.findByTestId("new-form")).toBeTruthy();
+  });
+
+  it("validates deep-link custom fields and issue integration requirements", async () => {
+    render(<TrayPopup />);
+    mocks.deepRequest = { action: "start", projectId: 1, activityId: 2, tags: [], customFields: { missing: "x" } };
+    mocks.deepLinkHandler?.("missing-field");
+    expect(await screen.findByText(/Custom plugin field/)).toBeTruthy();
+
+    mocks.deepRequest = { action: "start", projectId: 1, activityId: 2, tags: [], customFields: {}, issueUrl: "https://git.test/1" };
+    mocks.deepLinkHandler?.("no-integration");
+    expect(await screen.findByText(/Enable and authenticate/)).toBeTruthy();
+  });
+
+  it("handles providers that cannot fetch or cannot resolve a deep-linked issue", async () => {
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true };
+    mocks.kimai.issueToken = "token";
+    mocks.issueProvider = {};
+    render(<TrayPopup />);
+    mocks.deepRequest = { action: "start", projectId: 1, activityId: 2, tags: [], customFields: {}, issueUrl: "https://git.test/1" };
+    mocks.deepLinkHandler?.("unsupported-provider");
+    expect(await screen.findByText(/cannot load issue URLs/)).toBeTruthy();
+    cleanup();
+
+    mocks.issueProvider = { fetchIssueByUrl: vi.fn().mockResolvedValue(null) };
+    render(<TrayPopup />);
+    mocks.deepLinkHandler?.("missing-issue");
+    expect(await screen.findByText(/does not match an accessible issue/)).toBeTruthy();
+  });
+
+  it("maps deep-link plugin metadata and auto-inserts an issue into a custom target", async () => {
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a" };
+    mocks.kimai.pluginFlags.inputs = [{ id: "issue-input", metadataName: "issue_meta" }];
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, autoInsertUrl: true, autoInsertUrlTarget: "issue-input" };
+    mocks.kimai.issueToken = "token";
+    mocks.issueProvider = { fetchIssueByUrl: vi.fn().mockResolvedValue(issue), addSpentTime: vi.fn() };
+    render(<TrayPopup />);
+    mocks.deepRequest = { action: "start", projectId: 1, activityId: 2, description: "desc", tags: ["tag"], customFields: { issue_meta: "original" }, issueUrl: issue.webUrl, label: "Label" };
+    mocks.deepLinkHandler?.("metadata");
+    await waitFor(() => expect(mocks.startTask).toHaveBeenCalledWith(expect.objectContaining({ metadata: { issue_meta: "original" }, label: "Label" }), expect.any(String)));
+    const payload = mocks.startTask.mock.calls.slice(-1)[0]?.[0];
+    mocks.startSuccess?.({ id: 99 }, payload);
+    expect(mocks.linked.storeTimer).toHaveBeenCalledWith("conn", 99, issue);
+    expect(mocks.linked.storeTask).toHaveBeenCalledWith("conn", "1-2", issue);
+  });
+
+  it("auto-inserts issue URLs into empty and existing descriptions for new links", async () => {
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, autoInsertUrl: true };
+    mocks.kimai.issueToken = "token";
+    mocks.issueProvider.fetchIssueByUrl.mockResolvedValue(null);
+    const { unmount } = render(<TrayPopup />);
+    mocks.deepRequest = { action: "new", description: "", tags: [], customFields: {}, issueUrl: "https://git.test/1" };
+    mocks.deepLinkHandler?.("new-empty");
+    expect((await screen.findByTestId("new-form")).textContent).toContain("https://git.test/1");
+    unmount();
+
+    render(<TrayPopup />);
+    mocks.deepRequest = { action: "new", description: "Existing", tags: [], customFields: {}, issueUrl: "https://git.test/2" };
+    mocks.deepLinkHandler?.("new-existing");
+    expect((await screen.findByTestId("new-form")).textContent).toContain("Existing\\nhttps://git.test/2");
+  });
+
+  it("restores a linked issue, displays its estimate and syncs spent time after stop", async () => {
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a", timeEstimate: 600, timeSpent: 60 };
+    const refreshed = { ...issue, timeSpent: 120 };
+    mocks.active.timer = { ...timer, description: issue.webUrl };
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true, syncTime: true, baseUrl: "https://git.test" };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readSelection.mockReturnValue(issue);
+    mocks.issueProvider = { fetchIssueByUrl: vi.fn().mockResolvedValue(refreshed), addSpentTime: vi.fn().mockResolvedValue(undefined) };
+    const { rerender } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps.timeEstimate).toBe(600));
+    expect(mocks.linked.storeTimer).toHaveBeenCalled();
+    mocks.active.timer = null;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.addSpentTime).toHaveBeenCalledWith(8, 120));
+  });
+
+  it("falls back to a stored issue when refresh fails or URL fetching is unavailable", async () => {
+    const issue = { id: 9, title: "Stored", webUrl: "https://git.test/9", state: "opened", labels: [], author: "a", timeEstimate: 300 };
+    mocks.active.timer = timer;
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readSelection.mockReturnValue(issue);
+    mocks.issueProvider = { fetchIssueByUrl: vi.fn().mockRejectedValue(new Error("offline")) };
+    const { unmount } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps.timeEstimate).toBe(300));
+    unmount();
+
+    mocks.issueProvider = {};
+    render(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps.timeEstimate).toBe(300));
+  });
+
+  it("reports idle action failures and reminder show/update/hide failures", async () => {
+    mocks.active.timer = timer;
+    mocks.idle = { idleState: "returned", idleStartedAt: new Date("2026-01-01T09:00:00Z"), idleDurationSeconds: 60, dismissIdle: vi.fn() };
+    mocks.timesheet.update.mockRejectedValue(new Error("update"));
+    mocks.timesheet.stop.mockRejectedValue(new Error("stop"));
+    mocks.reminder.show.mockRejectedValue(new Error("show"));
+    const { rerender } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to show")));
+    mocks.events.get("idle-action")?.({ payload: { action: "stop-at-start" } });
+    await waitFor(() => expect(mocks.activeProps).toBeTruthy());
+    await waitFor(() => expect(mocks.reminder.show).toHaveBeenCalledTimes(2));
+
+    mocks.reminder.show.mockResolvedValue(true);
+    mocks.idle.idleDurationSeconds = 120;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.reminder.show).toHaveBeenCalledTimes(3));
+    mocks.reminder.update.mockRejectedValue(new Error("update reminder"));
+    mocks.idle.idleDurationSeconds = 180;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to update")));
+    mocks.reminder.hide.mockRejectedValue(new Error("hide"));
+    mocks.idle.idleState = "active";
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to hide")));
+  });
+
+  it("retains changelog data and logs failures from changelog APIs", async () => {
+    mocks.changelog.claim.mockReturnValue({ version: "1" });
+    mocks.changelog.show.mockRejectedValue(new Error("window"));
+    const { unmount } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.changelog.remember).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to open")));
+    unmount();
+    mocks.getVersion.mockRejectedValue(new Error("version"));
+    render(<TrayPopup />);
+    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith(expect.stringContaining("version")));
+  });
+
+  it("associates a submitted issue with the started timer and clears failed submissions", async () => {
+    const user = userEvent.setup();
+    const issue = { id: 4, title: "Issue", webUrl: "https://git.test/4", state: "opened", labels: [], author: "a", timeEstimate: 60 };
+    mocks.formIssue = issue;
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true };
+    mocks.kimai.issueToken = "token";
+    const { rerender } = render(<TrayPopup />);
+    await user.click(screen.getByRole("button", { name: "new-task" }));
+    await user.click(screen.getByRole("button", { name: "submit-new" }));
+    const payload = mocks.startTask.mock.calls.slice(-1)[0]![0];
+    act(() => mocks.startSuccess?.({ id: 99 }, payload));
+    expect(mocks.linked.storeTimer).toHaveBeenCalledWith("conn", 99, issue);
+    mocks.active.timer = { ...timer, id: 99 };
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps.timeEstimate).toBe(60));
+
+    mocks.active.timer = null;
+    rerender(<TrayPopup />);
+    await user.click(screen.getByRole("button", { name: "new-task" }));
+    await user.click(screen.getByRole("button", { name: "submit-new" }));
+    act(() => mocks.startError?.(new Error("failed"), mocks.startTask.mock.calls.slice(-1)[0]![0]));
+  });
+
+  it("waits specifically for settings readiness before processing a deep link", () => {
+    mocks.kimai.settingsReady = false;
+    mocks.kimai.isStarting = false;
+    mocks.deepRequest = { action: "new", customFields: {} };
+    render(<TrayPopup />);
+    act(() => mocks.deepLinkHandler?.("settings-pending"));
+    expect(screen.queryByTestId("new-form")).toBeNull();
+  });
+
+  it.each([
+    ["classic", false],
+    ["focus", false],
+    ["timeline", false],
+    ["taskbar", false],
+    ["classic", true],
+  ] as const)("runs today callbacks in %s layout (category=%s)", async (layout, category) => {
+    const user = userEvent.setup();
+    mocks.kimai.popupLayout = layout;
+    mocks.kimai.featureFlags.featureCategoryMode = category;
+    render(<TrayPopup />);
+    if (layout === "focus") await user.click(screen.getByRole("button", { name: "focus-today" }));
+    await user.click(screen.getByRole("button", { name: "today-expand" }));
+    await user.click(screen.getByRole("button", { name: "today-sort" }));
+    await user.click(screen.getByRole("button", { name: "today-retry" }));
+    expect(mocks.today.setExpanded).toHaveBeenCalled();
+    expect(mocks.today.setSortAsc).toHaveBeenCalled();
+    expect(mocks.today.refetch).toHaveBeenCalled();
+  });
+
+  it("covers idle fallbacks, stop errors and a rejected reminder display", async () => {
+    mocks.active.timer = timer;
+    mocks.idle = { idleState: "returned", idleStartedAt: new Date("2026-01-01T09:00:00Z"), idleDurationSeconds: 60, dismissIdle: vi.fn() };
+    mocks.timesheet.update.mockRejectedValue(new Error("update"));
+    mocks.timesheet.stop.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("stop now")).mockResolvedValueOnce(undefined);
+    mocks.reminder.show.mockResolvedValue(false);
+    const { rerender } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.reminder.show).toHaveBeenCalled());
+    mocks.events.get("idle-action")?.({ payload: { action: "stop-at-start" } });
+    await waitFor(() => expect(mocks.idle.dismissIdle).toHaveBeenCalled());
+    mocks.events.get("idle-action")?.({ payload: { action: "stop-now" } });
+    await waitFor(() => expect(mocks.timesheet.stop).toHaveBeenCalledTimes(2));
+    mocks.events.get("idle-action")?.({ payload: { action: "stop-and-new" } });
+    await waitFor(() => expect(screen.getByTestId("new-form")).toBeTruthy());
+    mocks.idle.idleDurationSeconds = 120;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.reminder.show.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("restores task-level issue associations and respects an explicit null selection", async () => {
+    const issue = { id: 6, title: "Mapped", webUrl: "https://git.test/6", state: "opened", labels: [], author: "a", timeEstimate: 90 };
+    mocks.active.timer = { ...timer, description: "no url" };
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readMap.mockReturnValue({ "10-20": issue });
+    mocks.issueProvider.fetchIssueByUrl.mockResolvedValue(null);
+    const { unmount } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps.timeEstimate).toBe(90));
+    unmount();
+
+    mocks.linked.readSelection.mockReturnValue(null);
+    mocks.linked.readMap.mockClear();
+    render(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps).toBeTruthy());
+    expect(mocks.linked.readMap).not.toHaveBeenCalled();
+  });
+
+  it("runs the active-note handled callback and auto-idle guard without a timer", async () => {
+    const user = userEvent.setup();
+    mocks.active.timer = timer;
+    render(<TrayPopup />);
+    mocks.events.get("kimai://edit-active-note")?.();
+    await user.click(screen.getByRole("button", { name: "note-handled" }));
+    cleanup();
+    mocks.active.timer = null;
+    mocks.idle.idleState = "returned";
+    mocks.kimai.idleSettings.idleAction = "stop";
+    render(<TrayPopup />);
+    expect(mocks.timesheet.stop).not.toHaveBeenCalled();
+  });
+
+  it("clears pending and visible linked issues when the connection changes", async () => {
+    const user = userEvent.setup();
+    const issue = { id: 12, title: "Issue", webUrl: "https://git.test/12", state: "opened", labels: [], author: "a", timeEstimate: 60 };
+    mocks.formIssue = issue;
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true };
+    mocks.kimai.issueToken = "token";
+    const { rerender } = render(<TrayPopup />);
+    await user.click(screen.getByRole("button", { name: "new-task" }));
+    await user.click(screen.getByRole("button", { name: "submit-new" }));
+    const payload = mocks.startTask.mock.calls.slice(-1)[0]![0];
+    act(() => mocks.startSuccess?.({ id: 99 }, payload));
+    mocks.active.timer = { ...timer, id: 99 };
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps.timeEstimate).toBe(60));
+    mocks.kimai.activeConnectionId = "other";
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.activeProps.timeEstimate).toBeUndefined());
+  });
+
+  it("covers idle action guards and automatic failure handling", async () => {
+    mocks.events.clear();
+    const { unmount } = render(<TrayPopup />);
+    for (const action of ["stop-at-start", "stop-now", "stop-and-new"]) {
+      mocks.events.get("idle-action")?.({ payload: { action } });
+    }
+    expect(mocks.timesheet.stop).not.toHaveBeenCalled();
+    unmount();
+
+    mocks.active.timer = timer;
+    mocks.idle = { idleState: "returned", idleStartedAt: new Date(), idleDurationSeconds: 10, dismissIdle: vi.fn() };
+    mocks.kimai.idleSettings.idleAction = "stop";
+    mocks.timesheet.stop.mockRejectedValue(new Error("stop"));
+    render(<TrayPopup />);
+    await waitFor(() => expect(mocks.timesheet.stop).toHaveBeenCalled());
+    mocks.timesheet.update.mockRejectedValue(new Error("update"));
+    mocks.events.get("idle-action")?.({ payload: { action: "stop-and-new" } });
+    await waitFor(() => expect(mocks.timesheet.stop.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("handles missing and failed issue refreshes without a stored fallback", async () => {
+    mocks.active.timer = { ...timer, description: "https://git.test/issues/1" };
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true, baseUrl: "https://git.test" };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readSelection.mockReturnValue(undefined);
+    mocks.issueProvider.fetchIssueByUrl.mockResolvedValueOnce(null);
+    const { unmount } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalled());
+    unmount();
+
+    mocks.issueProvider.fetchIssueByUrl.mockRejectedValueOnce(new Error("offline"));
+    render(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalledTimes(2));
+  });
+
+  it("does not sync a stopped issue when Kimai reports no recorded duration", async () => {
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a" };
+    mocks.active.timer = { ...timer, description: issue.webUrl };
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true, syncTime: true, baseUrl: "https://git.test" };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readSelection.mockReturnValue(issue);
+    mocks.issueProvider.fetchIssueByUrl.mockResolvedValue(issue);
+    mocks.timesheet.get.mockResolvedValue({ duration: 0 });
+    const { rerender } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalled());
+    mocks.active.timer = null;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.timesheet.get).toHaveBeenCalled());
+    expect(mocks.issueProvider.addSpentTime).not.toHaveBeenCalled();
+  });
+
+  it("logs a failed issue spent-time sync", async () => {
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a" };
+    mocks.active.timer = { ...timer, description: issue.webUrl };
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true, syncTime: true, baseUrl: "https://git.test" };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readSelection.mockReturnValue(issue);
+    mocks.issueProvider.fetchIssueByUrl.mockResolvedValue(issue);
+    mocks.issueProvider.addSpentTime.mockRejectedValue(new Error("sync"));
+    const { rerender } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalled());
+    mocks.active.timer = null;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith("Failed to sync spent time to issue provider"));
+  });
+
+  it("drops a pending submitted issue when the connection changes first", async () => {
+    const user = userEvent.setup();
+    const issue = { id: 12, title: "Issue", webUrl: "https://git.test/12", state: "opened", labels: [], author: "a" };
+    mocks.formIssue = issue;
+    const { rerender } = render(<TrayPopup />);
+    await user.click(screen.getByRole("button", { name: "new-task" }));
+    await user.click(screen.getByRole("button", { name: "submit-new" }));
+    const payload = mocks.startTask.mock.calls.slice(-1)[0]![0];
+    act(() => mocks.startSuccess?.({ id: 99 }, payload));
+    mocks.kimai.activeConnectionId = "other";
+    rerender(<TrayPopup />);
+    expect(mocks.linked.storeTask).toHaveBeenCalled();
+  });
+
+  it("swallows notification delivery failures after returning from idle", async () => {
+    mocks.active.timer = timer;
+    mocks.idle = { idleState: "returned", idleStartedAt: new Date(), idleDurationSeconds: 120, dismissIdle: vi.fn() };
+    mocks.kimai.idleSettings.showIdleNotification = true;
+    mocks.notification.mockRejectedValue(new Error("notifications disabled"));
+    render(<TrayPopup />);
+    await waitFor(() => expect(mocks.notification).toHaveBeenCalled());
+  });
+
+  it("swallows shortcut registration failures", async () => {
+    mocks.tray.register.mockRejectedValue(new Error("shortcut unavailable"));
+    render(<TrayPopup />);
+    await waitFor(() => expect(mocks.tray.register).toHaveBeenCalled());
+  });
+
+  it("waits for an issue time sync before refreshing a restarted task", async () => {
+    let finishSync!: () => void;
+    const sync = new Promise<void>((resolve) => {
+      finishSync = resolve;
+    });
+    const issue = {
+      id: 8,
+      title: "Issue",
+      webUrl: "https://git.test/8",
+      state: "opened",
+      labels: [],
+      author: "a",
+    };
+    mocks.active.timer = { ...timer, description: issue.webUrl };
+    mocks.kimai.issueIntegration = {
+      ...mocks.kimai.issueIntegration,
+      enabled: true,
+      provider: "gitlab",
+      showTimeEstimate: true,
+      syncTime: true,
+      baseUrl: "https://git.test",
+    };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readSelection.mockReturnValue(issue);
+    mocks.issueProvider.fetchIssueByUrl.mockResolvedValue(issue);
+    mocks.issueProvider.addSpentTime.mockReturnValue(sync);
+    const { rerender } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalledTimes(1));
+
+    mocks.active.timer = null;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.addSpentTime).toHaveBeenCalled());
+
+    mocks.active.timer = { ...timer, id: 9, description: issue.webUrl };
+    rerender(<TrayPopup />);
+    expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalledTimes(1);
+    await act(async () => finishSync());
+    await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalledTimes(2));
   });
 });

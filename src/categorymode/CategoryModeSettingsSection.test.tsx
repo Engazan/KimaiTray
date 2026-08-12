@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
     { id: 11, name: "Hidden", visible: false },
   ],
   loading: false,
+  getActivities: vi.fn(),
+  getProjects: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -34,11 +36,16 @@ vi.mock("./useCategoryConfig", () => ({
 }));
 vi.mock("../api/connectionTokenStore", () => ({ getConnectionToken: mocks.getConnectionToken }));
 vi.mock("../api/kimaiClient", () => ({ createKimaiClient: mocks.createKimaiClient }));
+vi.mock("../api/activityApi", () => ({ getActivities: mocks.getActivities }));
+vi.mock("../api/projectApi", () => ({ getProjects: mocks.getProjects }));
 vi.mock("./categoryRemoteSource", () => ({ fetchRemoteCategoryConfig: mocks.fetchRemoteCategoryConfig }));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: ({ queryKey }: { queryKey: string[] }) => queryKey[0] === "activities"
-    ? { data: mocks.activities, isLoading: mocks.loading }
-    : { data: mocks.projects, isLoading: mocks.loading },
+  useQuery: ({ queryKey, queryFn, enabled }: { queryKey: string[]; queryFn: () => unknown; enabled: boolean }) => {
+    if (enabled) void queryFn();
+    return queryKey[0] === "activities"
+      ? { data: mocks.activities, isLoading: mocks.loading }
+      : { data: mocks.projects, isLoading: mocks.loading };
+  },
 }));
 vi.mock("../components/SearchableSelect", () => ({
   default: ({ options, value, onChange, placeholder, allowEmpty }: {
@@ -92,6 +99,8 @@ beforeEach(() => {
   ];
   mocks.getConnectionToken.mockResolvedValue("token");
   mocks.createKimaiClient.mockReturnValue({ cacheScope: "conn" });
+  mocks.getActivities.mockResolvedValue([]);
+  mocks.getProjects.mockResolvedValue([]);
   mocks.fetchRemoteCategoryConfig.mockResolvedValue(null);
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: mocks.clipboardWrite } });
   mocks.clipboardWrite.mockResolvedValue(undefined);
@@ -139,6 +148,7 @@ describe("CategoryModeSettingsSection", () => {
   });
 
   it("uses two-step deletion, reset and JSON import/export", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
     render(<CategoryModeSettingsSection connectionId="conn" url="https://kimai.test" />);
@@ -156,6 +166,7 @@ describe("CategoryModeSettingsSection", () => {
     await user.click(screen.getByRole("button", { name: "categoryMode.exportJson" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining("cat-a")));
     expect(screen.getByRole("button", { name: "categoryMode.copied" })).toBeTruthy();
+    await vi.advanceTimersByTimeAsync(1500);
 
     await user.click(screen.getByRole("button", { name: "categoryMode.importJson" }));
     const textarea = document.querySelector("textarea")!;
@@ -166,9 +177,15 @@ describe("CategoryModeSettingsSection", () => {
     await user.click(screen.getByRole("button", { name: "categoryMode.applyJson" }));
     expect(mocks.updateConfig).toHaveBeenCalledWith({ categories: [], defaultProjectId: 42, continueWindowMinutes: 15 });
 
+    await user.click(screen.getByRole("button", { name: "categoryMode.importJson" }));
+    fireEvent.change(document.querySelector("textarea")!, { target: { value: JSON.stringify({ categories: [], defaultProjectId: 7, continueWindowMinutes: 22 }) } });
+    await user.click(screen.getByRole("button", { name: "categoryMode.applyJson" }));
+    expect(mocks.updateConfig).toHaveBeenCalledWith({ categories: [], defaultProjectId: 7, continueWindowMinutes: 22 });
+
     await user.click(screen.getByRole("button", { name: "categoryMode.resetDefault" }));
     await user.click(screen.getByRole("button", { name: "categoryMode.resetConfirm" }));
     expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({ categories: expect.any(Array) }));
+    vi.useRealTimers();
   });
 
   it("shows empty and loading states and falls back to manual activity input", () => {
@@ -208,5 +225,27 @@ describe("CategoryModeSettingsSection", () => {
     expect(screen.queryByRole("button", { name: "categoryMode.syncNow" })).toBeNull();
     await user.click(screen.getByRole("switch"));
     await waitFor(() => expect(mocks.getConnectionToken).toHaveBeenCalled());
+  });
+
+  it("validates parsed JSON, resets confirmation on blur and edits manual activities", async () => {
+    const user = userEvent.setup();
+    mocks.activities = [];
+    render(<CategoryModeSettingsSection connectionId="conn" url="https://kimai.test" />);
+    await waitFor(() => expect(mocks.getActivities).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText("categoryMode.activityNamePlaceholder"), { target: { value: "Manual" } });
+    expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      categories: expect.arrayContaining([expect.objectContaining({ children: expect.arrayContaining([expect.objectContaining({ activityName: "Manual" })]) })]),
+    }));
+
+    await user.click(screen.getByRole("button", { name: "categoryMode.importJson" }));
+    fireEvent.change(document.querySelector("textarea")!, { target: { value: "null" } });
+    await user.click(screen.getByRole("button", { name: "categoryMode.applyJson" }));
+    expect(screen.getByText("categoryMode.jsonInvalid")).toBeTruthy();
+
+    const reset = screen.getByRole("button", { name: "categoryMode.resetDefault" });
+    await user.click(reset);
+    expect(screen.getByRole("button", { name: "categoryMode.resetConfirm" })).toBeTruthy();
+    fireEvent.blur(screen.getByRole("button", { name: "categoryMode.resetConfirm" }));
+    expect(screen.getByRole("button", { name: "categoryMode.resetDefault" })).toBeTruthy();
   });
 });

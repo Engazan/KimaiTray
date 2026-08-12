@@ -30,5 +30,7 @@ describe("plugin custom input registry", () => {
         inputs,
       ),
     ).toEqual({ issue_link: "CREATIVE-123" });
+    expect(pickPluginMetadata(undefined, inputs)).toBeUndefined();
+    expect(pickPluginMetadata({ issue_link: " " }, inputs)).toBeUndefined();
   });
 });

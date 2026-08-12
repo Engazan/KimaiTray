@@ -122,7 +122,6 @@ export default function ActiveTimerCard({
   const descRef = useRef<HTMLInputElement>(null);
 
   const startEditDesc = () => {
-    if (!onEdit) return;
     setDescValue(timer.description);
     setEditingDesc(true);
   };
@@ -158,7 +157,6 @@ export default function ActiveTimerCard({
   const customInputRef = useRef<HTMLInputElement>(null);
 
   const startEditCustomInput = (input: PluginCustomInputDefinition) => {
-    if (!onEdit) return;
     setCustomInputValue(timer.metadata?.[input.metadataName] ?? "");
     setEditingCustomInputId(input.id);
   };
@@ -196,7 +194,6 @@ export default function ActiveTimerCard({
   const tagsRef = useRef<string[]>([]);
 
   const startEditTags = () => {
-    if (!onEdit) return;
     setTagsValue([...timer.tags]);
     tagsRef.current = [...timer.tags];
     setEditingTags(true);
@@ -222,7 +219,6 @@ export default function ActiveTimerCard({
   const [beginValue, setBeginValue] = useState("");
   const [beginError, setBeginError] = useState("");
   const startEditBegin = () => {
-    if (!onEdit) return;
     setBeginValue(toDateTimeLocalInput(timer.beginIso));
     setBeginError("");
     setEditingBegin(true);

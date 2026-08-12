@@ -231,4 +231,62 @@ describe("transactional timer switching", () => {
     );
     queryClient.clear();
   });
+
+  it("skips blank metadata names and values", async () => {
+    const patch = vi.fn(async () => timesheet(99));
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: vi.fn(async () => timesheet(99)) as unknown as KimaiClient["post"],
+      patch: patch as unknown as KimaiClient["patch"],
+    });
+    await switchTask(client, { projectId: 1, activityId: 2, label: "Task", metadata: { "": "value", empty: "  ", valid: " yes " } });
+    expect(patch).toHaveBeenCalledTimes(1);
+    expect(patch).toHaveBeenCalledWith("/api/timesheets/99/meta", { name: "valid", value: "yes" });
+  });
+
+  it("reports partial and ordinary switch failures through the hook and dismisses them", async () => {
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) => createElement(QueryClientProvider, { client: queryClient }, children);
+    const patch = vi.fn().mockResolvedValueOnce(timesheet(42)).mockRejectedValueOnce(new Error("restart failed"));
+    const onFailed = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ currentClient }) => useStartTask(currentClient, undefined, onFailed),
+      { initialProps: { currentClient: mockClient({ patch }) as KimaiClient | null }, wrapper },
+    );
+    const payload = { projectId: 1, activityId: 2, label: "Replacement" };
+    await act(async () => expect(await result.current.startTask(payload, "key")).toBeNull());
+    expect(result.current.switchError).toContain("Timer stopped");
+    expect(onFailed).toHaveBeenCalled();
+    act(() => result.current.dismissError());
+    expect(result.current.switchError).toBeNull();
+
+    rerender({ currentClient: null });
+    await act(async () => expect(await result.current.startTask(payload)).toBeNull());
+  });
+
+  it("deduplicates starts while a mutation is pending", async () => {
+    let resolveStart!: (entry: KimaiTimesheetEntry) => void;
+    const post = vi.fn(() => new Promise<KimaiTimesheetEntry>((resolve) => { resolveStart = resolve; }));
+    const client = mockClient({ get: vi.fn(async () => []) as unknown as KimaiClient["get"], post: post as unknown as KimaiClient["post"] });
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) => createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useStartTask(client), { wrapper });
+    const payload = { projectId: 1, activityId: 2, label: "Task" };
+    let first!: Promise<KimaiTimesheetEntry | null>;
+    act(() => { first = result.current.startTask(payload); });
+    await waitFor(() => expect(result.current.isStarting).toBe(true));
+    await act(async () => expect(await result.current.startTask(payload)).toBeNull());
+    expect(post).toHaveBeenCalledTimes(1);
+    await act(async () => resolveStart(timesheet(99)));
+    await first;
+  });
+
+  it("reports an ordinary start failure through the hook", async () => {
+    const currentClient = mockClient({ get: vi.fn(async () => []) as unknown as KimaiClient["get"] });
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) => createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useStartTask(currentClient), { wrapper });
+    await act(async () => expect(await result.current.startTask({ projectId: 1, activityId: 2, label: "Broken" })).toBeNull());
+    expect(result.current.switchError).toContain('Failed to start "Broken"');
+  });
 });

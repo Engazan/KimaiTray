@@ -185,8 +185,7 @@ export default function ConnectionSection({
 
   const handleDelete = useCallback(
     async () => {
-      if (!editingId) return;
-      const id = editingId;
+      const id = editingId!;
       let credentialCleanupPending: boolean;
       try {
         ({ credentialCleanupPending } = await removeConnection(id));

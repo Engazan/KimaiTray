@@ -53,10 +53,12 @@ function initialSettings(): AppSettings {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
     resolve = done;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe("connection settings transaction", () => {
@@ -174,6 +176,9 @@ describe("connection settings transaction", () => {
     tokenMocks.saveConnectionToken.mockRejectedValue(
       new Error("OS credential store is unavailable"),
     );
+    serviceMocks.patchSettings
+      .mockResolvedValueOnce(initialSettings())
+      .mockRejectedValueOnce(new Error("rollback storage unavailable"));
     const nextConnection: SavedConnection = {
       id: "connection-b",
       name: "Secondary",
@@ -246,10 +251,146 @@ describe("connection settings transaction", () => {
     expect(serviceMocks.patchSettings).toHaveBeenCalledTimes(1);
 
     unmount();
-    tokenMocks.deleteIssueToken.mockResolvedValue();
+    const retry = deferred<void>();
+    tokenMocks.deleteIssueToken.mockReturnValueOnce(retry.promise);
     renderHook(() => useSettings());
     await waitFor(() =>
       expect(tokenMocks.deleteIssueToken).toHaveBeenCalledTimes(2),
     );
+    renderHook(() => useSettings());
+    expect(tokenMocks.deleteIssueToken).toHaveBeenCalledTimes(2);
+    await act(async () => retry.resolve());
+  });
+
+  it("supports clearing a token and connections without an id", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(async () => result.current.updateToken(""));
+    expect(tokenMocks.deleteConnectionToken).toHaveBeenCalledWith("connection-a");
+
+    serviceMocks.loadSettings.mockResolvedValue({ ...initialSettings(), activeConnectionId: "", kimaiUrl: "", connections: [] });
+    const empty = renderHook(() => useSettings());
+    await waitFor(() => expect(empty.result.current.loaded).toBe(true));
+    vi.clearAllMocks();
+    await act(async () => empty.result.current.updateToken("local-only"));
+    expect(tokenMocks.saveConnectionToken).not.toHaveBeenCalled();
+    expect(empty.result.current.token).toBe("local-only");
+  });
+
+  it("does not roll an older failed preference or token over newer state", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    let rejectTheme!: (error: Error) => void;
+    serviceMocks.patchSettings.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectTheme = reject; }));
+    act(() => result.current.update("theme", "dark"));
+    act(() => result.current.update("theme", "transparent"));
+    await act(async () => rejectTheme(new Error("old")));
+    expect(result.current.settings.theme).toBe("transparent");
+
+    let rejectToken!: (error: Error) => void;
+    tokenMocks.saveConnectionToken.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectToken = reject; }));
+    let oldWrite!: Promise<void>;
+    act(() => { oldWrite = result.current.updateToken("old"); });
+    await act(async () => result.current.updateToken("new"));
+    await act(async () => rejectToken(new Error("old")));
+    await oldWrite;
+    expect(result.current.token).toBe("new");
+  });
+
+  it("loads null and failed tokens as empty values", async () => {
+    tokenMocks.getConnectionToken.mockResolvedValueOnce(null);
+    const empty = renderHook(() => useSettings());
+    await waitFor(() => expect(empty.result.current.loaded).toBe(true));
+    expect(empty.result.current.token).toBe("");
+    empty.unmount();
+
+    tokenMocks.getConnectionToken.mockRejectedValueOnce(new Error("keyring"));
+    const failed = renderHook(() => useSettings());
+    await waitFor(() => expect(failed.result.current.loaded).toBe(true));
+    expect(failed.result.current.token).toBe("");
+  });
+
+  it.each(["resolve", "reject"] as const)(
+    "ignores a stale token load that later %ss",
+    async (outcome) => {
+      const secondary: SavedConnection = {
+        id: "connection-b",
+        name: "Secondary",
+        url: "https://kimai-b.example.test",
+      };
+      serviceMocks.loadSettings.mockResolvedValue({
+        ...initialSettings(),
+        connections: [existingConnection, secondary],
+      });
+      const stale = deferred<string | null>();
+      tokenMocks.getConnectionToken
+        .mockReturnValueOnce(stale.promise)
+        .mockResolvedValueOnce("secondary-token");
+      const { result } = renderHook(() => useSettings());
+      await waitFor(() =>
+        expect(result.current.settings.activeConnectionId).toBe("connection-a"),
+      );
+
+      await act(async () => result.current.removeConnection("connection-a"));
+      expect(result.current.token).toBe("secondary-token");
+      await act(async () => {
+        if (outcome === "resolve") stale.resolve("stale-token");
+        else stale.reject(new Error("stale keyring failure"));
+      });
+
+      expect(result.current.token).toBe("secondary-token");
+      expect(result.current.loaded).toBe(true);
+    },
+  );
+
+  it("edits a connection and deletes its token when the new token is empty", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const edited = { ...existingConnection, name: "Renamed", url: "https://new.example.test" };
+    await act(async () => result.current.saveConnection(edited, ""));
+    expect(result.current.settings.connections).toEqual([edited]);
+    expect(tokenMocks.deleteConnectionToken).toHaveBeenCalledWith("connection-a");
+  });
+
+  it("removes an inactive connection without changing the active token", async () => {
+    const secondary = { id: "connection-b", name: "B", url: existingConnection.url };
+    serviceMocks.loadSettings.mockResolvedValue({ ...initialSettings(), connections: [existingConnection, secondary] });
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(async () => result.current.removeConnection("connection-b"));
+    expect(result.current.settings.activeConnectionId).toBe("connection-a");
+    expect(result.current.token).toBe("existing-token");
+    expect(tokenMocks.deleteConnectionToken).toHaveBeenCalledWith("connection-b", undefined);
+  });
+
+  it("activates the next connection when the active one is removed", async () => {
+    const secondary = { id: "connection-b", name: "B", url: "https://b.example.test" };
+    serviceMocks.loadSettings.mockResolvedValue({ ...initialSettings(), connections: [existingConnection, secondary] });
+    tokenMocks.getConnectionToken.mockImplementation(async (id?: string) => `token-${id}`);
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(async () => result.current.removeConnection("connection-a"));
+    expect(result.current.settings.activeConnectionId).toBe("connection-b");
+    expect(result.current.token).toBe("token-connection-b");
+  });
+
+  it("ignores missing/current and stale activation requests", async () => {
+    const secondary = { id: "connection-b", name: "B", url: "https://b.example.test" };
+    const initial = { ...initialSettings(), connections: [existingConnection, secondary] };
+    serviceMocks.loadSettings.mockResolvedValue(initial);
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(async () => result.current.activateConnection("missing"));
+    await act(async () => result.current.activateConnection("connection-a"));
+    expect(serviceMocks.patchSettings).not.toHaveBeenCalled();
+
+    const first = deferred<AppSettings>();
+    serviceMocks.patchSettings.mockReturnValueOnce(first.promise).mockResolvedValueOnce({ ...initial, activeConnectionId: "connection-a" });
+    let old!: Promise<void>;
+    act(() => { old = result.current.activateConnection("connection-b"); });
+    await act(async () => result.current.activateConnection("connection-b"));
+    await act(async () => first.resolve({ ...initial, activeConnectionId: "connection-b", kimaiUrl: secondary.url }));
+    await old;
+    expect(result.current.settings.activeConnectionId).toBe("connection-a");
   });
 });

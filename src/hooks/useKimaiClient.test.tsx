@@ -17,6 +17,14 @@ const credentialMocks = vi.hoisted(() => ({
   getConnectionToken: vi.fn(),
   getIssueToken: vi.fn(),
 }));
+const windowMocks = vi.hoisted(() => ({
+  onFocusChanged: vi.fn(),
+  listen: vi.fn(),
+  unlistenFocus: vi.fn(),
+  unlistenShow: vi.fn(),
+  focusListener: null as null | ((event: { payload: boolean }) => void),
+  showListener: null as null | (() => void),
+}));
 
 vi.mock("../settings/service", async () => {
   const actual = await vi.importActual<typeof import("../settings/service")>(
@@ -38,8 +46,8 @@ vi.mock("../integrations/issues/issueTokenStore", () => ({
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
-    onFocusChanged: vi.fn(async () => () => {}),
-    listen: vi.fn(async () => () => {}),
+    onFocusChanged: windowMocks.onFocusChanged,
+    listen: windowMocks.listen,
   }),
 }));
 
@@ -81,6 +89,16 @@ describe("Kimai connection session isolation", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     serviceMocks.listener = null;
+    windowMocks.focusListener = null;
+    windowMocks.showListener = null;
+    windowMocks.onFocusChanged.mockImplementation(async (listener) => {
+      windowMocks.focusListener = listener;
+      return windowMocks.unlistenFocus;
+    });
+    windowMocks.listen.mockImplementation(async (_event, listener) => {
+      windowMocks.showListener = listener;
+      return windowMocks.unlistenShow;
+    });
     serviceMocks.loadSettings.mockResolvedValue(settingsFor("connection-a"));
     serviceMocks.saveSettings.mockResolvedValue();
     serviceMocks.patchSettings.mockImplementation(async (values) => ({
@@ -226,5 +244,142 @@ describe("Kimai connection session isolation", () => {
       expect(result.current.client?.connectionId).toBe("connection-b"),
     );
     expect(result.current.issueToken).toBe("issue-token-b");
+  });
+
+  it("exposes defaults for missing connection-scoped settings", async () => {
+    serviceMocks.loadSettings.mockResolvedValue({
+      ...settingsFor("connection-a"),
+      popupLayout: undefined,
+      colorMode: undefined,
+      displayMode: undefined,
+      connections: undefined,
+      activeConnectionId: undefined,
+      features: undefined,
+      plugins: undefined,
+      issueIntegrations: undefined,
+      kimaiUrl: "",
+    } as unknown as AppSettings);
+
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(result.current.settingsReady).toBe(true));
+
+    expect(result.current.client).toBeNull();
+    expect(result.current.isConfigured).toBe(false);
+    expect(result.current.connections).toEqual([]);
+    expect(result.current.popupLayout).toBe("classic");
+    expect(result.current.colorMode).toBe("kimai");
+    expect(result.current.displayMode).toBe("tray");
+    expect(result.current.issueIntegration.enabled).toBe(false);
+    expect(result.current.issueToken).toBeNull();
+  });
+
+  it("recovers from credential lookup failures", async () => {
+    credentialMocks.getIssueToken.mockRejectedValueOnce(new Error("issue"));
+    credentialMocks.getConnectionToken.mockRejectedValueOnce(new Error("kimai"));
+    const { result } = renderHook(() => useKimaiClient());
+
+    await waitFor(() => expect(result.current.settingsReady).toBe(true));
+    expect(result.current.issueToken).toBeNull();
+    expect(result.current.client).toBeNull();
+  });
+
+  it("ignores stale credential results after newer settings", async () => {
+    let resolveOldIssue!: (value: string) => void;
+    credentialMocks.getIssueToken.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveOldIssue = resolve;
+    }));
+    const { result } = renderHook(() => useKimaiClient());
+
+    await waitFor(() => expect(credentialMocks.getIssueToken).toHaveBeenCalledTimes(1));
+    act(() => serviceMocks.listener?.(settingsFor("connection-b")));
+    await waitFor(() => expect(result.current.issueToken).toBe("issue-token-b"));
+    await act(async () => resolveOldIssue("stale"));
+    expect(result.current.issueToken).toBe("issue-token-b");
+  });
+
+  it("reloads on focus and show, then unregisters listeners", async () => {
+    const { result, unmount } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(result.current.settingsReady).toBe(true));
+    const initialLoads = serviceMocks.loadSettings.mock.calls.length;
+
+    act(() => windowMocks.focusListener?.({ payload: false }));
+    expect(serviceMocks.loadSettings).toHaveBeenCalledTimes(initialLoads);
+    act(() => windowMocks.focusListener?.({ payload: true }));
+    act(() => windowMocks.showListener?.());
+    await waitFor(() => expect(serviceMocks.loadSettings.mock.calls.length).toBe(initialLoads + 2));
+
+    unmount();
+    await Promise.resolve();
+    expect(windowMocks.unlistenFocus).toHaveBeenCalled();
+    expect(windowMocks.unlistenShow).toHaveBeenCalled();
+  });
+
+  it("ignores missing/current connections and survives persistence failures", async () => {
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(result.current.settingsReady).toBe(true));
+
+    await act(async () => result.current.switchConnection("missing"));
+    await act(async () => result.current.switchConnection("connection-a"));
+    expect(serviceMocks.patchSettings).not.toHaveBeenCalled();
+
+    const a = settingsFor("connection-a");
+    const b = settingsFor("connection-b").connections[0];
+    serviceMocks.loadSettings.mockResolvedValue({ ...a, connections: [...a.connections, b] });
+    serviceMocks.patchSettings.mockRejectedValueOnce(new Error("persist"));
+    await act(async () => result.current.switchConnection("connection-b"));
+    expect(result.current.activeConnectionId).toBe("connection-a");
+  });
+
+  it("ignores stale rejected issue credentials", async () => {
+    let rejectOld!: (error: Error) => void;
+    credentialMocks.getIssueToken.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectOld = reject;
+    }));
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(credentialMocks.getIssueToken).toHaveBeenCalledTimes(1));
+    act(() => serviceMocks.listener?.(settingsFor("connection-b")));
+    await waitFor(() => expect(result.current.issueToken).toBe("issue-token-b"));
+    await act(async () => rejectOld(new Error("stale")));
+    expect(result.current.issueToken).toBe("issue-token-b");
+  });
+
+  it.each(["resolve", "reject"])("ignores stale %s connection credentials", async (outcome) => {
+    let settleOld!: () => void;
+    credentialMocks.getConnectionToken.mockImplementationOnce(() => new Promise((resolve, reject) => {
+      settleOld = () => outcome === "resolve" ? resolve("stale") : reject(new Error("stale"));
+    }));
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(credentialMocks.getConnectionToken).toHaveBeenCalledTimes(1));
+    act(() => serviceMocks.listener?.(settingsFor("connection-b")));
+    await waitFor(() => expect(result.current.client?.connectionId).toBe("connection-b"));
+    await act(async () => settleOld());
+    expect(result.current.client?.connectionId).toBe("connection-b");
+  });
+
+  it("ignores stale switch reads and writes", async () => {
+    const a = settingsFor("connection-a");
+    const b = settingsFor("connection-b");
+    const both = { ...a, connections: [...a.connections, ...b.connections] };
+    const { result } = renderHook(() => useKimaiClient());
+    await waitFor(() => expect(result.current.settingsReady).toBe(true));
+
+    let resolveRead!: (settings: AppSettings) => void;
+    serviceMocks.loadSettings.mockImplementationOnce(() => new Promise((resolve) => { resolveRead = resolve; }));
+    let switching!: Promise<void>;
+    act(() => { switching = result.current.switchConnection("connection-b"); });
+    act(() => serviceMocks.listener?.(a));
+    await act(async () => resolveRead(both));
+    await switching;
+    expect(serviceMocks.patchSettings).not.toHaveBeenCalled();
+
+    serviceMocks.loadSettings.mockResolvedValue(both);
+    let resolveWrite!: (settings: AppSettings) => void;
+    serviceMocks.patchSettings.mockImplementationOnce(() => new Promise((resolve) => { resolveWrite = resolve; }));
+    act(() => { switching = result.current.switchConnection("connection-b"); });
+    await waitFor(() => expect(serviceMocks.patchSettings).toHaveBeenCalledTimes(1));
+    act(() => serviceMocks.listener?.(a));
+    await act(async () => resolveWrite({ ...both, activeConnectionId: "connection-b", kimaiUrl: b.kimaiUrl }));
+    await switching;
+    expect(result.current.activeConnectionId).toBe("connection-a");
   });
 });

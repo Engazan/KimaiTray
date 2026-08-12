@@ -271,7 +271,6 @@ export default function DateTimePicker({
         ref={buttonRef}
         type="button"
         onClick={() => {
-          if (disabled) return;
           if (open) closePopup();
           else setOpen(true);
         }}

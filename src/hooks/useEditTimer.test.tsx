@@ -71,4 +71,14 @@ describe("active timer editing", () => {
       ),
     );
   });
+
+  it("updates ordinary fields and serialized tags", async () => {
+    const { result } = renderHook(() => useEditTimer(client), { wrapper });
+    act(() => result.current.editTimer(42, { description: "Updated", tags: ["one", "two"] }));
+    await waitFor(() => expect(timesheetMocks.updateTimesheet).toHaveBeenCalledWith(
+      client,
+      42,
+      { description: "Updated", tags: "one,two" },
+    ));
+  });
 });

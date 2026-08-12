@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExternalIssue } from "./types";
 import {
   readLinkedIssueSelectionForTimer,
@@ -23,6 +23,7 @@ const issue: ExternalIssue = {
 
 describe("linked issue persistence", () => {
   beforeEach(() => localStorage.clear());
+  afterEach(() => vi.restoreAllMocks());
 
   it("isolates timer associations by connection and timer id", () => {
     storeLinkedIssueForTimer("connection-a", 100, issue);
@@ -57,7 +58,7 @@ describe("linked issue persistence", () => {
     );
     localStorage.setItem(
       "kimai:linkedIssueByKey:connection-a",
-      JSON.stringify({ "7-9": { id: 42 }, valid: issue }),
+      JSON.stringify({ "7-9": { id: 42 }, empty: null, valid: issue }),
     );
 
     expect(readLinkedIssueForTimer("connection-a", 100)).toBeNull();
@@ -71,5 +72,27 @@ describe("linked issue persistence", () => {
     expect(localStorage).toHaveLength(0);
     expect(readLinkedIssueForTimer("", 100)).toBeNull();
     expect(readLinkedIssueMap("")).toEqual({});
+  });
+
+  it("rejects invalid ids, container shapes and malformed JSON", () => {
+    storeLinkedIssueForTimer("connection-a", Number.NaN, issue);
+    expect(readLinkedIssueSelectionForTimer("connection-a", Number.NaN)).toBeUndefined();
+    localStorage.setItem("kimai:linkedIssueByKey:connection-a", "[]");
+    expect(readLinkedIssueMap("connection-a")).toEqual({});
+    localStorage.setItem("kimai:linkedIssue:connection-a", "[]");
+    expect(readLinkedIssueSelectionForTimer("connection-a", 1)).toBeUndefined();
+    localStorage.setItem("kimai:linkedIssueByKey:connection-a", "{");
+    expect(readLinkedIssueMap("connection-a")).toEqual({});
+    localStorage.setItem("kimai:linkedIssue:connection-a", "{");
+    expect(readLinkedIssueSelectionForTimer("connection-a", 1)).toBeUndefined();
+  });
+
+  it("tolerates storage write failures and empty task keys", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("quota"); });
+    expect(() => storeLinkedIssueForTask("connection-a", "key", issue)).not.toThrow();
+    expect(() => storeLinkedIssueForTimer("connection-a", 1, issue)).not.toThrow();
+    setItem.mockRestore();
+    storeLinkedIssueForTask("connection-a", "", issue);
+    expect(localStorage).toHaveLength(0);
   });
 });

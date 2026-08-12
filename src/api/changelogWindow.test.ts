@@ -106,4 +106,10 @@ describe("changelog window bridge", () => {
       second,
     );
   });
+
+  it("continues serializing after a failed window operation", async () => {
+    mocks.getByLabel.mockRejectedValueOnce(new Error("window lookup failed"));
+    await expect(showChangelogWindow({ version: "1", body: "broken" })).rejects.toThrow("window lookup failed");
+    await expect(showChangelogWindow({ version: "2", body: "recovered" })).resolves.toBe(true);
+  });
 });

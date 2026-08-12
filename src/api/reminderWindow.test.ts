@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   emitTo: vi.fn(),
@@ -62,6 +62,8 @@ describe("fullscreen reminder window bridge", () => {
       hide: mocks.hide,
     });
   });
+
+  afterEach(() => vi.useRealTimers());
 
   it("sends content before opening and focusing the shared window", async () => {
     const payload = { kind: "timer" } as const;
@@ -160,5 +162,25 @@ describe("fullscreen reminder window bridge", () => {
     expect(mocks.setSimpleFullscreen.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.hide.mock.invocationCallOrder[0],
     );
+  });
+
+  it("returns false or no-ops when the reminder window is missing", async () => {
+    mocks.getByLabel.mockResolvedValue(null);
+    await expect(showFullscreenReminder({ kind: "timer" })).resolves.toBe(false);
+    await expect(hideFullscreenReminder()).resolves.toBeUndefined();
+    expect(mocks.show).not.toHaveBeenCalled();
+    expect(mocks.hide).not.toHaveBeenCalled();
+  });
+
+  it("ignores unrelated acknowledgements and times out cleanly", async () => {
+    vi.useFakeTimers();
+    mocks.emitTo.mockImplementation(async () => {
+      acknowledgeRender?.({ payload: { requestId: "other" } });
+    });
+    const update = updateFullscreenReminder({ kind: "timer" });
+    const rejection = expect(update).rejects.toThrow("did not render");
+    await vi.advanceTimersByTimeAsync(2_000);
+    await rejection;
+    expect(mocks.unlisten).toHaveBeenCalledOnce();
   });
 });
