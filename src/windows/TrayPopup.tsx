@@ -440,25 +440,29 @@ export default function TrayPopup() {
           throw new Error("The configured Git provider cannot load issue URLs");
         }
         linkedIssue = await provider.fetchIssueByUrl(request.issueUrl);
-        if (!linkedIssue) {
+        if (!linkedIssue && request.action === "start") {
           throw new Error(
             "The issue URL does not match an accessible issue on the configured Git provider",
           );
         }
 
         if (issueIntegration.autoInsertUrl) {
+          // Opening the interactive form must keep working when GitLab is
+          // temporarily unreachable. Use the original, already validated deep
+          // link URL when the optional issue enrichment could not be loaded.
+          const issueWebUrl = linkedIssue?.webUrl ?? request.issueUrl;
           const target =
             issueIntegration.autoInsertUrlTarget ?? DESCRIPTION_INPUT_TARGET;
           const customTarget = pluginCustomInputs.find(
             (input) => input.id === target,
           );
           if (customTarget) {
-            metadata[customTarget.metadataName] ??= linkedIssue.webUrl;
-            customInputValues[customTarget.id] ??= linkedIssue.webUrl;
-          } else if (!description?.includes(linkedIssue.webUrl)) {
+            metadata[customTarget.metadataName] ??= issueWebUrl;
+            customInputValues[customTarget.id] ??= issueWebUrl;
+          } else if (!description?.includes(issueWebUrl)) {
             description = description?.trim()
-              ? `${description.trim()}\n${linkedIssue.webUrl}`
-              : linkedIssue.webUrl;
+              ? `${description.trim()}\n${issueWebUrl}`
+              : issueWebUrl;
           }
         }
       }
