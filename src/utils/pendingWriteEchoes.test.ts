@@ -16,4 +16,23 @@ describe("pending store write echoes", () => {
     expect(pending.consume({ revision: 2 })).toBe(true);
     expect(pending.consume({ revision: 1 })).toBe(false);
   });
+
+  it("discards only the newest matching pending write", () => {
+    const pending = new PendingWriteEchoes<{ revision: number }>();
+    pending.remember({ revision: 1 });
+    pending.remember({ revision: 1 });
+    pending.discard({ revision: 1 });
+
+    expect(pending.consume({ revision: 1 })).toBe(true);
+    expect(pending.consume({ revision: 1 })).toBe(false);
+  });
+
+  it("ignores unrelated discards and can clear every pending write", () => {
+    const pending = new PendingWriteEchoes<{ revision: number }>();
+    pending.remember({ revision: 1 });
+    pending.discard({ revision: 99 });
+    pending.clear();
+
+    expect(pending.consume({ revision: 1 })).toBe(false);
+  });
 });

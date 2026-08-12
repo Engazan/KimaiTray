@@ -5,17 +5,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text"],
-      include: [
-        "src/api/**/*.ts",
-        "src/integrations/issues/**/*.ts",
-        "src/utils/**/*.ts",
-      ],
+      include: ["src/**/*.{ts,tsx}"],
       exclude: ["**/*.test.*"],
       thresholds: {
-        statements: 38,
-        branches: 54,
-        functions: 45,
-        lines: 38,
+        statements: 44,
+        branches: 37,
+        functions: 39,
+        lines: 45,
       },
     },
   },

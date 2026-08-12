@@ -155,4 +155,91 @@ describe("safe HTTP redirects", () => {
     ).rejects.toThrow(/not authorized/);
     expect(core.invoke).not.toHaveBeenCalled();
   });
+
+  it("converts POST to GET after a 303 and strips body headers", async () => {
+    core.invoke
+      .mockResolvedValueOnce({
+        status: 303,
+        statusText: "See Other",
+        headers: [["location", "/result"]],
+        body: "",
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        statusText: "OK",
+        headers: [],
+        body: "done",
+      });
+
+    await safeHttpFetch(`${origin}/submit`, {
+      authorization: { type: "kimai", connectionId: "connection-a" },
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ name: "Kimai Tray" }),
+    });
+
+    expect(core.invoke).toHaveBeenLastCalledWith("http_request", {
+      request: expect.objectContaining({
+        url: `${origin}/result`,
+        method: "GET",
+        headers: [],
+        body: undefined,
+      }),
+    });
+  });
+
+  it("returns a redirect response without a location header", async () => {
+    core.invoke.mockResolvedValue({
+      status: 302,
+      statusText: "Found",
+      headers: [],
+      body: "",
+    });
+
+    const response = await safeHttpFetch(`${origin}/api/version`, {
+      authorization: { type: "kimai", connectionId: "connection-a" },
+    });
+
+    expect(response.status).toBe(302);
+    expect(core.invoke).toHaveBeenCalledOnce();
+  });
+
+  it("bounds redirect chains", async () => {
+    core.invoke.mockResolvedValue({
+      status: 307,
+      statusText: "Temporary Redirect",
+      headers: [["location", "/again"]],
+      body: "",
+    });
+
+    await expect(
+      safeHttpFetch(`${origin}/start`, {
+        authorization: { type: "kimai", connectionId: "connection-a" },
+      }),
+    ).rejects.toThrow("Too many HTTP redirects");
+    expect(core.invoke).toHaveBeenCalledTimes(6);
+  });
+
+  it("rejects unsupported native request body types before IPC", async () => {
+    await expect(
+      safeHttpFetch(`${origin}/upload`, {
+        authorization: { type: "kimai", connectionId: "connection-a" },
+        method: "POST",
+        body: new Blob(["binary"]),
+      }),
+    ).rejects.toThrow("Unsupported HTTP request body");
+  });
+
+  it("rejects an already aborted request before IPC", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("cancelled before start"));
+
+    await expect(
+      safeHttpFetch(`${origin}/api/version`, {
+        authorization: { type: "kimai", connectionId: "connection-a" },
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow("cancelled before start");
+    expect(core.invoke).not.toHaveBeenCalled();
+  });
 });

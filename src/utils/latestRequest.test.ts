@@ -10,4 +10,13 @@ describe("LatestRequest", () => {
     expect(requests.isCurrent(connectionA)).toBe(false);
     expect(requests.isCurrent(connectionB)).toBe(true);
   });
+
+  it("invalidates the currently active request without starting another", () => {
+    const requests = new LatestRequest();
+    const generation = requests.begin();
+
+    requests.invalidate();
+
+    expect(requests.isCurrent(generation)).toBe(false);
+  });
 });

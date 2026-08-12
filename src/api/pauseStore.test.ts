@@ -13,7 +13,13 @@ vi.mock("./storeMigrations", () => ({
   migrateLegacyStore: storeMocks.migrateLegacyStore,
 }));
 
-import { removeResumedTimer } from "./pauseStore";
+import {
+  addPausedTimer,
+  clearAllPausedTimers,
+  loadPausedTimers,
+  removePausedTimer,
+  removeResumedTimer,
+} from "./pauseStore";
 
 const paused: PausedTimerData = {
   id: "resumed-timer",
@@ -45,5 +51,54 @@ describe("paused timer resume reconciliation", () => {
     await vi.waitFor(() =>
       expect(storeMocks.mutateArrayStore).toHaveBeenCalledTimes(2),
     );
+  });
+
+  it("loads migrated timers and hides none without pending removals", async () => {
+    await expect(loadPausedTimers()).resolves.toEqual([paused]);
+    expect(storeMocks.migrateLegacyStore).toHaveBeenCalledWith({
+      type: "pausedTimer",
+      generatedId: expect.any(String),
+    });
+  });
+
+  it("returns an empty list when migration fails", async () => {
+    storeMocks.migrateLegacyStore.mockRejectedValue(new Error("corrupt store"));
+    await expect(loadPausedTimers()).resolves.toEqual([]);
+  });
+
+  it("adds a timer uniquely with the retention policy", async () => {
+    storeMocks.mutateArrayStore.mockResolvedValue([paused]);
+
+    await expect(addPausedTimer(paused)).resolves.toEqual([paused]);
+    expect(storeMocks.mutateArrayStore).toHaveBeenCalledWith("pausedTimers", {
+      type: "appendUnique",
+      value: paused,
+      identity: { id: paused.id },
+      limit: 10,
+      sortField: "pausedAt",
+    });
+  });
+
+  it("removes a timer by id and returns the committed list", async () => {
+    storeMocks.mutateArrayStore.mockResolvedValue([]);
+    await expect(removePausedTimer(paused.id)).resolves.toEqual([]);
+    expect(storeMocks.mutateArrayStore).toHaveBeenCalledWith("pausedTimers", {
+      type: "removeMatching",
+      identity: { id: paused.id },
+    });
+  });
+
+  it("removes a resumed timer immediately after a successful write", async () => {
+    storeMocks.mutateArrayStore.mockResolvedValue([]);
+    await expect(removeResumedTimer(paused.id)).resolves.toEqual([]);
+    expect(storeMocks.mutateArrayStore).toHaveBeenCalledOnce();
+  });
+
+  it("clears every paused timer atomically", async () => {
+    storeMocks.mutateArrayStore.mockResolvedValue([]);
+    await expect(clearAllPausedTimers()).resolves.toBeUndefined();
+    expect(storeMocks.mutateArrayStore).toHaveBeenCalledWith("pausedTimers", {
+      type: "clear",
+    });
   });
 });

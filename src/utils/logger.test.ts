@@ -12,4 +12,17 @@ describe("log redaction", () => {
     expect(redacted).not.toContain("alice:password");
     expect(redacted).toContain("[REDACTED]");
   });
+
+  it("redacts supported token field spellings without changing safe text", () => {
+    expect(
+      redactLogMessage(
+        "private-token: first api_token=second api-token:third token = fourth safe=value",
+      ),
+    ).toBe(
+      "private-token: [REDACTED] api_token=[REDACTED] api-token:[REDACTED] token = [REDACTED] safe=value",
+    );
+    expect(redactLogMessage("Request finished successfully")).toBe(
+      "Request finished successfully",
+    );
+  });
 });
