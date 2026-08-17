@@ -31,6 +31,20 @@ describe("deep-link subscription", () => {
     await vi.waitFor(() => expect(subscriber).toHaveBeenCalledTimes(1));
   });
 
+  it("recovers a cold-start URL stored just after the initial read", async () => {
+    const url = "kimaitray://new?issue=https%3A%2F%2Fgit.example.test%2Fgroup%2Fproject%2F-%2Fissues%2F7";
+    plugin.getCurrent
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce([url]);
+    const { subscribeToDeepLinks } = await import("./deepLink");
+    const subscriber = vi.fn();
+
+    subscribeToDeepLinks(subscriber);
+
+    await vi.waitFor(() => expect(subscriber).toHaveBeenCalledWith(url));
+    expect(subscriber).toHaveBeenCalledTimes(1);
+  });
+
   it("does not duplicate a URL observed by the live listener during startup", async () => {
     const url = "kimaitray://start?project=1&activity=2";
     plugin.onOpenUrl.mockImplementation(async (handler: (urls: string[]) => void) => {

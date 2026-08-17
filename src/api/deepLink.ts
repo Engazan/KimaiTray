@@ -25,7 +25,14 @@ async function initialize(): Promise<void> {
     for (const url of urls) liveUrls.add(url);
     publish(urls);
   });
-  const current = await getCurrent();
+  let current = await getCurrent();
+  if (!current) {
+    // On macOS the native plugin emits its event just before it stores the
+    // matching current URL. If that event lands immediately before the JS
+    // listener is registered, one later task gives the store time to settle.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    current = await getCurrent();
+  }
   if (current) publish(current.filter((url) => !liveUrls.has(url)));
 }
 
