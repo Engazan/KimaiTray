@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const plugin = vi.hoisted(() => ({
   getCurrent: vi.fn<() => Promise<string[] | null>>(),
@@ -17,6 +17,11 @@ describe("deep-link subscription", () => {
     vi.resetAllMocks();
     plugin.getCurrent.mockResolvedValue(null);
     plugin.onOpenUrl.mockResolvedValue(vi.fn());
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    vi.unstubAllGlobals();
   });
 
   it("delivers a cold-start URL to the subscriber", async () => {
@@ -94,6 +99,60 @@ describe("deep-link subscription", () => {
     const second = vi.fn();
     module.subscribeToDeepLinks(second);
     expect(second).toHaveBeenCalledWith("kimaitray://new");
+  });
+
+  it("does not replay a retained current URL after renderer reload, but delivers a later live repeat", async () => {
+    const url = "kimaitray://new?issue=https%3A%2F%2Fgit.example.test%2Fgroup%2Fproject%2F-%2Fissues%2F7";
+    const values = new Map<string, string>();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    });
+    let liveHandler: ((urls: string[]) => void) | undefined;
+    plugin.onOpenUrl.mockImplementation(async (handler: (urls: string[]) => void) => {
+      liveHandler = handler;
+      return vi.fn();
+    });
+    plugin.getCurrent.mockResolvedValue([url]);
+
+    const firstModule = await import("./deepLink");
+    const firstSubscriber = vi.fn();
+    firstModule.subscribeToDeepLinks(firstSubscriber);
+    await vi.waitFor(() => expect(firstSubscriber).toHaveBeenCalledWith(url));
+
+    vi.resetModules();
+    const reloadedModule = await import("./deepLink");
+    const reloadedSubscriber = vi.fn();
+    reloadedModule.subscribeToDeepLinks(reloadedSubscriber);
+    await vi.waitFor(() => expect(plugin.getCurrent).toHaveBeenCalledTimes(2));
+    expect(reloadedSubscriber).not.toHaveBeenCalled();
+
+    liveHandler?.([url]);
+    expect(reloadedSubscriber).toHaveBeenCalledTimes(1);
+    expect(reloadedSubscriber).toHaveBeenCalledWith(url);
+  });
+
+  it("delivers an in-flight same-URL activation after the initial current read is null", async () => {
+    const url = "kimaitray://new?issue=https%3A%2F%2Fgit.example.test%2Fgroup%2Fproject%2F-%2Fissues%2F7";
+    const values = new Map<string, string>();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    });
+    plugin.getCurrent.mockResolvedValue([url]);
+
+    const firstModule = await import("./deepLink");
+    firstModule.subscribeToDeepLinks(vi.fn());
+    await vi.waitFor(() => expect(plugin.getCurrent).toHaveBeenCalledTimes(1));
+
+    vi.resetModules();
+    plugin.getCurrent.mockReset().mockResolvedValueOnce(null).mockResolvedValueOnce([url]);
+    const reloadedModule = await import("./deepLink");
+    const reloadedSubscriber = vi.fn();
+    reloadedModule.subscribeToDeepLinks(reloadedSubscriber);
+
+    await vi.waitFor(() => expect(reloadedSubscriber).toHaveBeenCalledWith(url));
+    expect(reloadedSubscriber).toHaveBeenCalledTimes(1);
   });
 
   it("logs initialization failures and retries on the next subscription", async () => {

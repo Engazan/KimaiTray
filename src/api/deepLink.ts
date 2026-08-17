@@ -6,6 +6,17 @@ type DeepLinkSubscriber = (url: string) => void;
 const subscribers = new Set<DeepLinkSubscriber>();
 const queuedUrls: string[] = [];
 let initializePromise: Promise<void> | null = null;
+const CONSUMED_CURRENT_URLS_STORAGE_KEY = "kimaitray:deep-link:consumed-current-urls";
+
+function consumedCurrentUrls(): string | null {
+  if (typeof sessionStorage === "undefined") return null;
+  return sessionStorage.getItem(CONSUMED_CURRENT_URLS_STORAGE_KEY);
+}
+
+function rememberCurrentUrls(urls: string[]): void {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem(CONSUMED_CURRENT_URLS_STORAGE_KEY, JSON.stringify(urls));
+}
 
 function publish(urls: string[]): void {
   for (const url of urls) {
@@ -23,9 +34,11 @@ async function initialize(): Promise<void> {
   const liveUrls = new Set<string>();
   await onOpenUrl((urls) => {
     for (const url of urls) liveUrls.add(url);
+    rememberCurrentUrls(urls);
     publish(urls);
   });
   let current = await getCurrent();
+  const currentWasAvailableBeforeRetry = current !== null;
   if (!current) {
     // On macOS the native plugin emits its event just before it stores the
     // matching current URL. If that event lands immediately before the JS
@@ -33,7 +46,15 @@ async function initialize(): Promise<void> {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     current = await getCurrent();
   }
-  if (current) publish(current.filter((url) => !liveUrls.has(url)));
+  if (current) {
+    const currentFingerprint = JSON.stringify(current);
+    const wasCurrentAlreadyConsumed = currentWasAvailableBeforeRetry
+      && consumedCurrentUrls() === currentFingerprint;
+    rememberCurrentUrls(current);
+    if (!wasCurrentAlreadyConsumed) {
+      publish(current.filter((url) => !liveUrls.has(url)));
+    }
+  }
 }
 
 /**
