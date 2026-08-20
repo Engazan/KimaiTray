@@ -24,6 +24,7 @@ const apiMocks = vi.hoisted(() => ({
   getCustomers: vi.fn(),
   getProjects: vi.fn(),
   getActivities: vi.fn(),
+  createActivity: vi.fn(),
 }));
 const integrationMocks = vi.hoisted(() => ({
   useRepos: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("../api/projectApi", () => ({
 }));
 vi.mock("../api/activityApi", () => ({
   getActivities: apiMocks.getActivities,
+  createActivity: apiMocks.createActivity,
 }));
 vi.mock("../hooks/useKimaiTags", () => ({ useKimaiTags: () => [] }));
 vi.mock("../integrations/issues/useRepos", () => ({
@@ -119,6 +121,52 @@ function renderForm(
 }
 
 describe("new task entity selects", () => {
+  it("creates and selects an activity after a project is chosen", async () => {
+    const created = {
+      id: 30,
+      name: "New global activity",
+      project: null,
+      visible: true,
+      billable: true,
+      color: null,
+      comment: null,
+    };
+    apiMocks.getActivities
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([created]);
+    apiMocks.createActivity.mockResolvedValue(created);
+    const user = userEvent.setup();
+    renderForm({ autoFocusProject: false });
+
+    expect(
+      screen.queryByRole("button", { name: "Add activity" }),
+    ).toBeNull();
+    await user.click(screen.getByLabelText("Project"));
+    await user.click(await screen.findByRole("option", { name: "Alpha" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Add activity" }),
+    );
+
+    await user.click(screen.getByRole("radio", { name: "Global" }));
+    await user.type(screen.getByLabelText("Name"), "New global activity");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() =>
+      expect(apiMocks.createActivity).toHaveBeenCalledWith(client, {
+        name: "New global activity",
+        visible: true,
+        billable: true,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Create activity" })).toBeNull(),
+    );
+    expect(apiMocks.getActivities).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText("Activity").textContent).toContain(
+      "New global activity",
+    );
+  });
+
   it("shows Kimai's generated safe color for customers without a custom color", async () => {
     apiMocks.getCustomers.mockResolvedValue([
       {

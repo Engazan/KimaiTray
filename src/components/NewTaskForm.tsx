@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
 import { getCustomers, getProjects } from "../api/projectApi";
-import { getActivities } from "../api/activityApi";
+import { createActivity, getActivities } from "../api/activityApi";
+import type { KimaiActivityCreate } from "../api/kimaiTypes";
 import { useKimaiTags } from "../hooks/useKimaiTags";
 import type { StartTaskPayload } from "../hooks/useStartTask";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
@@ -14,6 +15,7 @@ import IssueLinkActions from "../integrations/issues/IssueLinkActions";
 import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
 import SearchableSelect from "./SearchableSelect";
+import ActivityCreateDialog from "./ActivityCreateDialog";
 import { normalizeCustomStartTime } from "../utils/customStartTime";
 import {
   DESCRIPTION_INPUT_TARGET,
@@ -77,21 +79,26 @@ function FieldLabel({
   children,
   required,
   htmlFor,
+  action,
 }: {
   children: React.ReactNode;
   required?: boolean;
   htmlFor: string;
+  action?: React.ReactNode;
 }) {
   return (
-    <label htmlFor={htmlFor} className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
-      <span>{children}</span>
-      {required && (
-        <span
-          aria-hidden
-          className="h-1 w-1 rounded-full bg-[var(--accent)]"
-        />
-      )}
-    </label>
+    <div className="mb-1 flex items-center justify-between gap-2">
+      <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+        <span>{children}</span>
+        {required && (
+          <span
+            aria-hidden
+            className="h-1 w-1 rounded-full bg-[var(--accent)]"
+          />
+        )}
+      </label>
+      {action}
+    </div>
   );
 }
 
@@ -125,6 +132,7 @@ export default function NewTaskForm({
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<number | null>(null);
   const [activityId, setActivityId] = useState<number | null>(null);
+  const [activityDialogOpen, setActivityDialogOpen] = useState(false);
   const [pendingActivityProjectId, setPendingActivityProjectId] = useState<number | null>(null);
   const [activityFocusRequest, setActivityFocusRequest] = useState(0);
   const [repositoryFocusRequest, setRepositoryFocusRequest] = useState(0);
@@ -335,6 +343,20 @@ export default function NewTaskForm({
   }, [activitiesQ.data, autoFocusEnabled, focusAfterActivity, pendingActivityProjectId, projectId]);
 
   const selectedProject = filteredProjects.find((p) => p.id === projectId);
+  const closeActivityDialog = useCallback(() => {
+    setActivityDialogOpen(false);
+  }, []);
+  const handleCreateActivity = useCallback(
+    async (payload: KimaiActivityCreate) => {
+      const created = await createActivity(client, payload);
+      await qc.invalidateQueries({
+        queryKey: ["activities", client.cacheScope],
+      });
+      setActivityId(created.id);
+      focusAfterActivity();
+    },
+    [client, focusAfterActivity, qc],
+  );
   const customBegin = useMemo(
     () => (useCustomTime ? normalizeCustomStartTime(beginTime) : undefined),
     [useCustomTime, beginTime],
@@ -512,7 +534,26 @@ export default function NewTaskForm({
         </div>
 
         <div>
-          <FieldLabel htmlFor={activityControlId} required>{t("newTask.activity")}</FieldLabel>
+          <FieldLabel
+            htmlFor={activityControlId}
+            required
+            action={
+              projectId != null ? (
+                <button
+                  type="button"
+                  onClick={() => setActivityDialogOpen(true)}
+                  disabled={isSubmitting}
+                  aria-label={t("newTask.addActivity")}
+                  title={t("newTask.addActivity")}
+                  className="flex h-5 w-5 items-center justify-center rounded-md text-[15px] font-medium leading-none text-[var(--accent)] transition-colors hover:bg-[var(--accent)]/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:opacity-40"
+                >
+                  +
+                </button>
+              ) : undefined
+            }
+          >
+            {t("newTask.activity")}
+          </FieldLabel>
           <SearchableSelect
             id={activityControlId}
             options={filteredActivities.map((a) => ({
@@ -738,6 +779,15 @@ export default function NewTaskForm({
           )}
         </button>
       </div>
+
+      {activityDialogOpen && projectId != null && (
+        <ActivityCreateDialog
+          projectId={projectId}
+          projectName={selectedProject?.name ?? `Project #${projectId}`}
+          onCreate={handleCreateActivity}
+          onClose={closeActivityDialog}
+        />
+      )}
     </div>
   );
 }

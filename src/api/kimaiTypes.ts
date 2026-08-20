@@ -55,6 +55,16 @@ export interface KimaiActivity {
   comment: string | null;
 }
 
+export interface KimaiActivityCreate {
+  name: string;
+  /** Omit for a global activity; set for a project-specific activity. */
+  project?: number;
+  /** Omit to let Kimai calculate a color from the activity name. */
+  color?: string;
+  visible: boolean;
+  billable: boolean;
+}
+
 export interface KimaiMetaField {
   name: string;
   value: unknown;

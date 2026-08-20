@@ -3,7 +3,11 @@ import {
   expectObjectResponse,
   type KimaiClient,
 } from "./kimaiClient";
-import type { ActivityListParams, KimaiActivity } from "./kimaiTypes";
+import type {
+  ActivityListParams,
+  KimaiActivity,
+  KimaiActivityCreate,
+} from "./kimaiTypes";
 import { isKimaiActivity } from "./kimaiValidation";
 
 export async function getActivities(
@@ -34,6 +38,19 @@ export async function getActivity(
     await client.get<unknown>(path),
     path,
     "GET",
+    isKimaiActivity,
+  );
+}
+
+export async function createActivity(
+  client: KimaiClient,
+  payload: KimaiActivityCreate,
+): Promise<KimaiActivity> {
+  const path = "/api/activities";
+  return expectObjectResponse<KimaiActivity>(
+    await client.post<unknown>(path, payload),
+    path,
+    "POST",
     isKimaiActivity,
   );
 }

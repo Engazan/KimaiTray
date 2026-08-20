@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { KimaiClient } from "./kimaiClient";
 import {
+  createActivity,
   getActivities,
   getActivitiesForProject,
   getActivity,
@@ -78,6 +79,25 @@ describe("Kimai entity API adapters", () => {
     await expect(getActivity(client, 2)).resolves.toEqual(activity);
     expect(client.get).toHaveBeenCalledWith("/api/activities/2");
     await expect(getActivity(client, 2)).rejects.toThrow(
+      "Failed to parse server response",
+    );
+  });
+
+  it("creates an activity and validates the response", async () => {
+    vi.mocked(client.post).mockResolvedValueOnce(activity).mockResolvedValueOnce({
+      id: "bad",
+    });
+    const payload = {
+      name: "Development",
+      project: 1,
+      color: "#3b82f6",
+      visible: true,
+      billable: true,
+    };
+
+    await expect(createActivity(client, payload)).resolves.toEqual(activity);
+    expect(client.post).toHaveBeenCalledWith("/api/activities", payload);
+    await expect(createActivity(client, payload)).rejects.toThrow(
       "Failed to parse server response",
     );
   });
