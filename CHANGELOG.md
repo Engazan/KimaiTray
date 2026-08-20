@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.22.6] - 2026-08-20
+
+### New Features
+
+- **Create activities from the new-timer form** ([#29](https://github.com/Engazan/KimaiTray/issues/29)) — after selecting a project, a new activity can be created without leaving KimaiTray. Choose project-local or global availability, enter a name, and use either Kimai's automatic color or a custom color; the refreshed picker selects the new activity immediately
+
+### Improvements
+
+- **Clear local and global activity groups** ([#31](https://github.com/Engazan/KimaiTray/issues/31)) — project-local activities now appear first in the activity picker under a Local heading, followed by a visually separated Global section
+
+### Bug Fixes
+
+- **New-timer links survive GitLab outages** — opening an interactive new-timer deep link now keeps the original issue URL and opens the form even when optional GitLab issue enrichment is temporarily unavailable
+- **Reliable macOS cold-start deep links** — the first deep link is recovered when the native plugin stores it just after startup, while already-consumed links are no longer replayed after a renderer reload
+
+### Maintenance
+
+- **Patched event-listener dependency** — updated the Rust event-listener crate to resolve its security advisory
+- **Complete frontend test coverage** — expanded the automated test suite to 100% statement, function and line coverage
+
 ## [0.22.5] - 2026-08-11
 
 ### Improvements
