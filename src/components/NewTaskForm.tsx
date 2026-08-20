@@ -281,11 +281,16 @@ export default function NewTaskForm({
   );
 
   const filteredActivities = useMemo(
-    () =>
-      (activitiesQ.data ?? []).filter(
+    () => {
+      const available = (activitiesQ.data ?? []).filter(
         (a) =>
           projectId == null || a.project === null || a.project === projectId,
-      ),
+      );
+      return [
+        ...available.filter((activity) => activity.project !== null),
+        ...available.filter((activity) => activity.project === null),
+      ];
+    },
     [activitiesQ.data, projectId],
   );
 
@@ -514,6 +519,7 @@ export default function NewTaskForm({
               value: a.id,
               label: a.name,
               color: a["color-safe"] || a.color,
+              section: a.project === null ? "global" : "project",
             }))}
             value={activityId}
             onChange={handleActivityChange}

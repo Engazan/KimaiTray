@@ -9,6 +9,8 @@ interface Option<T extends OptionValue> {
   label: string;
   /** Optional swatch shown as a leading dot (e.g. Kimai project/activity color). */
   color?: string | null;
+  /** Options in adjacent sections are separated by a horizontal divider. */
+  section?: string;
 }
 
 /** Leading color swatch. Renders a faint ring placeholder to keep labels aligned
@@ -254,6 +256,9 @@ export default function SearchableSelect<T extends OptionValue>({
             )}
             {filtered.map((opt, i) => {
               const idx = allowEmpty ? i + 1 : i;
+              const endsSection =
+                i < filtered.length - 1 &&
+                opt.section !== filtered[i + 1].section;
               return (
                 <button
                   key={opt.value}
@@ -263,6 +268,10 @@ export default function SearchableSelect<T extends OptionValue>({
                   type="button"
                   onClick={() => select(opt.value)}
                   className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
+                    endsSection
+                      ? "border-b border-gray-200 dark:border-white/15"
+                      : ""
+                  } ${
                     highlightIndex === idx
                       ? "bg-[var(--accent)]/10 text-[var(--accent)]"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"

@@ -204,6 +204,42 @@ describe("new task entity selects", () => {
 
     expect(swatch?.style.backgroundColor).toBe("rgb(83, 25, 231)");
   });
+
+  it("lists project activities first and separates global activities", async () => {
+    apiMocks.getActivities.mockResolvedValue([
+      {
+        id: 10,
+        name: "Project activity",
+        project: 1,
+        visible: true,
+        billable: true,
+        color: null,
+        comment: null,
+      },
+      {
+        id: 20,
+        name: "Global activity",
+        project: null,
+        visible: true,
+        billable: true,
+        color: null,
+        comment: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderForm({ autoFocusProject: false });
+
+    await user.click(screen.getByLabelText("Project"));
+    await user.click(await screen.findByRole("option", { name: "Alpha" }));
+
+    const options = await screen.findAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Project activity",
+      "Global activity",
+    ]);
+    expect(options[0].className).toContain("border-b");
+    expect(options[1].className).not.toContain("border-b");
+  });
 });
 
 describe("new task keyboard flow", () => {
