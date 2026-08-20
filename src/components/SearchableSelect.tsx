@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, useId } from "react";
+import { Fragment, useState, useRef, useEffect, useMemo, useCallback, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { normalizeSearchText } from "../utils/searchText";
 
@@ -11,6 +11,8 @@ interface Option<T extends OptionValue> {
   color?: string | null;
   /** Options in adjacent sections are separated by a horizontal divider. */
   section?: string;
+  /** Visual heading shown above the first option in this section. */
+  sectionLabel?: string;
 }
 
 /** Leading color swatch. Renders a faint ring placeholder to keep labels aligned
@@ -126,9 +128,9 @@ export default function SearchableSelect<T extends OptionValue>({
 
   useEffect(() => {
     if (!open || !listRef.current) return;
-    const el = listRef.current.children[highlightIndex] as HTMLElement | undefined;
+    const el = document.getElementById(`${id}-option-${highlightIndex}`);
     el?.scrollIntoView({ block: "nearest" });
-  }, [highlightIndex, open]);
+  }, [highlightIndex, id, open]);
 
   const select = useCallback(
     (val: T | null) => {
@@ -256,30 +258,41 @@ export default function SearchableSelect<T extends OptionValue>({
             )}
             {filtered.map((opt, i) => {
               const idx = allowEmpty ? i + 1 : i;
+              const startsSection =
+                i === 0 || opt.section !== filtered[i - 1].section;
               const endsSection =
                 i < filtered.length - 1 &&
                 opt.section !== filtered[i + 1].section;
               return (
-                <button
-                  key={opt.value}
-                  id={`${id}-option-${idx}`}
-                  role="option"
-                  aria-selected={opt.value === value}
-                  type="button"
-                  onClick={() => select(opt.value)}
-                  className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
-                    endsSection
-                      ? "border-b border-gray-200 dark:border-white/15"
-                      : ""
-                  } ${
-                    highlightIndex === idx
-                      ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
-                  } ${opt.value === value ? "font-medium" : ""}`}
-                >
-                  {hasColors && <Dot color={opt.color} />}
-                  <span className="truncate">{opt.label}</span>
-                </button>
+                <Fragment key={opt.value}>
+                  {startsSection && opt.sectionLabel && (
+                    <div
+                      role="presentation"
+                      className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500"
+                    >
+                      {opt.sectionLabel}
+                    </div>
+                  )}
+                  <button
+                    id={`${id}-option-${idx}`}
+                    role="option"
+                    aria-selected={opt.value === value}
+                    type="button"
+                    onClick={() => select(opt.value)}
+                    className={`flex w-full items-center gap-2 text-left px-3 py-1.5 text-[12px] transition-colors ${
+                      endsSection
+                        ? "border-b border-gray-200 dark:border-white/15"
+                        : ""
+                    } ${
+                      highlightIndex === idx
+                        ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                    } ${opt.value === value ? "font-medium" : ""}`}
+                  >
+                    {hasColors && <Dot color={opt.color} />}
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                </Fragment>
               );
             })}
             {filtered.length === 0 && (

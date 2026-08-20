@@ -441,6 +441,8 @@
     "project": "Project",
     "selectProject": "Select project…",
     "activity": "Activity",
+    "localActivities": "Local",
+    "globalActivities": "Global",
     "selectActivity": "Select activity…",
     "selectProjectFirst": "Select project first",
     "description": "Description",

@@ -441,6 +441,8 @@
     "project": "Projekt",
     "selectProject": "Vyberte projekt…",
     "activity": "Aktivita",
+    "localActivities": "Lokální",
+    "globalActivities": "Globální",
     "selectActivity": "Vyberte aktivitu…",
     "selectProjectFirst": "Nejprve vyberte projekt",
     "description": "Popis",

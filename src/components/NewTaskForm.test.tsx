@@ -237,6 +237,16 @@ describe("new task entity selects", () => {
       "Project activity",
       "Global activity",
     ]);
+    const listboxText = screen.getByRole("listbox").textContent ?? "";
+    expect(listboxText.indexOf("Local")).toBeLessThan(
+      listboxText.indexOf("Project activity"),
+    );
+    expect(listboxText.indexOf("Global")).toBeGreaterThan(
+      listboxText.indexOf("Project activity"),
+    );
+    expect(listboxText.indexOf("Global")).toBeLessThan(
+      listboxText.indexOf("Global activity"),
+    );
     expect(options[0].className).toContain("border-b");
     expect(options[1].className).not.toContain("border-b");
   });

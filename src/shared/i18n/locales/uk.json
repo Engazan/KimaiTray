@@ -441,6 +441,8 @@
     "project": "Проєкт",
     "selectProject": "Оберіть проєкт…",
     "activity": "Активність",
+    "localActivities": "Локальні",
+    "globalActivities": "Глобальні",
     "selectActivity": "Оберіть активність…",
     "selectProjectFirst": "Спочатку оберіть проєкт",
     "description": "Опис",

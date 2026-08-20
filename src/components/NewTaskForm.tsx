@@ -520,6 +520,11 @@ export default function NewTaskForm({
               label: a.name,
               color: a["color-safe"] || a.color,
               section: a.project === null ? "global" : "project",
+              sectionLabel: t(
+                a.project === null
+                  ? "newTask.globalActivities"
+                  : "newTask.localActivities",
+              ),
             }))}
             value={activityId}
             onChange={handleActivityChange}
