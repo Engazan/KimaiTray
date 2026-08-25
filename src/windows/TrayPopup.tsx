@@ -1645,6 +1645,7 @@ export default function TrayPopup() {
             {pausedTimers.length > 0 && (
               <div
                 ref={pausedListRef}
+                data-scroll-fade={pausedListScrolls ? "true" : undefined}
                 className="min-h-0 shrink-0 overflow-y-auto overscroll-contain"
                 style={{
                   maxHeight: `${pausedListMaxHeight}px`,

@@ -29,8 +29,8 @@ tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
-keyring = { version = "3.6", features = ["apple-native", "windows-native", "sync-secret-service", "vendored"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+keyring = "4.1"
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
 
@@ -41,10 +41,10 @@ tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSStatusItem"] }
-window-vibrancy = "0.6"
+window-vibrancy = "0.8"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_System_SystemInformation"] }
+windows-sys = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_System_SystemInformation"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # GtkStatusIcon is deprecated upstream, but remains the most compatible tray

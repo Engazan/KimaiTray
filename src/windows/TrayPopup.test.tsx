@@ -494,7 +494,7 @@ describe("TrayPopup", () => {
     Object.defineProperty(list, "scrollHeight", { value: 500, configurable: true });
     Object.defineProperty(list, "clientHeight", { value: 100, configurable: true });
     act(() => mocks.resizeCallback?.());
-    expect(list.style.maskImage).toContain("linear-gradient");
+    expect(list.getAttribute("data-scroll-fade")).toBe("true");
   });
 
   it("dismisses deep-link and pause errors with the correct action", async () => {

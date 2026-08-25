@@ -95,13 +95,15 @@ describe("TimesheetEditDialog extra behavior", () => {
     document.body.appendChild(outside);
     outside.focus();
     const { onClose, unmount } = setup();
-    const buttons = Array.from(screen.getByRole("dialog").querySelectorAll("button"));
-    buttons[1].focus();
+    const focusable = Array.from(screen.getByRole("dialog").querySelectorAll<HTMLElement>(
+      "button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex='-1'])",
+    ));
+    focusable[focusable.length - 1].focus();
     fireEvent.keyDown(document, { key: "Tab" });
-    expect(document.activeElement).toBe(buttons[0]);
-    buttons[0].focus();
+    expect(document.activeElement).toBe(focusable[0]);
+    focusable[0].focus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(buttons[1]);
+    expect(document.activeElement).toBe(focusable[focusable.length - 1]);
     const prevented = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
     prevented.preventDefault();
     document.dispatchEvent(prevented);

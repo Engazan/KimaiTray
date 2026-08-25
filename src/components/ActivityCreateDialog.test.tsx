@@ -153,11 +153,13 @@ describe("ActivityCreateDialog", () => {
     document.dispatchEvent(prevented);
     expect(onClose).not.toHaveBeenCalled();
 
-    const buttons = screen.getAllByRole("button").filter(
-      (button) => !(button as HTMLButtonElement).disabled,
+    const focusable = Array.from(
+      screen.getByRole("dialog").querySelectorAll<HTMLElement>(
+        "button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex='-1'])",
+      ),
     );
-    const first = buttons[0];
-    const last = buttons[buttons.length - 1];
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
     first.focus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(last);

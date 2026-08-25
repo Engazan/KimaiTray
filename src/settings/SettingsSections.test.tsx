@@ -68,16 +68,19 @@ vi.mock("../categorymode/CategoryModeSettingsSection", () => ({
     <div data-testid="category-editor">{connectionId}:{url}</div>
   ),
 }));
-vi.mock("./integrations/registry", () => ({
-  INTEGRATIONS: [{
-    id: "issues",
-    nameKey: "integration.name",
-    descriptionKey: "integration.description",
-    icon: <span>icon</span>,
-    isEnabled: (settings: AppSettings, id: string) => Boolean(settings.issueIntegrations[id]?.enabled),
-    detail: ({ onBack }: { onBack: () => void }) => <button onClick={onBack}>integration.back</button>,
-  }],
-}));
+vi.mock("./integrations/registry", async () => {
+  const { createElement } = await vi.importActual<typeof import("react")>("react");
+  return {
+    INTEGRATIONS: [{
+      id: "issues",
+      nameKey: "integration.name",
+      descriptionKey: "integration.description",
+      icon: createElement("span", null, "icon"),
+      isEnabled: (settings: AppSettings, id: string) => Boolean(settings.issueIntegrations[id]?.enabled),
+      detail: ({ onBack }: { onBack: () => void }) => createElement("button", { onClick: onBack }, "integration.back"),
+    }],
+  };
+});
 
 const settings = (patch: Partial<AppSettings> = {}): AppSettings => ({
   ...defaultSettings,

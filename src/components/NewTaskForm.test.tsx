@@ -684,9 +684,12 @@ describe("new task keyboard flow", () => {
       expect(screen.getByLabelText("Activity").textContent).toContain("Work"),
     );
 
-    await user.click(screen.getByLabelText("Issue"));
+    const customTargetIssuePicker = screen.getByLabelText("Issue");
+    if (customTargetIssuePicker.getAttribute("aria-expanded") !== "true") {
+      await user.click(customTargetIssuePicker);
+    }
     await user.click(
-      await screen.findByRole("option", { name: /#42 Custom input target/ }),
+      (await screen.findByText("Custom input target")).closest("button")!,
     );
 
     expect(
@@ -758,9 +761,12 @@ describe("new task keyboard flow", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Activity").textContent).toContain("Work"),
     );
-    await user.click(screen.getByLabelText("Issue"));
+    const descriptionTargetIssuePicker = screen.getByLabelText("Issue");
+    if (descriptionTargetIssuePicker.getAttribute("aria-expanded") !== "true") {
+      await user.click(descriptionTargetIssuePicker);
+    }
     await user.click(
-      await screen.findByRole("option", { name: /#42 Description target/ }),
+      (await screen.findByText("Description target")).closest("button")!,
     );
     await user.click(screen.getByRole("button", { name: "Start" }));
 
@@ -790,8 +796,11 @@ describe("new task keyboard flow", () => {
         assigneeOnly: false, syncTime: false, autoInsertUrl: true, showTimeEstimate: false, filterLabels: [], filterLabelsMode: "include",
       },
     });
-    await user.click(screen.getByLabelText("Issue"));
-    await user.click(await screen.findByRole("option", { name: /#9 Existing note/ }));
+    const existingNoteIssuePicker = screen.getByLabelText("Issue");
+    if (existingNoteIssuePicker.getAttribute("aria-expanded") !== "true") {
+      await user.click(existingNoteIssuePicker);
+    }
+    await user.click((await screen.findByText("Existing note")).closest("button")!);
     expect((screen.getByLabelText("Description") as HTMLTextAreaElement).value).toBe("Keep this\nhttps://git.test/9");
   });
 
