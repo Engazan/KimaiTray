@@ -20,6 +20,7 @@ vi.mock("./useEntityLookup", () => ({
 }));
 
 import { useRecentTasks } from "./useRecentTasks";
+import { taskKeyOf } from "../utils/taskKey";
 
 const client = { cacheScope: "connection-a:1" } as KimaiClient;
 
@@ -28,13 +29,14 @@ function entry(
   project: number,
   activity: number,
   begin: string,
+  description = `Description ${id}`,
 ): KimaiTimesheetEntry {
   return {
     id,
     begin,
     end: "2026-08-12T10:00:00Z",
     duration: 3600,
-    description: `Description ${id}`,
+    description,
     rate: 0,
     internalRate: 0,
     exported: false,
@@ -84,22 +86,24 @@ describe("recent task derivation", () => {
     expect(mocks.getRecentTimesheets).toHaveBeenCalledWith(client, 20);
   });
 
-  it("sorts newest first, deduplicates task pairs and excludes the active task", () => {
+  it("sorts newest first, deduplicates identical task variants and excludes the active variant", () => {
     mocks.useQuery.mockReturnValue({
       data: [
-        entry(1, 1, 2, "2026-08-10T09:00:00Z"),
-        entry(2, 1, 2, "2026-08-12T09:00:00Z"),
+        entry(1, 1, 2, "2026-08-10T09:00:00Z", "Same note"),
+        entry(2, 1, 2, "2026-08-12T09:00:00Z", "Same note"),
         entry(3, 5, 6, "2026-08-11T09:00:00Z"),
       ],
       isLoading: false,
       isError: false,
     });
 
-    const { result } = renderHook(() => useRecentTasks(client, true, "5-6"));
+    const { result } = renderHook(() =>
+      useRecentTasks(client, true, taskKeyOf(5, 6, "Description 3")),
+    );
 
     expect(result.current.tasks).toHaveLength(1);
     expect(result.current.tasks[0]).toMatchObject({
-      key: "1-2",
+      key: taskKeyOf(1, 2, "Same note"),
       timesheetId: 2,
       project: "KimaiTray",
       activity: "Development",
@@ -111,6 +115,27 @@ describe("recent task derivation", () => {
       metadata: { issue_link: "KT-2" },
       lastUsed: expect.any(String),
     });
+  });
+
+  it("keeps separate recent items for the same project and activity when notes differ", () => {
+    mocks.useQuery.mockReturnValue({
+      data: [
+        entry(1, 1, 2, "2026-08-11T09:00:00Z", "First note"),
+        entry(2, 1, 2, "2026-08-12T09:00:00Z", "Second note"),
+        entry(3, 1, 2, "2026-08-10T09:00:00Z", "First note"),
+      ],
+      isLoading: false,
+      isError: false,
+    });
+
+    const { result } = renderHook(() => useRecentTasks(client, true));
+
+    expect(result.current.tasks).toHaveLength(2);
+    expect(result.current.tasks.map((task) => task.description)).toEqual([
+      "Second note",
+      "First note",
+    ]);
+    expect(new Set(result.current.tasks.map((task) => task.key)).size).toBe(2);
   });
 
   it("uses entity fallbacks and limits the result to six unique tasks", () => {
@@ -132,7 +157,7 @@ describe("recent task derivation", () => {
 
     expect(result.current.tasks).toHaveLength(6);
     expect(result.current.tasks[0]).toMatchObject({
-      key: "17-27",
+      key: taskKeyOf(17, 27, "Description 8"),
       project: "Project #17",
       activity: "Activity #27",
       customer: "",

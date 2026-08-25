@@ -8,6 +8,7 @@ import { normalizeKimaiTags } from "../api/tagUtils";
 import { differenceInLocalCalendarDays, parseKimaiDate } from "../utils/time";
 import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 import { useEntityLookup } from "./useEntityLookup";
+import { taskKeyOf } from "../utils/taskKey";
 
 function formatRelativeDate(iso: string): string {
   const d = parseKimaiDate(iso);
@@ -62,7 +63,7 @@ export function useRecentTasks(
     for (const entry of entries) {
       const projectId = extractId(entry.project);
       const activityId = extractId(entry.activity);
-      const key = `${projectId}-${activityId}`;
+      const key = taskKeyOf(projectId, activityId, entry.description ?? "");
       if (seen.has(key)) continue;
       if (activeKey && key === activeKey) continue;
       seen.add(key);

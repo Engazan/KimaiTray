@@ -51,6 +51,13 @@ describe("linked issue persistence", () => {
     expect(readLinkedIssueMap("connection-b")).toEqual({});
   });
 
+  it("uses the note to distinguish task variants while preserving empty-note keys", () => {
+    expect(taskKeyOf(7, 9)).toBe("7-9");
+    expect(taskKeyOf(7, 9, "First note")).not.toBe(
+      taskKeyOf(7, 9, "Second note"),
+    );
+  });
+
   it("ignores malformed persisted values", () => {
     localStorage.setItem(
       "kimai:linkedIssue:connection-a",

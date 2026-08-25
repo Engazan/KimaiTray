@@ -279,7 +279,9 @@ export default function TrayPopup() {
     pluginCustomInputs,
   );
 
-  const activeKey = timer ? `${timer.projectId}-${timer.activityId}` : null;
+  const activeKey = timer
+    ? taskKeyOf(timer.projectId, timer.activityId, timer.description)
+    : null;
   const { tasks, isLoading: tasksLoading } = useRecentTasks(
     client,
     isConfigured,
@@ -345,7 +347,7 @@ export default function TrayPopup() {
           };
           storeLinkedIssueForTask(
             submitted.connectionId,
-            taskKeyOf(payload.projectId, payload.activityId),
+            taskKeyOf(payload.projectId, payload.activityId, payload.description),
             submitted.issue,
           );
           setPendingLinkedIssueVersion((version) => version + 1);
@@ -994,7 +996,12 @@ export default function TrayPopup() {
   );
 
   const visibleTasks = useMemo(
-    () => tasks.filter((t) => !hiddenKeys.has(t.key)),
+    () =>
+      tasks.filter(
+        (task) =>
+          !hiddenKeys.has(task.key) &&
+          !hiddenKeys.has(taskKeyOf(task.projectId, task.activityId)),
+      ),
     [tasks, hiddenKeys],
   );
 
@@ -1113,11 +1120,11 @@ export default function TrayPopup() {
     if (!timer || !linkedIssue) return;
     storeLinkedIssueForTimer(activeConnectionId, timer.id, linkedIssue);
     // Also remember the issue by task identity so the estimate can be restored
-    // when the same project+activity is later started from recents/favorites,
+    // when the same project+activity+note is later started from recents/favorites,
     // which don't embed the issue URL in their description.
     storeLinkedIssueForTask(
       activeConnectionId,
-      taskKeyOf(timer.projectId, timer.activityId),
+      taskKeyOf(timer.projectId, timer.activityId, timer.description),
       linkedIssue,
     );
   }, [timer, linkedIssue, activeConnectionId]);
@@ -1148,13 +1155,14 @@ export default function TrayPopup() {
     // it used the same project and activity.
     if (storedIssue === null) return;
 
-    // Fall back to the per-task association (project+activity). This is what
+    // Fall back to the per-task association (project+activity+note). This is what
     // makes the badge appear for timers started from recents/favorites: they
     // have no stored timerId match and usually no issue URL in the description.
     if (!storedIssue) {
-      const byKey = readLinkedIssueMap(activeConnectionId)[
-        taskKeyOf(timer.projectId, timer.activityId)
-      ];
+      const issueMap = readLinkedIssueMap(activeConnectionId);
+      const byKey =
+        issueMap[taskKeyOf(timer.projectId, timer.activityId, timer.description)] ??
+        issueMap[taskKeyOf(timer.projectId, timer.activityId)];
       if (byKey) storedIssue = byKey;
     }
 

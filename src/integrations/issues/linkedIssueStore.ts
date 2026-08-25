@@ -1,4 +1,5 @@
 import type { ExternalIssue } from "./types";
+export { taskKeyOf } from "../../utils/taskKey";
 
 const LINKED_ISSUE_KEY_PREFIX = "kimai:linkedIssue";
 const LINKED_ISSUE_BY_KEY_PREFIX = "kimai:linkedIssueByKey";
@@ -20,9 +21,6 @@ function isExternalIssue(value: unknown): value is ExternalIssue {
     typeof issue.author === "string"
   );
 }
-
-export const taskKeyOf = (projectId: number, activityId: number) =>
-  `${projectId}-${activityId}`;
 
 export function readLinkedIssueMap(
   connectionId: string,

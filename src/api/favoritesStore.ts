@@ -2,6 +2,7 @@ import { load } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import type { FavoriteTask } from "../types";
 import { mutateArrayStore } from "./arrayStore";
+import { taskKeyOf } from "../utils/taskKey";
 
 const STORE_PATH = "settings.json";
 const KEY = "favoriteTasks";
@@ -47,6 +48,37 @@ export async function loadFavorites(
         { request: { connectionId, baseUrl: legacyBaseUrl } },
       );
       all = response.value;
+    }
+
+    const scoped = all.filter((t) => t.connectionId === connectionId);
+
+    // Before notes became part of task identity, favorites were persisted as
+    // project-activity only. Upgrade those entries in place so favoriting,
+    // removing and active-task filtering keep working for note variants.
+    for (const task of scoped) {
+      const legacyKey = taskKeyOf(task.projectId, task.activityId);
+      const canonicalKey = taskKeyOf(
+        task.projectId,
+        task.activityId,
+        task.description,
+      );
+      if (task.key !== legacyKey || canonicalKey === legacyKey) continue;
+
+      const migrated = { ...task, key: canonicalKey };
+      try {
+        all = await mutateArrayStore<FavoriteTask>(KEY, {
+          type: "appendUnique",
+          value: migrated,
+          identity: { key: canonicalKey, connectionId: task.connectionId },
+        });
+        all = await mutateArrayStore<FavoriteTask>(KEY, {
+          type: "removeMatching",
+          identity: { key: legacyKey, connectionId: task.connectionId },
+        });
+      } catch {
+        // Keep the loaded favorites usable even if best-effort migration fails.
+        return scoped;
+      }
     }
 
     return all.filter((t) => t.connectionId === connectionId);

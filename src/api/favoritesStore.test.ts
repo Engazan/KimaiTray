@@ -59,6 +59,37 @@ describe("favorite task persistence", () => {
     });
   });
 
+  it("migrates legacy project-activity keys when a favorite has a note", async () => {
+    const legacy = { ...favorite("1-2", "connection-a"), description: "A note" };
+    const migrated = {
+      ...legacy,
+      key: "1-2:A%20note",
+    };
+    mocks.get.mockResolvedValue([legacy]);
+    mocks.mutateArrayStore
+      .mockResolvedValueOnce([legacy, migrated])
+      .mockResolvedValueOnce([migrated]);
+
+    await expect(loadFavorites("connection-a")).resolves.toEqual([migrated]);
+    expect(mocks.mutateArrayStore).toHaveBeenNthCalledWith(1, "favoriteTasks", {
+      type: "appendUnique",
+      value: migrated,
+      identity: { key: migrated.key, connectionId: "connection-a" },
+    });
+    expect(mocks.mutateArrayStore).toHaveBeenNthCalledWith(2, "favoriteTasks", {
+      type: "removeMatching",
+      identity: { key: "1-2", connectionId: "connection-a" },
+    });
+  });
+
+  it("keeps legacy favorites available when key migration cannot be persisted", async () => {
+    const legacy = { ...favorite("1-2", "connection-a"), description: "A note" };
+    mocks.get.mockResolvedValue([legacy]);
+    mocks.mutateArrayStore.mockRejectedValue(new Error("disk unavailable"));
+
+    await expect(loadFavorites("connection-a")).resolves.toEqual([legacy]);
+  });
+
   it("claims matching legacy favorites before filtering", async () => {
     const claimed = favorite("legacy", "connection-a", "https://kimai.test");
     mocks.get.mockResolvedValue([
