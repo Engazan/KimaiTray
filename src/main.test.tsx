@@ -18,6 +18,7 @@ vi.mock("./platform", () => ({ getPlatformInfo: mocks.platform }));
 vi.mock("./utils/logger", () => ({ logger: { error: mocks.logger } }));
 vi.mock("./components/ErrorBoundary", () => ({ ErrorBoundary: ({ children }: any) => children }));
 vi.mock("./providers/QueryProvider", () => ({ default: ({ children }: any) => children }));
+vi.mock("./components/GlobalContextMenuGuard", () => ({ default: () => null }));
 vi.mock("./windows/Settings", () => ({ default: () => <div>settings-window</div> }));
 vi.mock("./windows/TimerReminder", () => ({ default: () => <div>reminder-window</div> }));
 vi.mock("./windows/Changelog", () => ({ default: () => <div>changelog-window</div> }));
@@ -48,7 +49,10 @@ describe("application bootstrap", () => {
     await import("./main");
     await vi.waitFor(() => expect(mocks.render).toHaveBeenCalled());
     const tree = mocks.render.mock.calls[0][0];
-    const windowElement = tree.props.children.props.children.props.children;
+    const providerChildren = tree.props.children.props.children.props.children;
+    const windowElement = Array.isArray(providerChildren)
+      ? providerChildren[providerChildren.length - 1]
+      : providerChildren;
     expect(windowElement.type().props.children).toBe(marker);
     expect(document.documentElement.dataset.window).toBe(label);
     expect(document.documentElement.dataset.os).toBe("linux");

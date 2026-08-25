@@ -9,6 +9,9 @@
     "core:event:allow-emit-to",
     "core:window:allow-hide",
     "core:window:allow-set-simple-fullscreen",
+    "core:menu:allow-new",
+    "core:menu:allow-popup",
+    "core:resources:allow-close",
     "store:allow-load",
     "store:allow-get",
     "log:allow-log"

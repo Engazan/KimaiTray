@@ -32,6 +32,31 @@
     "reload": "Neu laden",
     "since": "seit {{time}}"
   },
+  "contextMenu": {
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "cut": "Ausschneiden",
+    "copy": "Kopieren",
+    "paste": "Einfügen",
+    "selectAll": "Alles auswählen",
+    "refreshData": "Daten aktualisieren",
+    "connectionSettings": "Verbindungseinstellungen",
+    "switchConnection": "Verbindung wechseln",
+    "editNote": "Notiz bearbeiten",
+    "editTags": "Tags bearbeiten",
+    "editStartTime": "Startzeit ändern",
+    "copyIssueUrl": "Issue-URL kopieren",
+    "startWithChanges": "Mit Änderungen starten",
+    "editLastEntry": "Letzten Eintrag bearbeiten",
+    "startAgain": "Erneut starten",
+    "refreshToday": "Heutige Einträge aktualisieren",
+    "refreshRecent": "Letzte Aufgaben aktualisieren",
+    "deleteConfirm": "Diesen Eintrag wirklich aus Kimai löschen?",
+    "discardPausedConfirm": "Diesen pausierten Timer wirklich verwerfen?",
+    "openLink": "Link öffnen",
+    "copyLink": "Link kopieren",
+    "detachIssue": "Issue-Verknüpfung lösen"
+  },
   "detached": {
     "pin": "Oben anheften",
     "unpin": "Lösen"

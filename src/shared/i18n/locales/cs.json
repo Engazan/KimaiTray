@@ -32,6 +32,31 @@
     "reload": "Načíst znovu",
     "since": "od {{time}}"
   },
+  "contextMenu": {
+    "undo": "Zpět",
+    "redo": "Znovu",
+    "cut": "Vyjmout",
+    "copy": "Kopírovat",
+    "paste": "Vložit",
+    "selectAll": "Vybrat vše",
+    "refreshData": "Obnovit data",
+    "connectionSettings": "Nastavení připojení",
+    "switchConnection": "Přepnout připojení",
+    "editNote": "Upravit poznámku",
+    "editTags": "Upravit značky",
+    "editStartTime": "Změnit čas začátku",
+    "copyIssueUrl": "Kopírovat URL issue",
+    "startWithChanges": "Spustit s úpravami",
+    "editLastEntry": "Upravit poslední záznam",
+    "startAgain": "Spustit znovu",
+    "refreshToday": "Obnovit dnešní záznamy",
+    "refreshRecent": "Obnovit nedávné úlohy",
+    "deleteConfirm": "Opravdu chcete tento záznam smazat z Kimai?",
+    "discardPausedConfirm": "Opravdu chcete zahodit tento pozastavený časovač?",
+    "openLink": "Otevřít odkaz",
+    "copyLink": "Kopírovat odkaz",
+    "detachIssue": "Odpojit issue"
+  },
   "detached": {
     "pin": "Připnout navrch",
     "unpin": "Odepnout"

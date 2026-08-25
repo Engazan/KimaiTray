@@ -1,8 +1,10 @@
 import { useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { RecentTask, ColorMode } from "../types";
 import TagsList from "./TagsList";
 import ColorDots from "./ColorDots";
+import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface RecentTaskItemProps {
   task: RecentTask;
@@ -10,6 +12,8 @@ interface RecentTaskItemProps {
   onHide: (task: RecentTask) => void;
   onDelete: (task: RecentTask) => void;
   onToggleFavorite?: (task: RecentTask) => void;
+  onStartWithChanges?: (task: RecentTask) => void;
+  onEditLastEntry?: (task: RecentTask) => void;
   isFavorite?: boolean;
   isStarting?: boolean;
   isDeleting?: boolean;
@@ -23,6 +27,8 @@ export default function RecentTaskItem({
   onHide,
   onDelete,
   onToggleFavorite,
+  onStartWithChanges,
+  onEditLastEntry,
   isFavorite,
   isStarting,
   isDeleting,
@@ -35,9 +41,42 @@ export default function RecentTaskItem({
   const subtitle = [task.customer, task.description]
     .filter(Boolean)
     .join(" · ");
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const contextEntries: ContextMenuEntry[] = [
+    { text: t("common.start"), enabled: !disabled, action: () => onStart(task) },
+    ...(onStartWithChanges
+      ? [{ text: t("contextMenu.startWithChanges"), enabled: !disabled, action: () => onStartWithChanges(task) } satisfies ContextMenuEntry]
+      : []),
+    ...(onToggleFavorite
+      ? [{
+          text: isFavorite ? t("favorites.removeFromFavorites") : t("favorites.addToFavorites"),
+          enabled: !disabled,
+          action: () => onToggleFavorite(task),
+        } satisfies ContextMenuEntry]
+      : []),
+    { text: t("recentActions.hideFromRecents"), enabled: !disabled, action: () => onHide(task) },
+    separator(),
+    ...(onEditLastEntry
+      ? [{ text: t("contextMenu.editLastEntry"), enabled: !disabled, action: () => onEditLastEntry(task) } satisfies ContextMenuEntry]
+      : []),
+    {
+      text: t("recentActions.deleteFromKimai"),
+      enabled: !disabled && !isDeleting,
+      action: () => {
+        if (window.confirm(t("contextMenu.deleteConfirm"))) onDelete(task);
+      },
+    },
+  ];
+  const openItemContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    void showContextMenu(event, contextEntries);
+  };
+  /* v8 ignore stop */
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onContextMenu={openItemContextMenu}
+    >
     <div
       className={`group flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5
         text-left transition-colors

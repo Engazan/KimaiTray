@@ -3,6 +3,7 @@ import type { TodayEntry, ColorMode } from "../types";
 import TodayEntryItem from "./TodayEntryItem";
 import { formatDuration } from "../utils/time";
 import DailyGoalProgress from "./DailyGoalProgress";
+import type { MouseEvent as ReactMouseEvent, MouseEventHandler } from "react";
 
 export interface DailyGoalSettings {
   requiredMinutes: number;
@@ -25,6 +26,12 @@ interface TodaySectionProps {
   onEditEntry?: (entry: TodayEntry) => void;
   colorMode?: ColorMode;
   dailyGoal?: DailyGoalSettings;
+  onRestartEntry?: (entry: TodayEntry) => void;
+  onToggleFavoriteEntry?: (entry: TodayEntry) => void;
+  isFavoriteEntry?: (entry: TodayEntry) => boolean;
+  onDeleteEntry?: (entry: TodayEntry) => void;
+  onRunningEntryContextMenu?: (event: ReactMouseEvent<HTMLElement>, entry: TodayEntry) => void;
+  onHeaderContextMenu?: MouseEventHandler<HTMLDivElement>;
 }
 
 function LoadingSkeleton() {
@@ -53,13 +60,19 @@ export default function TodaySection({
   onEditEntry,
   colorMode = "kimai",
   dailyGoal,
+  onRestartEntry,
+  onToggleFavoriteEntry,
+  isFavoriteEntry,
+  onDeleteEntry,
+  onRunningEntryContextMenu,
+  onHeaderContextMenu,
 }: TodaySectionProps) {
   const { t } = useTranslation();
 
   return (
     <div className="mt-1.5">
       {/* Header */}
-      <div className="px-3 py-1.5 flex items-center justify-between">
+      <div className="px-3 py-1.5 flex items-center justify-between" onContextMenu={onHeaderContextMenu}>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             {t("today.title")}
@@ -127,6 +140,11 @@ export default function TodaySection({
                 entry={entry}
                 colorMode={colorMode}
                 onEdit={onEditEntry}
+                onRestart={onRestartEntry}
+                onToggleFavorite={onToggleFavoriteEntry}
+                isFavorite={isFavoriteEntry?.(entry)}
+                onDelete={onDeleteEntry}
+                onRunningContextMenu={onRunningEntryContextMenu}
               />
             ))}
             {hasMore && !expanded && (

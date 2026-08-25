@@ -3,17 +3,29 @@ import type { TodayEntry, ColorMode } from "../types";
 import TagsList from "./TagsList";
 import ColorDots from "./ColorDots";
 import { formatTime, formatDuration, parseKimaiDate } from "../utils/time";
+import type { MouseEvent as ReactMouseEvent } from "react";
+import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface TodayEntryItemProps {
   entry: TodayEntry;
   colorMode?: ColorMode;
   onEdit?: (entry: TodayEntry) => void;
+  onRestart?: (entry: TodayEntry) => void;
+  onToggleFavorite?: (entry: TodayEntry) => void;
+  isFavorite?: boolean;
+  onDelete?: (entry: TodayEntry) => void;
+  onRunningContextMenu?: (event: ReactMouseEvent<HTMLElement>, entry: TodayEntry) => void;
 }
 
 export default function TodayEntryItem({
   entry,
   colorMode = "kimai",
   onEdit,
+  onRestart,
+  onToggleFavorite,
+  isFavorite,
+  onDelete,
+  onRunningContextMenu,
 }: TodayEntryItemProps) {
   const { t } = useTranslation();
 
@@ -39,9 +51,44 @@ export default function TodayEntryItem({
       )}
     </span>
   );
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const contextEntries: ContextMenuEntry[] = [
+    ...(onEdit
+      ? [{ text: t("today.editEntry"), action: () => onEdit(entry) } satisfies ContextMenuEntry]
+      : []),
+    ...(onRestart
+      ? [{ text: t("contextMenu.startAgain"), action: () => onRestart(entry) } satisfies ContextMenuEntry]
+      : []),
+    ...(onToggleFavorite
+      ? [{
+          text: isFavorite ? t("favorites.removeFromFavorites") : t("favorites.addToFavorites"),
+          action: () => onToggleFavorite(entry),
+        } satisfies ContextMenuEntry]
+      : []),
+    ...(onDelete
+      ? [
+          separator(),
+          {
+            text: t("recentActions.deleteFromKimai"),
+            action: () => {
+              if (window.confirm(t("contextMenu.deleteConfirm"))) onDelete(entry);
+            },
+          } satisfies ContextMenuEntry,
+        ]
+      : []),
+  ];
+  const openItemContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    if (entry.isRunning && onRunningContextMenu) {
+      onRunningContextMenu(event, entry);
+    } else {
+      void showContextMenu(event, contextEntries);
+    }
+  };
+  /* v8 ignore stop */
 
   return (
     <div
+      onContextMenu={openItemContextMenu}
       className={`px-2.5 py-1.5 rounded-md transition-colors ${
         entry.isRunning
           ? "bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/40 dark:border-emerald-800/30"

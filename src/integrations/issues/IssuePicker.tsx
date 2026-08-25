@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo, useId } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { normalizeSearchText } from "../../utils/searchText";
 import type { ExternalIssue, IssueIntegrationSettings } from "./types";
 import { useIssues } from "./useIssues";
+import { separator, showContextMenu, type ContextMenuEntry } from "../../components/contextMenu";
 
 interface IssuePickerProps {
   id?: string;
@@ -166,6 +168,31 @@ export default function IssuePicker({
   };
 
   const hasValue = selectedIssue != null;
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const issueContextEntries: ContextMenuEntry[] = selectedIssue
+    ? [
+        {
+          text: t("integrations.openInBrowser"),
+          action: () => {
+            void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(selectedIssue.webUrl));
+          },
+        },
+        {
+          text: t("contextMenu.copyIssueUrl"),
+          action: () => { void navigator.clipboard.writeText(selectedIssue.webUrl); },
+        },
+        separator(),
+        {
+          text: t("contextMenu.detachIssue"),
+          enabled: !disabled,
+          action: () => onSelectIssue(null),
+        },
+      ]
+    : [];
+  const openIssueContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    if (hasValue) void showContextMenu(event, issueContextEntries);
+  };
+  /* v8 ignore stop */
 
   return (
     <div ref={containerRef} className="relative">
@@ -176,6 +203,7 @@ export default function IssuePicker({
           onClick={() => {
             if (!disabled) setOpen(!open);
           }}
+          onContextMenu={openIssueContextMenu}
           disabled={disabled}
           aria-haspopup="listbox"
           aria-expanded={open}

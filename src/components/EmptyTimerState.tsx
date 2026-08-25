@@ -1,9 +1,12 @@
 import { useTranslation } from "react-i18next";
+import type { MouseEventHandler } from "react";
 import { Window } from "@tauri-apps/api/window";
+import { showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface EmptyTimerStateProps {
   variant?: "empty" | "loading" | "unconfigured";
   compact?: boolean;
+  onNewTask?: () => void;
 }
 
 async function openConnectionSettings() {
@@ -18,12 +21,23 @@ async function openConnectionSettings() {
 export default function EmptyTimerState({
   variant = "empty",
   compact,
+  onNewTask,
 }: EmptyTimerStateProps) {
   const { t } = useTranslation();
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const contextEntries: ContextMenuEntry[] = variant === "unconfigured"
+    ? [{ text: t("tray.setupConnection"), action: () => { void openConnectionSettings(); } }]
+    : variant === "empty" && onNewTask
+      ? [{ text: t("tray.newTask"), action: onNewTask }]
+      : [];
+  const openMenu: MouseEventHandler<HTMLDivElement> = (event) => {
+    if (contextEntries.length > 0) void showContextMenu(event, contextEntries);
+  };
+  /* v8 ignore stop */
 
   if (compact) {
     return (
-      <div className="mx-3 mt-1.5 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-2.5 py-1.5 animate-card-in">
+      <div onContextMenu={openMenu} className="mx-3 mt-1.5 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-2.5 py-1.5 animate-card-in">
         <div className="flex min-h-5 items-center gap-2">
           {variant === "loading" ? (
             <>
@@ -56,7 +70,7 @@ export default function EmptyTimerState({
 
   if (variant === "loading") {
     return (
-      <div className="mx-3 mt-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-4 animate-card-in">
+      <div onContextMenu={openMenu} className="mx-3 mt-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-4 animate-card-in">
         <div className="flex flex-col items-center gap-1.5">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-600" style={{ borderTopColor: "var(--accent)" }} />
           <span className="text-xs text-gray-400 dark:text-gray-500">
@@ -69,7 +83,7 @@ export default function EmptyTimerState({
 
   if (variant === "unconfigured") {
     return (
-      <div className="mx-3 mt-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-3 py-4 animate-card-in">
+      <div onContextMenu={openMenu} className="mx-3 mt-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-3 py-4 animate-card-in">
         <div className="flex flex-col items-center gap-1.5">
           <svg
             className="h-5 w-5 text-gray-300 dark:text-gray-600"
@@ -103,7 +117,7 @@ export default function EmptyTimerState({
   }
 
   return (
-    <div className="mx-3 mt-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-3 py-4 animate-card-in">
+    <div onContextMenu={openMenu} className="mx-3 mt-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-3 py-4 animate-card-in">
       <div className="flex flex-col items-center gap-1">
         <svg
           className="h-5 w-5 text-gray-300 dark:text-gray-600"

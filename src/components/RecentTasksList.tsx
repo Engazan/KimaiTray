@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import type { MouseEventHandler } from "react";
 import type { RecentTask, ColorMode } from "../types";
 import RecentTaskItem from "./RecentTaskItem";
 
@@ -8,6 +9,9 @@ interface RecentTasksListProps {
   onHide: (task: RecentTask) => void;
   onDelete: (task: RecentTask) => void;
   onToggleFavorite?: (task: RecentTask) => void;
+  onStartWithChanges?: (task: RecentTask) => void;
+  onEditLastEntry?: (task: RecentTask) => void;
+  onHeaderContextMenu?: MouseEventHandler<HTMLDivElement>;
   isFavorite?: (key: string) => boolean;
   isLoading?: boolean;
   startingKey?: string | null;
@@ -37,6 +41,9 @@ export default function RecentTasksList({
   onHide,
   onDelete,
   onToggleFavorite,
+  onStartWithChanges,
+  onEditLastEntry,
+  onHeaderContextMenu,
   isFavorite,
   isLoading,
   startingKey,
@@ -53,7 +60,7 @@ export default function RecentTasksList({
     return (
       <div className={showHeader ? "mt-1.5" : ""}>
         {showHeader && (
-          <div className="px-3 py-1.5">
+          <div className="px-3 py-1.5" onContextMenu={onHeaderContextMenu}>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
               {t("tray.recentTasks")}
             </span>
@@ -73,7 +80,7 @@ export default function RecentTasksList({
   return (
     <div className={showHeader ? "mt-1.5" : ""}>
       {showHeader && (
-        <div className="px-3 py-1.5 flex items-center justify-between">
+        <div className="px-3 py-1.5 flex items-center justify-between" onContextMenu={onHeaderContextMenu}>
           <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             {t("tray.recentTasks")}
           </span>
@@ -106,6 +113,8 @@ export default function RecentTasksList({
             onHide={onHide}
             onDelete={onDelete}
             onToggleFavorite={onToggleFavorite}
+            onStartWithChanges={onStartWithChanges}
+            onEditLastEntry={onEditLastEntry}
             isFavorite={isFavorite?.(task.key)}
             isStarting={startingKey === task.key}
             isDeleting={deletingId === task.timesheetId}

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   setFocus: vi.fn(),
   emitTo: vi.fn(),
   loggerError: vi.fn(),
+  showContextMenu: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -29,6 +30,10 @@ vi.mock("../utils/logger", () => ({
 vi.mock("../shared/i18n", () => ({
   default: { t: (key: string) => key },
 }));
+vi.mock("./contextMenu", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./contextMenu")>();
+  return { ...original, showContextMenu: mocks.showContextMenu };
+});
 
 import TagsList from "./TagsList";
 import TagPill from "./TagPill";
@@ -120,7 +125,10 @@ describe("previously uncovered tray components", () => {
     mocks.emitTo.mockResolvedValue(undefined);
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("renders tag limits and removable tag pills", () => {
     const { container, rerender } = render(<TagsList tags={[]} />);
@@ -257,6 +265,38 @@ describe("previously uncovered tray components", () => {
     fireEvent.click(screen.getByText("Recent Project"));
     fireEvent.click(screen.getByRole("button", { name: "recentActions.deleteFromKimai" }));
     expect((document.querySelector(".absolute button") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("exposes contextual recent-task actions and confirms deletion", () => {
+    const onStart = vi.fn();
+    const onHide = vi.fn();
+    const onDelete = vi.fn();
+    const onStartWithChanges = vi.fn();
+    const onEditLastEntry = vi.fn();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(
+      <RecentTasksList
+        tasks={[recent]}
+        onStart={onStart}
+        onHide={onHide}
+        onDelete={onDelete}
+        onStartWithChanges={onStartWithChanges}
+        onEditLastEntry={onEditLastEntry}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByText("Recent Project"));
+    const entries = mocks.showContextMenu.mock.calls[mocks.showContextMenu.mock.calls.length - 1]?.[1] as Array<{
+      text?: string;
+      action?: () => void;
+    }>;
+    entries.find((item) => item.text === "contextMenu.startWithChanges")?.action?.();
+    entries.find((item) => item.text === "contextMenu.editLastEntry")?.action?.();
+    entries.find((item) => item.text === "recentActions.deleteFromKimai")?.action?.();
+
+    expect(onStartWithChanges).toHaveBeenCalledWith(recent);
+    expect(onEditLastEntry).toHaveBeenCalledWith(recent);
+    expect(onDelete).toHaveBeenCalledWith(recent);
   });
 
   it("allows cancelling recent deletion and supports a headerless hidden action", () => {

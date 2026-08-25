@@ -32,6 +32,31 @@
     "reload": "Reload",
     "since": "since {{time}}"
   },
+  "contextMenu": {
+    "undo": "Undo",
+    "redo": "Redo",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select all",
+    "refreshData": "Refresh data",
+    "connectionSettings": "Connection settings",
+    "switchConnection": "Switch connection",
+    "editNote": "Edit note",
+    "editTags": "Edit tags",
+    "editStartTime": "Change start time",
+    "copyIssueUrl": "Copy issue URL",
+    "startWithChanges": "Start with changes",
+    "editLastEntry": "Edit last entry",
+    "startAgain": "Start again",
+    "refreshToday": "Refresh today's entries",
+    "refreshRecent": "Refresh recent tasks",
+    "deleteConfirm": "Do you really want to delete this entry from Kimai?",
+    "discardPausedConfirm": "Do you really want to discard this paused timer?",
+    "openLink": "Open link",
+    "copyLink": "Copy link",
+    "detachIssue": "Unlink issue"
+  },
   "detached": {
     "pin": "Pin on top",
     "unpin": "Unpin"

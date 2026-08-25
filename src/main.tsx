@@ -5,6 +5,7 @@ import { initPromise } from "./shared/i18n";
 import { logger } from "./utils/logger";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import QueryProvider from "./providers/QueryProvider";
+import GlobalContextMenuGuard from "./components/GlobalContextMenuGuard";
 import { getPlatformInfo } from "./platform";
 import "./index.css";
 
@@ -39,6 +40,7 @@ async function renderApp() {
     <React.StrictMode>
       <ErrorBoundary>
         <QueryProvider>
+          <GlobalContextMenuGuard />
           <WindowApp />
         </QueryProvider>
       </ErrorBoundary>

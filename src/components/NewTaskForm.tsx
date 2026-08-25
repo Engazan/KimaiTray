@@ -23,6 +23,8 @@ import {
 } from "../plugins/customInputs";
 
 export interface NewTaskFormInitialValues {
+  projectId?: number;
+  activityId?: number;
   description?: string;
   tags?: string[];
   /** Values keyed by the custom input's stable id. */
@@ -130,8 +132,12 @@ export default function NewTaskForm({
   const tagsControlId = `${formId}-tags`;
   const startTimeControlId = `${formId}-start-time`;
   const [customerId, setCustomerId] = useState<number | null>(null);
-  const [projectId, setProjectId] = useState<number | null>(null);
-  const [activityId, setActivityId] = useState<number | null>(null);
+  const [projectId, setProjectId] = useState<number | null>(
+    initialValues?.projectId ?? null,
+  );
+  const [activityId, setActivityId] = useState<number | null>(
+    initialValues?.activityId ?? null,
+  );
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
   const [pendingActivityProjectId, setPendingActivityProjectId] = useState<number | null>(null);
   const [activityFocusRequest, setActivityFocusRequest] = useState(0);

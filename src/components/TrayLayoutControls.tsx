@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 
 export type FocusTab = "recent" | "today";
 
@@ -49,6 +49,7 @@ interface CollapsibleTraySectionProps {
   collapsed: boolean;
   onToggle: () => void;
   children: ReactNode;
+  onContextMenu?: MouseEventHandler<HTMLButtonElement>;
 }
 
 export function CollapsibleTraySection({
@@ -57,6 +58,7 @@ export function CollapsibleTraySection({
   collapsed,
   onToggle,
   children,
+  onContextMenu,
 }: CollapsibleTraySectionProps) {
   const sectionId = useId();
   const contentId = `tray-section-${sectionId}`;
@@ -66,6 +68,7 @@ export function CollapsibleTraySection({
       <button
         type="button"
         onClick={onToggle}
+        onContextMenu={onContextMenu}
         aria-expanded={!collapsed}
         aria-controls={contentId}
         className="w-full px-3 py-1.5 flex items-center justify-between rounded-md focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"

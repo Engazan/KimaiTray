@@ -1,12 +1,15 @@
 import { useTranslation } from "react-i18next";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type { FavoriteTask, ColorMode } from "../types";
 import TagsList from "./TagsList";
 import ColorDots from "./ColorDots";
+import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface FavoriteTaskItemProps {
   task: FavoriteTask;
   onStart: (task: FavoriteTask) => void;
   onRemove: (task: FavoriteTask) => void;
+  onStartWithChanges?: (task: FavoriteTask) => void;
   isStarting?: boolean;
   disabled?: boolean;
   colorMode?: ColorMode;
@@ -16,6 +19,7 @@ export default function FavoriteTaskItem({
   task,
   onStart,
   onRemove,
+  onStartWithChanges,
   isStarting,
   disabled,
   colorMode = "kimai",
@@ -25,9 +29,23 @@ export default function FavoriteTaskItem({
   const subtitle = [task.customer, task.description]
     .filter(Boolean)
     .join(" · ");
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const contextEntries: ContextMenuEntry[] = [
+    { text: t("common.start"), enabled: !disabled, action: () => onStart(task) },
+    ...(onStartWithChanges
+      ? [{ text: t("contextMenu.startWithChanges"), enabled: !disabled, action: () => onStartWithChanges(task) } satisfies ContextMenuEntry]
+      : []),
+    separator(),
+    { text: t("favorites.removeFromFavorites"), enabled: !disabled, action: () => onRemove(task) },
+  ];
+  const openItemContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    void showContextMenu(event, contextEntries);
+  };
+  /* v8 ignore stop */
 
   return (
     <div
+      onContextMenu={openItemContextMenu}
       className="group flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5
         text-left transition-colors
         hover:bg-gray-100 dark:hover:bg-white/[0.06]

@@ -6,6 +6,7 @@ interface FavoriteTasksListProps {
   tasks: FavoriteTask[];
   onStart: (task: FavoriteTask) => void;
   onRemove: (task: FavoriteTask) => void;
+  onStartWithChanges?: (task: FavoriteTask) => void;
   startingKey?: string | null;
   disabled?: boolean;
   colorMode?: ColorMode;
@@ -15,6 +16,7 @@ export default function FavoriteTasksList({
   tasks,
   onStart,
   onRemove,
+  onStartWithChanges,
   startingKey,
   disabled,
   colorMode = "kimai",
@@ -37,6 +39,7 @@ export default function FavoriteTasksList({
             task={task}
             onStart={onStart}
             onRemove={onRemove}
+            onStartWithChanges={onStartWithChanges}
             isStarting={startingKey === task.key}
             disabled={disabled}
             colorMode={colorMode}

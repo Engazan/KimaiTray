@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTranslation } from "react-i18next";
 import { usePlatform } from "../platform";
+import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 function TrafficLight({ color, hoverColor, onClick, label, children }: {
   color: string;
@@ -50,6 +52,20 @@ export default function DetachedTitleBar({
   const barBg = transparent
     ? "bg-white/30 dark:bg-black/20 backdrop-blur-sm"
     : "bg-gray-50/80 dark:bg-[#141414]";
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const contextEntries: ContextMenuEntry[] = [
+    ...(platform.supportsAlwaysOnTop
+      ? [{ text: pinLabel, action: onTogglePin } satisfies ContextMenuEntry, separator()]
+      : []),
+    { text: t("common.minimize"), action: () => { void win.minimize(); } },
+    { text: t("common.maximize"), action: () => { void win.toggleMaximize(); } },
+    separator(),
+    { text: t("common.hide"), action: () => { void win.hide(); } },
+  ];
+  const openTitleBarContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    void showContextMenu(event, contextEntries);
+  };
+  /* v8 ignore stop */
 
   const pinButton = (
     <button
@@ -77,6 +93,7 @@ export default function DetachedTitleBar({
     return (
       <div
         data-tauri-drag-region
+        onContextMenu={openTitleBarContextMenu}
         className={`relative flex h-8 shrink-0 items-center border-b border-gray-100 dark:border-gray-800 ${barBg} px-2.5 select-none`}
       >
         <div className="flex items-center gap-1.5">
@@ -98,6 +115,7 @@ export default function DetachedTitleBar({
   return (
     <div
       data-tauri-drag-region
+      onContextMenu={openTitleBarContextMenu}
       className={`flex h-8 shrink-0 items-center justify-between border-b border-gray-100 dark:border-gray-800 ${barBg} px-2 select-none`}
     >
       <span

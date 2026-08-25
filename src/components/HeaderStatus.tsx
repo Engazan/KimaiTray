@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConnectionStatus } from "../hooks/useActiveTimer";
 import type { SavedConnection } from "../types";
+import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface HeaderStatusProps {
   status: ConnectionStatus;
@@ -11,6 +13,8 @@ interface HeaderStatusProps {
   onSwitchConnection: (id: string) => Promise<void>;
   showOpenKimai?: boolean;
   onOpenKimai?: () => void;
+  onRefresh?: () => void;
+  onOpenConnectionSettings?: () => void;
 }
 
 const DOT_STYLES: Record<ConnectionStatus, string> = {
@@ -37,15 +41,47 @@ export default function HeaderStatus({
   onSwitchConnection,
   showOpenKimai = false,
   onOpenKimai,
+  onRefresh,
+  onOpenConnectionSettings,
 }: HeaderStatusProps) {
   const { t } = useTranslation();
   const labelKey = STATUS_LABEL_KEYS[status];
   const label = errorMessage || (labelKey ? t(labelKey) : "");
   const active = connections.find((c) => c.id === activeConnectionId);
   const hasMultiple = connections.length > 1;
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const contextEntries: ContextMenuEntry[] = [
+    ...(onRefresh
+      ? [{ text: t("contextMenu.refreshData"), action: onRefresh } satisfies ContextMenuEntry]
+      : []),
+    ...(showOpenKimai && onOpenKimai
+      ? [{ text: t("common.openKimai"), action: onOpenKimai } satisfies ContextMenuEntry]
+      : []),
+    ...(hasMultiple
+      ? [{
+          kind: "submenu" as const,
+          text: t("contextMenu.switchConnection"),
+          items: connections.map((connection) => ({
+            text: connection.name,
+            enabled: connection.id !== activeConnectionId,
+            action: () => { void onSwitchConnection(connection.id); },
+          })),
+        } satisfies ContextMenuEntry]
+      : []),
+    ...(onOpenConnectionSettings
+      ? [separator(), { text: t("contextMenu.connectionSettings"), action: onOpenConnectionSettings } satisfies ContextMenuEntry]
+      : []),
+  ];
+  const openHeaderContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    void showContextMenu(event, contextEntries);
+  };
+  /* v8 ignore stop */
 
   return (
-    <header className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+    <header
+      className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-800"
+      onContextMenu={openHeaderContextMenu}
+    >
       <div className="flex items-center gap-2 min-w-0">
         <span
           role="img"

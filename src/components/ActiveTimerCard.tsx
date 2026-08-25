@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { ActiveTimer, ColorMode } from "../types";
@@ -13,6 +14,7 @@ import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
 import ColorDots from "./ColorDots";
 import type { PluginCustomInputDefinition } from "../plugins/customInputs";
+import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface ActiveTimerCardProps {
   timer: ActiveTimer;
@@ -99,6 +101,7 @@ export default function ActiveTimerCard({
   const [elapsed, setElapsed] = useState(() =>
     Math.max(0, Math.floor(Date.now() / 1000) - timer.beginSeconds),
   );
+  const [forceNoteVisible, setForceNoteVisible] = useState(false);
 
   useEffect(() => {
     const tick = () =>
@@ -252,6 +255,7 @@ export default function ActiveTimerCard({
     setEditingTags(false);
     setEditingBegin(false);
     setBeginError("");
+    setForceNoteVisible(false);
   }, [timer.id]);
 
   const handledEditDescriptionRequestRef = useRef(0);
@@ -273,10 +277,51 @@ export default function ActiveTimerCard({
 
   const exiting = isStopping || isPausing;
   const cardAnim = exiting ? "animate-card-out" : "animate-timer-in";
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const openIssue = async () => {
+    if (!issueUrl) return;
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(issueUrl);
+  };
+  const editDescriptionFromMenu = () => {
+    setForceNoteVisible(true);
+    startEditDesc();
+  };
+  const contextEntries: ContextMenuEntry[] = [
+    ...(onPause
+      ? [{ text: t("pause.pause"), enabled: !exiting, action: onPause } satisfies ContextMenuEntry]
+      : []),
+    { text: t("timer.stopTimer"), enabled: !exiting, action: onStop },
+    separator(),
+    ...(onEdit
+      ? [{ text: t("contextMenu.editNote"), action: editDescriptionFromMenu } satisfies ContextMenuEntry]
+      : []),
+    ...(!compact && onEdit && showTags
+      ? [{ text: t("contextMenu.editTags"), action: startEditTags } satisfies ContextMenuEntry]
+      : []),
+    ...(!compact && onEdit
+      ? [{ text: t("contextMenu.editStartTime"), action: startEditBegin } satisfies ContextMenuEntry]
+      : []),
+    ...(issueUrl
+      ? [
+          separator(),
+          { text: t("integrations.openInBrowser"), action: () => { void openIssue(); } } satisfies ContextMenuEntry,
+          { text: t("contextMenu.copyIssueUrl"), action: () => { void navigator.clipboard.writeText(issueUrl); } } satisfies ContextMenuEntry,
+        ]
+      : []),
+  ];
+  const openCardContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    void showContextMenu(event, contextEntries);
+  };
+  /* v8 ignore stop */
 
   if (compact) {
     return (
-      <div key={timer.id} className={`mx-3 mt-1.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 ${cardAnim}`}>
+      <div
+        key={timer.id}
+        onContextMenu={openCardContextMenu}
+        className={`mx-3 mt-1.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 ${cardAnim}`}
+      >
         <div className="flex min-h-5 items-center gap-2 px-2.5 py-1.5">
           <ColorDots
             activityColor={timer.activityColor}
@@ -345,7 +390,11 @@ export default function ActiveTimerCard({
   }
 
   return (
-    <div key={timer.id} className={`mx-3 mt-2 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 ${cardAnim}`}>
+    <div
+      key={timer.id}
+      onContextMenu={openCardContextMenu}
+      className={`mx-3 mt-2 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 ${cardAnim}`}
+    >
       <div className="px-3 py-2.5">
         {/* Row 1: Project + Activity + badges */}
         <div className="flex items-center gap-2 mb-1">
@@ -398,7 +447,7 @@ export default function ActiveTimerCard({
         </div>
 
         {/* Row 2: Description (editable) */}
-        {showNote && (
+        {(showNote || forceNoteVisible) && (
           <div className="pl-4 mb-1.5 flex items-center gap-1">
             <div className="min-w-0 flex-1">
               {editingDesc ? (
@@ -434,10 +483,7 @@ export default function ActiveTimerCard({
             {issueUrl && !editingDesc && (
               <button
                 type="button"
-                onClick={async () => {
-                  const { openUrl } = await import("@tauri-apps/plugin-opener");
-                  openUrl(issueUrl);
-                }}
+                onClick={() => void openIssue()}
                 title={t("integrations.openInBrowser")}
                 className="shrink-0 p-0.5 rounded text-gray-400 dark:text-gray-500 hover:text-[var(--accent)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
               >

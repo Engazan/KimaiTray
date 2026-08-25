@@ -32,6 +32,31 @@
     "reload": "Перезавантажити",
     "since": "з {{time}}"
   },
+  "contextMenu": {
+    "undo": "Скасувати",
+    "redo": "Повторити",
+    "cut": "Вирізати",
+    "copy": "Копіювати",
+    "paste": "Вставити",
+    "selectAll": "Вибрати все",
+    "refreshData": "Оновити дані",
+    "connectionSettings": "Налаштування підключення",
+    "switchConnection": "Змінити підключення",
+    "editNote": "Редагувати нотатку",
+    "editTags": "Редагувати теги",
+    "editStartTime": "Змінити час початку",
+    "copyIssueUrl": "Копіювати URL завдання",
+    "startWithChanges": "Запустити зі змінами",
+    "editLastEntry": "Редагувати останній запис",
+    "startAgain": "Запустити знову",
+    "refreshToday": "Оновити сьогоднішні записи",
+    "refreshRecent": "Оновити останні завдання",
+    "deleteConfirm": "Дійсно видалити цей запис із Kimai?",
+    "discardPausedConfirm": "Дійсно відкинути цей призупинений таймер?",
+    "openLink": "Відкрити посилання",
+    "copyLink": "Копіювати посилання",
+    "detachIssue": "Від’єднати завдання"
+  },
   "detached": {
     "pin": "Закріпити зверху",
     "unpin": "Відкріпити"

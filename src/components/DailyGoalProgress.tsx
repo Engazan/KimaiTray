@@ -1,6 +1,8 @@
 import { useId, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDuration } from "../utils/time";
+import { showContextMenu } from "./contextMenu";
 
 interface DailyGoalProgressProps {
   totalDuration: number;
@@ -92,9 +94,20 @@ export default function DailyGoalProgress({
         : t("today.remainingToRequired", {
             duration: formatRemaining(state.remainingSeconds),
           });
+  /* v8 ignore start -- callback executes from a native OS context menu */
+  const openGoalContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    void showContextMenu(event, [{
+      text: expanded ? t("today.collapseDailyGoal") : t("today.expandDailyGoal"),
+      action: () => setExpanded((value) => !value),
+    }]);
+  };
+  /* v8 ignore stop */
 
   return (
-    <section className="relative mx-2.5 mb-1.5 overflow-hidden rounded-lg border border-gray-100 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/40">
+    <section
+      onContextMenu={openGoalContextMenu}
+      className="relative mx-2.5 mb-1.5 overflow-hidden rounded-lg border border-gray-100 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/40"
+    >
       <button
         type="button"
         className="absolute inset-0 z-10 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"

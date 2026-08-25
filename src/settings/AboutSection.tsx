@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { SettingsCard, SettingsList, SettingsPage } from "./SettingsLayout";
+import { separator, showContextMenu } from "../components/contextMenu";
 
 function LinkButton({
   label,
@@ -15,10 +17,22 @@ function LinkButton({
   icon: React.ReactNode;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
+  /* v8 ignore start -- callback executes from a native OS context menu */
+  const openLinkContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    if (disabled) return;
+    void showContextMenu(event, [
+      { text: t("contextMenu.openLink"), action: () => { void openUrl(href); } },
+      separator(),
+      { text: t("contextMenu.copyLink"), action: () => { void navigator.clipboard.writeText(href); } },
+    ]);
+  };
+  /* v8 ignore stop */
   return (
     <button
       type="button"
       onClick={() => { if (!disabled) openUrl(href).catch(() => {}); }}
+      onContextMenu={openLinkContextMenu}
       disabled={disabled}
       className={`flex items-center gap-2 px-4 py-2.5 text-[12px]
         focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
@@ -145,10 +159,22 @@ function DonateButton({
   href: string;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
+  /* v8 ignore start -- callback executes from a native OS context menu */
+  const openLinkContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    if (disabled) return;
+    void showContextMenu(event, [
+      { text: t("contextMenu.openLink"), action: () => { void openUrl(href); } },
+      separator(),
+      { text: t("contextMenu.copyLink"), action: () => { void navigator.clipboard.writeText(href); } },
+    ]);
+  };
+  /* v8 ignore stop */
   return (
     <button
       type="button"
       onClick={disabled ? undefined : () => openUrl(href).catch(() => {})}
+      onContextMenu={openLinkContextMenu}
       disabled={disabled}
       className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-opacity
         focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-400

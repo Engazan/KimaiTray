@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { getVersion } from "@tauri-apps/api/app";
@@ -91,6 +92,7 @@ import {
   resolveDeepLinkConnectionId,
   type KimaiTrayDeepLink,
 } from "../api/deepLinkPayload";
+import { separator, showContextMenu, type ContextMenuEntry } from "../components/contextMenu";
 
 interface PendingDeepLink {
   id: number;
@@ -1306,6 +1308,215 @@ export default function TrayPopup() {
     idleActionError,
   ]);
 
+  /* v8 ignore start -- callbacks execute from native OS menus, outside jsdom */
+  const openSettingsWindow = useCallback(async (section?: string) => {
+    const settingsWindow = await Window.getByLabel("settings");
+    if (!settingsWindow) return;
+    await settingsWindow.show();
+    await settingsWindow.setFocus();
+    if (section) {
+      await settingsWindow.emitTo("settings", "kimai://navigate-section", section);
+    }
+  }, []);
+
+  const openNewTaskForm = useCallback((initialValues?: NewTaskFormInitialValues) => {
+    setNewTaskInitialValues(initialValues);
+    setNewTaskShortcutRequest(0);
+    setShowNewTask(true);
+  }, []);
+  const openBlankNewTask = useCallback(() => openNewTaskForm(), [openNewTaskForm]);
+  const openGeneralSettings = useCallback(() => { void openSettingsWindow(); }, [openSettingsWindow]);
+  const openConnectionSettings = useCallback(() => { void openSettingsWindow("connection"); }, [openSettingsWindow]);
+  const refreshAllData = useCallback(() => { void invalidateTimesheets(qc); }, [qc]);
+
+  const taskInitialValues = useCallback(
+    (task: RecentTask | FavoriteTask): NewTaskFormInitialValues => ({
+      projectId: task.projectId,
+      activityId: task.activityId,
+      description: task.description || undefined,
+      tags: task.tags.length > 0 ? task.tags : undefined,
+      customInputValues: Object.fromEntries(
+        pluginCustomInputs.flatMap((input) => {
+          const value = task.metadata?.[input.metadataName];
+          return value ? [[input.id, value]] : [];
+        }),
+      ),
+    }),
+    [pluginCustomInputs],
+  );
+
+  const handleStartWithChanges = useCallback(
+    (task: RecentTask | FavoriteTask) => openNewTaskForm(taskInitialValues(task)),
+    [openNewTaskForm, taskInitialValues],
+  );
+
+  const handleEditRecentEntry = useCallback(
+    async (task: RecentTask) => {
+      if (!client) return;
+      try {
+        const entry = await getTimesheet(client, task.timesheetId);
+        setEditingEntry({
+          id: entry.id,
+          projectId: task.projectId,
+          activityId: task.activityId,
+          project: task.project,
+          projectColor: task.projectColor,
+          activityColor: task.activityColor,
+          customerColor: task.customerColor,
+          customer: task.customer,
+          activity: task.activity,
+          description: entry.description ?? task.description,
+          tags: task.tags,
+          billable: entry.billable,
+          beginIso: entry.begin,
+          endIso: entry.end,
+          duration: entry.duration,
+          isRunning: entry.end === null,
+        });
+      } catch (error) {
+        logger.error(`Failed to load timesheet for editing: ${String(error)}`);
+      }
+    },
+    [client],
+  );
+
+  const handleRestartTodayEntry = useCallback(
+    (entry: TodayEntry) => {
+      void startTask({
+        projectId: entry.projectId,
+        activityId: entry.activityId,
+        description: entry.description || undefined,
+        tags: entry.tags.length > 0 ? entry.tags : undefined,
+        label: entry.project,
+      }, `${entry.projectId}-${entry.activityId}`);
+    },
+    [startTask],
+  );
+
+  const handleToggleTodayFavorite = useCallback(
+    (entry: TodayEntry) => {
+      const key = `${entry.projectId}-${entry.activityId}`;
+      if (isFavorite(key)) {
+        void removeFav(key);
+        return;
+      }
+      void addFav({
+        key,
+        projectId: entry.projectId,
+        activityId: entry.activityId,
+        project: entry.project,
+        activity: entry.activity,
+        customer: entry.customer,
+        description: entry.description,
+        tags: entry.tags,
+        projectColor: entry.projectColor,
+        activityColor: entry.activityColor,
+        customerColor: entry.customerColor,
+      });
+    },
+    [addFav, isFavorite, removeFav],
+  );
+
+  const runningEntryContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLElement>) => {
+      const entries: ContextMenuEntry[] = [
+        ...(timer
+          ? [
+              { text: t("pause.pause"), enabled: !isPausing && !isStoppingActive, action: pauseTimer },
+              { text: t("timer.stopTimer"), enabled: !isPausing && !isStoppingActive, action: stopActiveTimer },
+              separator(),
+              { text: t("contextMenu.editNote"), action: () => setEditNoteRequest((request) => request + 1) },
+            ] satisfies ContextMenuEntry[]
+          : []),
+        ...(timerIssueUrl
+          ? [
+              separator(),
+              {
+                text: t("integrations.openInBrowser"),
+                action: () => {
+                  void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(timerIssueUrl));
+                },
+              },
+              {
+                text: t("contextMenu.copyIssueUrl"),
+                action: () => { void navigator.clipboard.writeText(timerIssueUrl); },
+              },
+            ] satisfies ContextMenuEntry[]
+          : []),
+      ];
+      void showContextMenu(event, entries);
+    },
+    [isPausing, isStoppingActive, pauseTimer, stopActiveTimer, t, timer, timerIssueUrl],
+  );
+
+  const todayHeaderContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLElement>) => {
+      const entries: ContextMenuEntry[] = [
+        { text: t("contextMenu.refreshToday"), action: () => { void today.refetch(); } },
+        ...(today.totalCount > 0
+          ? [{
+              text: today.sortAsc ? t("today.newestFirst") : t("today.oldestFirst"),
+              action: () => today.setSortAsc(!today.sortAsc),
+            } satisfies ContextMenuEntry]
+          : []),
+        ...(today.hasMore
+          ? [{
+              text: today.expanded ? t("today.showLess") : t("today.showAll", { count: today.totalCount }),
+              action: () => today.setExpanded(!today.expanded),
+            } satisfies ContextMenuEntry]
+          : []),
+      ];
+      void showContextMenu(event, entries);
+    },
+    [t, today],
+  );
+
+  const recentHeaderContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLElement>) => {
+      const entries: ContextMenuEntry[] = [
+        { text: t("contextMenu.refreshRecent"), action: () => { void invalidateTimesheets(qc); } },
+        ...(hiddenCount > 0
+          ? [{ text: t("recentActions.showAll"), action: clearHidden } satisfies ContextMenuEntry]
+          : []),
+      ];
+      void showContextMenu(event, entries);
+    },
+    [clearHidden, hiddenCount, qc, t],
+  );
+
+  const generalContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (showNewTask || editingEntry) return;
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("button, input, textarea, select, [role='button'], [role='tab'], [role='option']")
+      ) {
+        return;
+      }
+      const entries: ContextMenuEntry[] = [
+        { text: t("tray.newTask"), enabled: !!client, action: () => openNewTaskForm() },
+        ...(openKimaiInBrowser
+          ? [{ text: t("common.openKimai"), action: () => { void openConfiguredKimai(); } } satisfies ContextMenuEntry]
+          : []),
+        separator(),
+        { text: t("common.settings"), action: () => { void openSettingsWindow(); } },
+      ];
+      void showContextMenu(event, entries);
+    },
+    [client, editingEntry, openKimaiInBrowser, openNewTaskForm, openSettingsWindow, showNewTask, t],
+  );
+
+  const todayContextProps = {
+    onRestartEntry: handleRestartTodayEntry,
+    onToggleFavoriteEntry: handleToggleTodayFavorite,
+    isFavoriteEntry: (entry: TodayEntry) => isFavorite(`${entry.projectId}-${entry.activityId}`),
+    onDeleteEntry: (entry: TodayEntry) => deleteEntry(entry.id),
+    onRunningEntryContextMenu: runningEntryContextMenu,
+    onHeaderContextMenu: todayHeaderContextMenu,
+  };
+  /* v8 ignore stop */
+
   const handleTogglePin = useCallback(() => {
     const next = !pinned;
     setPinned(next);
@@ -1313,7 +1524,10 @@ export default function TrayPopup() {
   }, [pinned]);
 
   return (
-    <div className="relative flex h-screen w-screen flex-col bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100">
+    <div
+      onContextMenu={generalContextMenu}
+      className="relative flex h-screen w-screen flex-col bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+    >
       {isDetached && (
         <DetachedTitleBar
           pinned={pinned}
@@ -1336,6 +1550,8 @@ export default function TrayPopup() {
         onSwitchConnection={switchConnection}
         showOpenKimai={openKimaiInBrowser}
         onOpenKimai={() => void openConfiguredKimai()}
+        onRefresh={refreshAllData}
+        onOpenConnectionSettings={openConnectionSettings}
       />
 
       {updater.available && (
@@ -1382,9 +1598,9 @@ export default function TrayPopup() {
               !hasPausedTimers) && (
               <div className="timer-area min-h-0 shrink-0">
                 {status === "loading" ? (
-                  <EmptyTimerState variant="loading" compact={compactTimer} />
+                  <EmptyTimerState variant="loading" compact={compactTimer} onNewTask={openBlankNewTask} />
                 ) : status === "unconfigured" ? (
-                  <EmptyTimerState variant="unconfigured" compact={compactTimer} />
+                  <EmptyTimerState variant="unconfigured" compact={compactTimer} onNewTask={openBlankNewTask} />
                 ) : timer ? (
                   <ActiveTimerCard
                     timer={timer}
@@ -1412,7 +1628,7 @@ export default function TrayPopup() {
                     }
                   />
                 ) : (
-                  <EmptyTimerState compact={compactTimer} />
+                  <EmptyTimerState compact={compactTimer} onNewTask={openBlankNewTask} />
                 )}
               </div>
             )}
@@ -1500,6 +1716,7 @@ export default function TrayPopup() {
                     onEditEntry={setEditingEntry}
                     colorMode={colorMode}
                     dailyGoal={dailyGoal}
+                    {...todayContextProps}
                   />
                 )}
               </>
@@ -1515,6 +1732,7 @@ export default function TrayPopup() {
                   tasks={visibleFavorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
+                  onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
                   disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
@@ -1523,6 +1741,8 @@ export default function TrayPopup() {
                   <RecentTasksList
                     tasks={visibleTasks}
                     onStart={handleStartRecent}
+                    onStartWithChanges={handleStartWithChanges}
+                    onEditLastEntry={handleEditRecentEntry}
                     onHide={handleHideRecent}
                     onDelete={handleDeleteRecent}
                     onToggleFavorite={handleToggleFavorite}
@@ -1533,6 +1753,7 @@ export default function TrayPopup() {
                     disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                     hiddenCount={hiddenCount}
                     onShowAll={clearHidden}
+                    onHeaderContextMenu={recentHeaderContextMenu}
                     showHeader={false}
                     colorMode={colorMode}
                   />
@@ -1552,6 +1773,7 @@ export default function TrayPopup() {
                     onEditEntry={setEditingEntry}
                     colorMode={colorMode}
                     dailyGoal={dailyGoal}
+                    {...todayContextProps}
                   />
                 ) : null}
               </>
@@ -1575,6 +1797,7 @@ export default function TrayPopup() {
                       onEditEntry={setEditingEntry}
                       colorMode={colorMode}
                       dailyGoal={dailyGoal}
+                      {...todayContextProps}
                     />
                     <div className="mx-3 border-t border-gray-100 dark:border-gray-800" />
                   </>
@@ -1583,6 +1806,7 @@ export default function TrayPopup() {
                   tasks={visibleFavorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
+                  onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
                   disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
@@ -1592,10 +1816,13 @@ export default function TrayPopup() {
                   title={t("tray.recentTasks")}
                   collapsed={recentCollapsed}
                   onToggle={() => setRecentCollapsed(!recentCollapsed)}
+                  onContextMenu={recentHeaderContextMenu}
                 >
                     <RecentTasksList
                       tasks={visibleTasks}
                       onStart={handleStartRecent}
+                      onStartWithChanges={handleStartWithChanges}
+                      onEditLastEntry={handleEditRecentEntry}
                       onHide={handleHideRecent}
                       onDelete={handleDeleteRecent}
                       onToggleFavorite={handleToggleFavorite}
@@ -1606,6 +1833,7 @@ export default function TrayPopup() {
                       disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                       hiddenCount={hiddenCount}
                       onShowAll={clearHidden}
+                      onHeaderContextMenu={recentHeaderContextMenu}
                       showHeader={false}
                       colorMode={colorMode}
                     />
@@ -1617,6 +1845,7 @@ export default function TrayPopup() {
                   tasks={visibleFavorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
+                  onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
                   disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
@@ -1624,6 +1853,8 @@ export default function TrayPopup() {
                 <RecentTasksList
                   tasks={visibleTasks}
                   onStart={handleStartRecent}
+                  onStartWithChanges={handleStartWithChanges}
+                  onEditLastEntry={handleEditRecentEntry}
                   onHide={handleHideRecent}
                   onDelete={handleDeleteRecent}
                   onToggleFavorite={handleToggleFavorite}
@@ -1634,6 +1865,7 @@ export default function TrayPopup() {
                   disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   hiddenCount={hiddenCount}
                   onShowAll={clearHidden}
+                  onHeaderContextMenu={recentHeaderContextMenu}
                   colorMode={colorMode}
                 />
                 {status !== "unconfigured" && (
@@ -1652,6 +1884,7 @@ export default function TrayPopup() {
                       }
                       collapsed={todayCollapsed}
                       onToggle={() => setTodayCollapsed(!todayCollapsed)}
+                      onContextMenu={todayHeaderContextMenu}
                     >
                         <TodaySection
                           entries={today.entries}
@@ -1668,6 +1901,7 @@ export default function TrayPopup() {
                           onEditEntry={setEditingEntry}
                           colorMode={colorMode}
                           dailyGoal={dailyGoal}
+                          {...todayContextProps}
                         />
                     </CollapsibleTraySection>
                   </>
@@ -1680,6 +1914,7 @@ export default function TrayPopup() {
                   tasks={visibleFavorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
+                  onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
                   disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   colorMode={colorMode}
@@ -1687,6 +1922,8 @@ export default function TrayPopup() {
                 <RecentTasksList
                   tasks={visibleTasks}
                   onStart={handleStartRecent}
+                  onStartWithChanges={handleStartWithChanges}
+                  onEditLastEntry={handleEditRecentEntry}
                   onHide={handleHideRecent}
                   onDelete={handleDeleteRecent}
                   onToggleFavorite={handleToggleFavorite}
@@ -1697,6 +1934,7 @@ export default function TrayPopup() {
                   disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
                   hiddenCount={hiddenCount}
                   onShowAll={clearHidden}
+                  onHeaderContextMenu={recentHeaderContextMenu}
                   colorMode={colorMode}
                 />
                 {status !== "unconfigured" && (
@@ -1717,6 +1955,7 @@ export default function TrayPopup() {
                       onEditEntry={setEditingEntry}
                       colorMode={colorMode}
                       dailyGoal={dailyGoal}
+                      {...todayContextProps}
                     />
                   </>
                 )}
@@ -1726,18 +1965,8 @@ export default function TrayPopup() {
           </div>
 
           <PopupFooterActions
-            onNewTask={() => {
-              setNewTaskInitialValues(undefined);
-              setNewTaskShortcutRequest(0);
-              setShowNewTask(true);
-            }}
-            onSettings={async () => {
-              const w = await Window.getByLabel("settings");
-              if (w) {
-                await w.show();
-                await w.setFocus();
-              }
-            }}
+            onNewTask={openBlankNewTask}
+            onSettings={openGeneralSettings}
           />
         </>
       )}

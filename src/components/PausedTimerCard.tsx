@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type { PausedTimerData } from "../api/pauseStore";
 import type { ColorMode } from "../types";
 import TagsList from "./TagsList";
 import ColorDots from "./ColorDots";
+import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface PausedTimerCardProps {
   paused: PausedTimerData;
@@ -41,10 +43,29 @@ export default function PausedTimerCard({
   const cardAnim = busy ? "animate-card-out" : "animate-timer-in";
   const description = paused.description.trim();
   const hasDescription = showDescriptionOnHover && description.length > 0;
+  /* v8 ignore start -- callbacks execute from a native OS context menu */
+  const contextEntries: ContextMenuEntry[] = [
+    { text: t("pause.resume"), enabled: !busy, action: onResume },
+    separator(),
+    {
+      text: t("pause.discard"),
+      enabled: !busy,
+      action: () => {
+        if (window.confirm(t("contextMenu.discardPausedConfirm"))) onStop();
+      },
+    },
+  ];
+  const openCardContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    void showContextMenu(event, contextEntries);
+  };
+  /* v8 ignore stop */
 
   if (compact) {
     return (
-      <div className={`mx-3 mt-1.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 ${cardAnim}`}>
+      <div
+        onContextMenu={openCardContextMenu}
+        className={`mx-3 mt-1.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 ${cardAnim}`}
+      >
         <div className="px-2.5 py-1.5 flex items-center gap-2">
           <ColorDots
             activityColor={paused.activityColor ?? ""}
@@ -113,7 +134,10 @@ export default function PausedTimerCard({
   }
 
   return (
-    <div className={`mx-3 mt-2 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 ${cardAnim}`}>
+    <div
+      onContextMenu={openCardContextMenu}
+      className={`mx-3 mt-2 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 ${cardAnim}`}
+    >
       <div className="px-3 py-2.5">
         {/* Row 1: Project + Activity + Paused badge */}
         <div className="flex items-center gap-2 mb-1">
