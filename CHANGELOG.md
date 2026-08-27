@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.22.7] - 2026-08-27
+
+### New Features
+
+- **Native context menus** — right-click actions now use native menus across timers, recent and favorite tasks, today's entries, issue selection, layout controls and editable text fields
+
+### Bug Fixes
+
+- **Distinct task variants by note** — recent tasks, favorites and linked issues now distinguish entries that share a project and activity but use different notes
+- **Reliable repeated GitLab timer links** — every Tampermonkey button click now creates a distinct protocol activation, so repeatedly opening the same issue continues to prefill the new-timer form
+- **Reliable macOS cold-start timer links** — launching KimaiTray from a deep link now waits for the startup URL and opens the prefilled new-timer form even when the application was not already running
+- **True Tray preserved on deep-link launch** — starting KimaiTray through a protocol link no longer exposes the application in the Dock or Cmd+Tab switcher when True Tray mode is enabled
+
+### Maintenance
+
+- **Updated application dependencies** — refreshed the frontend, Tauri, networking, keyring and platform dependency sets
+
 ## [0.22.6] - 2026-08-20
 
 ### New Features
