@@ -7,6 +7,12 @@ const subscribers = new Set<DeepLinkSubscriber>();
 const queuedUrls: string[] = [];
 let initializePromise: Promise<void> | null = null;
 const CONSUMED_CURRENT_URLS_STORAGE_KEY = "kimaitray:deep-link:consumed-current-urls";
+const MACOS_CURRENT_URL_RETRY_INTERVAL_MS = 50;
+const MACOS_CURRENT_URL_RETRY_ATTEMPTS = 30;
+
+function isMacOsWebView(): boolean {
+  return typeof navigator !== "undefined" && /Macintosh|Mac OS X/.test(navigator.userAgent);
+}
 
 function consumedCurrentUrls(): string | null {
   if (typeof sessionStorage === "undefined") return null;
@@ -45,6 +51,23 @@ async function initialize(): Promise<void> {
     // listener is registered, one later task gives the store time to settle.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     current = await getCurrent();
+  }
+  if (!current && isMacOsWebView()) {
+    // A cold macOS protocol launch can create the webview before
+    // LaunchServices has delivered the URL to the native plugin. The live
+    // event is then too early for the React listener, while a single task-tick
+    // retry is still too early for getCurrent. Poll briefly during startup so
+    // the initial URL is claimed once the plugin's current value catches up.
+    for (
+      let attempt = 0;
+      attempt < MACOS_CURRENT_URL_RETRY_ATTEMPTS && !current;
+      attempt += 1
+    ) {
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, MACOS_CURRENT_URL_RETRY_INTERVAL_MS),
+      );
+      current = await getCurrent();
+    }
   }
   if (current) {
     const currentFingerprint = JSON.stringify(current);

@@ -50,6 +50,24 @@ describe("deep-link subscription", () => {
     expect(subscriber).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps polling briefly for a delayed macOS cold-start URL", async () => {
+    const url = "kimaitray://new?issue=https%3A%2F%2Fgit.example.test%2Fgroup%2Fproject%2F-%2Fissues%2F8";
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X)" });
+    plugin.getCurrent
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce([url]);
+    const { subscribeToDeepLinks } = await import("./deepLink");
+    const subscriber = vi.fn();
+
+    subscribeToDeepLinks(subscriber);
+
+    await vi.waitFor(() => expect(subscriber).toHaveBeenCalledWith(url));
+    expect(plugin.getCurrent).toHaveBeenCalledTimes(4);
+    expect(subscriber).toHaveBeenCalledTimes(1);
+  });
+
   it("does not duplicate a URL observed by the live listener during startup", async () => {
     const url = "kimaitray://start?project=1&activity=2";
     plugin.onOpenUrl.mockImplementation(async (handler: (urls: string[]) => void) => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KimaiTray – GitLab issue button
 // @namespace    https://github.com/Engazan/KimaiTray
-// @version      1.3.0
+// @version      1.3.1
 // @description  Adds a button to GitLab issue breadcrumbs that opens a prefilled new-timer form in KimaiTray.
 // @author       KimaiTray contributors
 // @match        *://*/*
@@ -27,6 +27,7 @@
   const LEGACY_SETTING_GITLAB_URL = "gitlabBaseUrl";
   const SETTING_GITLAB_URLS = "gitlabBaseUrls";
   const SETTING_CUSTOM_FIELD = "customPluginField";
+  let activationSequence = 0;
 
   function normalizeBaseUrl(rawValue) {
     const url = new URL(rawValue.trim());
@@ -131,7 +132,16 @@
   }
 
   function buildDeepLink(issueUrl) {
-    const params = new URLSearchParams({ issue: issueUrl });
+    // Keep every protocol activation unique. Browsers, macOS LaunchServices
+    // and the Tauri deep-link plugin may retain an identical URL from the
+    // previous launch, which can surface the popup without delivering a new
+    // payload to the already-running webview. KimaiTray ignores this unknown
+    // parameter while the unique value ensures every click is dispatched.
+    activationSequence += 1;
+    const params = new URLSearchParams({
+      issue: issueUrl,
+      activation: `${Date.now()}-${activationSequence}`,
+    });
     const customField = GM_getValue(SETTING_CUSTOM_FIELD, "").trim();
     if (customField) params.set(`custom.${customField}`, issueUrl);
     return `kimaitray://new?${params.toString()}`;

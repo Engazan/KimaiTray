@@ -1434,6 +1434,13 @@ fn build_tray_menu(
 }
 
 pub fn show_popup_window(app: &AppHandle) {
+    // Launching a custom protocol activates the application as a regular macOS
+    // app after setup has already applied the persisted policy. Reassert it
+    // immediately before showing/focusing the popup so a True Tray launch does
+    // not leak KimaiTray into the Dock or Cmd+Tab switcher.
+    #[cfg(target_os = "macos")]
+    apply_true_tray_from_store(app);
+
     if let Some(popup) = app.get_webview_window("tray-popup") {
         if popup.is_visible().unwrap_or(false) {
             restore_and_focus_popup(&popup);

@@ -47,6 +47,50 @@ async function flushAnimationFrames(dom: JSDOM) {
 }
 
 describe("GitLab Tampermonkey userscript", () => {
+  it("creates a distinct deep link for every repeated button click", async () => {
+    const openedUrls: string[] = [];
+    const { dom } = runUserscript(
+      `<ol>
+        <li class="gl-breadcrumb-item gl-breadcrumb-item-sm">Issue 725</li>
+      </ol>`,
+      "https://gitlab.example.test/group/project/-/work_items/725",
+    );
+    const dateNow = vi
+      .spyOn(dom.window.Date, "now")
+      .mockReturnValue(1_700_000_000_000);
+    const click = vi
+      .spyOn(dom.window.HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        openedUrls.push(this.href);
+      });
+
+    const button = await vi.waitFor(() => {
+      const candidate = dom.window.document.querySelector<HTMLButtonElement>(
+        "#kimaitray-gitlab-button button",
+      );
+      expect(candidate).not.toBeNull();
+      return candidate!;
+    });
+    button.click();
+    button.click();
+
+    expect(openedUrls).toHaveLength(2);
+    expect(openedUrls[0]).not.toBe(openedUrls[1]);
+    expect(new URL(openedUrls[0]).searchParams.get("issue")).toBe(
+      "https://gitlab.example.test/group/project/-/work_items/725",
+    );
+    expect(new URL(openedUrls[0]).searchParams.get("activation")).toBe(
+      "1700000000000-1",
+    );
+    expect(new URL(openedUrls[1]).searchParams.get("activation")).toBe(
+      "1700000000000-2",
+    );
+
+    click.mockRestore();
+    dateNow.mockRestore();
+    await flushAnimationFrames(dom);
+  });
+
   it("appends the timer button to an open board work-item drawer", async () => {
     const { dom } = runUserscript(
       `<div class="gl-flex gl-grow gl-items-center gl-gap-2" id="drawer-actions">
