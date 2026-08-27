@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
 import { showFullscreenReminder } from "../api/reminderWindow";
 import { logger } from "../utils/logger";
+import { usePlatform } from "../platform";
 import { NumberInput, Select, Toggle } from "./Controls";
 import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
 
@@ -13,6 +14,7 @@ interface Props {
 
 export default function IdleDetectionSection({ settings, update }: Props) {
   const { t } = useTranslation();
+  const { os } = usePlatform();
   const [testing, setTesting] = useState(false);
 
   const testIdleReminder = async () => {
@@ -80,6 +82,18 @@ export default function IdleDetectionSection({ settings, update }: Props) {
             disabled={!settings.enableIdleDetection}
           />
         </SettingsRow>
+
+        {os === "macos" && (
+          <SettingsRow
+            label={t("idle.stopOnScreensaver")}
+            description={t("idle.stopOnScreensaverDescription")}
+          >
+            <Toggle
+              checked={settings.stopTimerOnScreensaver}
+              onChange={(v) => update("stopTimerOnScreensaver", v)}
+            />
+          </SettingsRow>
+        )}
 
         <SettingsRow
           label={t("idle.testReminder")}

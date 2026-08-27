@@ -173,7 +173,7 @@ beforeEach(() => {
   mocks.kimai = {
     client: { connectionId: "conn", cacheScope: "conn" }, settingsReady: true, isConfigured: true,
     refreshInterval: 60, baseUrl: "https://kimai.test", openKimaiInBrowser: true,
-    idleSettings: { enableIdleDetection: true, idleThresholdMinutes: 5, idleAction: "ask", showIdleNotification: false },
+    idleSettings: { enableIdleDetection: true, idleThresholdMinutes: 5, idleAction: "ask", showIdleNotification: false, stopTimerOnScreensaver: false },
     timerReminderSettings: { enabled: false, thresholdMinutes: 15 },
     traySettings: { menuBarLabelStyle: "timer", showSecondsInTimer: true },
     shortcutSettings: { shortcutTogglePopup: "Ctrl+K", shortcutStartStopTimer: "", shortcutNewTask: "", shortcutPauseResume: "", shortcutContinueLastTask: "", shortcutEditNote: "", shortcutOpenKimai: "", shortcutOpenSettings: "" },
@@ -279,6 +279,20 @@ describe("TrayPopup", () => {
     expect(mocks.pause.discardPausedTimer).toHaveBeenCalledWith(2);
     expect(mocks.tray.always).toHaveBeenCalledWith(true);
     expect(mocks.tray.tickerStart).toHaveBeenCalled();
+  });
+
+  it("stops the active timer on a screen saver event only when enabled", () => {
+    mocks.active.timer = timer;
+    mocks.kimai.idleSettings.stopTimerOnScreensaver = true;
+    const { rerender } = render(<TrayPopup />);
+
+    act(() => mocks.events.get("kimai://screensaver-started")?.());
+    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
+
+    mocks.kimai.idleSettings.stopTimerOnScreensaver = false;
+    rerender(<TrayPopup />);
+    act(() => mocks.events.get("kimai://screensaver-started")?.());
+    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
   });
 
   it("resumes the newest paused timer and reports the paused tray state", () => {

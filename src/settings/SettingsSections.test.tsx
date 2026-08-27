@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   getVersion: vi.fn(),
   openUrl: vi.fn(),
   supportsGlobalShortcuts: true,
+  platformOs: "macos",
 }));
 
 vi.mock("react-i18next", () => ({
@@ -60,7 +61,7 @@ vi.mock("../utils/logger", () => ({ logger: { error: mocks.loggerError } }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: mocks.getVersion }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: mocks.openUrl }));
 vi.mock("../platform", () => ({
-  usePlatform: () => ({ supportsGlobalShortcuts: mocks.supportsGlobalShortcuts }),
+  usePlatform: () => ({ os: mocks.platformOs, supportsGlobalShortcuts: mocks.supportsGlobalShortcuts }),
   currentPlatform: () => ({ os: "linux" }),
 }));
 vi.mock("../categorymode/CategoryModeSettingsSection", () => ({
@@ -90,6 +91,7 @@ const settings = (patch: Partial<AppSettings> = {}): AppSettings => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.supportsGlobalShortcuts = true;
+  mocks.platformOs = "macos";
   mocks.isEnabled.mockResolvedValue(false);
   mocks.enable.mockResolvedValue(undefined);
   mocks.disable.mockResolvedValue(undefined);
@@ -168,15 +170,23 @@ describe("reminder sections", () => {
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "12" } });
     await user.selectOptions(screen.getByRole("combobox"), "discard");
     await user.click(screen.getAllByRole("switch")[1]);
+    await user.click(screen.getAllByRole("switch")[2]);
     await user.click(screen.getByRole("button", { name: "idle.testReminderButton" }));
 
     expect(update).toHaveBeenCalledWith("enableIdleDetection", false);
     expect(update).toHaveBeenCalledWith("idleThresholdMinutes", 12);
     expect(update).toHaveBeenCalledWith("idleAction", "discard");
     expect(update).toHaveBeenCalledWith("showIdleNotification", false);
+    expect(update).toHaveBeenCalledWith("stopTimerOnScreensaver", true);
     await waitFor(() => expect(mocks.showFullscreenReminder).toHaveBeenCalledWith(expect.objectContaining({
       kind: "idle", test: true, idleDurationSeconds: 420, processing: false,
     })));
+  });
+
+  it("only shows the screen saver toggle on macOS", () => {
+    mocks.platformOs = "linux";
+    render(<IdleDetectionSection settings={settings()} update={vi.fn()} />);
+    expect(screen.queryByText("idle.stopOnScreensaver")).toBeNull();
   });
 
   it("logs idle reminder failures and disables dependent controls", async () => {

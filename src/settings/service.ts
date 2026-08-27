@@ -62,6 +62,7 @@ export const defaultSettings: AppSettings = {
   idleThresholdMinutes: 5,
   idleAction: "ask",
   showIdleNotification: true,
+  stopTimerOnScreensaver: false,
 
   enableNoTimerReminder: false,
   noTimerReminderMinutes: 15,
@@ -411,6 +412,10 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     showIdleNotification: booleanValue(
       value.showIdleNotification,
       defaultSettings.showIdleNotification,
+    ),
+    stopTimerOnScreensaver: booleanValue(
+      value.stopTimerOnScreensaver,
+      defaultSettings.stopTimerOnScreensaver,
     ),
     enableNoTimerReminder: booleanValue(
       value.enableNoTimerReminder,

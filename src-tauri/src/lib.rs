@@ -238,6 +238,9 @@ pub fn run() {
             tray::create_tray(app.handle())?;
             info!("System tray created");
 
+            #[cfg(target_os = "macos")]
+            idle::register_screensaver_listener(app.handle())?;
+
             #[cfg(any(target_os = "windows", target_os = "linux"))]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;

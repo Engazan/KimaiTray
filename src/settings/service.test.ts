@@ -85,6 +85,7 @@ describe("settings schema defaults", () => {
       popupHeight: 9999,
       popupLayout: "unknown",
       enableIdleDetection: "true",
+      stopTimerOnScreensaver: "true",
       trayIconShape: "triangle",
       shortcutNewTask: 42,
     } as unknown as Partial<typeof defaultSettings>);
@@ -97,6 +98,7 @@ describe("settings schema defaults", () => {
     expect(merged.popupHeight).toBe(1200);
     expect(merged.popupLayout).toBe(defaultSettings.popupLayout);
     expect(merged.enableIdleDetection).toBe(defaultSettings.enableIdleDetection);
+    expect(merged.stopTimerOnScreensaver).toBe(false);
     expect(merged.trayIconShape).toBe(defaultSettings.trayIconShape);
     expect(merged.shortcutNewTask).toBe("");
   });

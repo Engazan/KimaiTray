@@ -248,6 +248,8 @@
     "keepRunning": "Weiterlaufen lassen",
     "showNotification": "Benachrichtigung anzeigen",
     "showNotificationDescription": "Systembenachrichtigung bei erkanntem Leerlauf anzeigen",
+    "stopOnScreensaver": "Timer beim Start des Bildschirmschoners stoppen",
+    "stopOnScreensaverDescription": "Den aktiven Timer sofort stoppen, wenn der macOS-Bildschirmschoner aktiviert wird",
     "testReminder": "Leerlauf-Erinnerung testen",
     "testReminderDescription": "Sichere Vollbild-Vorschau anzeigen, ohne den Timer zu ändern",
     "testReminderButton": "Test anzeigen",

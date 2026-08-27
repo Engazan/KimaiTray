@@ -104,6 +104,8 @@ export interface AppSettings {
   idleThresholdMinutes: number;
   idleAction: "ask" | "stop" | "discard" | "continue";
   showIdleNotification: boolean;
+  /** macOS: stop the active timer as soon as the screen saver starts. */
+  stopTimerOnScreensaver: boolean;
 
   enableNoTimerReminder: boolean;
   noTimerReminderMinutes: number;

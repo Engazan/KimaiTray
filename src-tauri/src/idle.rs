@@ -3,6 +3,87 @@ pub fn get_idle_seconds() -> Result<u64, String> {
     platform::idle_seconds()
 }
 
+/// Emitted when macOS announces that its screen saver has started.
+pub const SCREENSAVER_STARTED_EVENT: &str = "kimai://screensaver-started";
+
+#[cfg(target_os = "macos")]
+mod screensaver {
+    use super::SCREENSAVER_STARTED_EVENT;
+    use objc::declare::ClassDecl;
+    use objc::runtime::{Object, Sel};
+    use objc::{class, msg_send, sel, sel_impl};
+    use std::os::raw::c_char;
+    use std::sync::OnceLock;
+    use tauri::{AppHandle, Emitter};
+
+    static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+    static REGISTERED: OnceLock<()> = OnceLock::new();
+
+    extern "C" fn screen_saver_did_start(
+        _observer: &Object,
+        _selector: Sel,
+        _notification: *mut Object,
+    ) {
+        if let Some(app) = APP_HANDLE.get() {
+            if let Err(error) = app.emit(SCREENSAVER_STARTED_EVENT, ()) {
+                log::error!("Failed to emit screen saver event: {error}");
+            }
+        }
+    }
+
+    pub fn register(app: &AppHandle) -> Result<(), String> {
+        if REGISTERED.get().is_some() {
+            return Ok(());
+        }
+        let _ = APP_HANDLE.set(app.clone());
+
+        let mut declaration = ClassDecl::new("KimaiTrayScreenSaverObserver", class!(NSObject))
+            .ok_or("Failed to create the macOS screen saver observer")?;
+        unsafe {
+            declaration.add_method(
+                sel!(screenSaverDidStart:),
+                screen_saver_did_start as extern "C" fn(&Object, Sel, *mut Object),
+            );
+        }
+        let observer_class = declaration.register();
+
+        unsafe {
+            let observer: *mut Object = msg_send![observer_class, new];
+            if observer.is_null() {
+                return Err("Failed to allocate the macOS screen saver observer".into());
+            }
+            let center: *mut Object =
+                msg_send![class!(NSDistributedNotificationCenter), defaultCenter];
+            let notification_name: *mut Object = msg_send![
+                class!(NSString),
+                stringWithUTF8String: b"com.apple.screensaver.didstart\0".as_ptr()
+                    as *const c_char
+            ];
+            if center.is_null() || notification_name.is_null() {
+                return Err("Failed to access macOS distributed notifications".into());
+            }
+            let nil: *mut Object = std::ptr::null_mut();
+            let _: () = msg_send![
+                center,
+                addObserver: observer
+                selector: sel!(screenSaverDidStart:)
+                name: notification_name
+                object: nil
+            ];
+
+            // The distributed notification center does not own selector-based
+            // observers. Keep the `new` retain for the lifetime of the app.
+        }
+        let _ = REGISTERED.set(());
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub fn register_screensaver_listener(app: &tauri::AppHandle) -> Result<(), String> {
+    screensaver::register(app)
+}
+
 #[cfg(target_os = "macos")]
 mod platform {
     use std::os::raw::c_double;

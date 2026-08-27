@@ -248,6 +248,8 @@
     "keepRunning": "Nechať bežať",
     "showNotification": "Zobraziť upozornenie",
     "showNotificationDescription": "Zobraziť systémové upozornenie pri detekcii nečinnosti",
+    "stopOnScreensaver": "Zastaviť časovač pri spustení šetriča obrazovky",
+    "stopOnScreensaverDescription": "Okamžite zastaviť aktívny časovač po aktivovaní šetriča obrazovky v macOS",
     "testReminder": "Otestovať upozornenie nečinnosti",
     "testReminderDescription": "Zobraziť bezpečný fullscreen náhľad bez zmeny časovača",
     "testReminderButton": "Zobraziť test",

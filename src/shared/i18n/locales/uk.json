@@ -248,6 +248,8 @@
     "keepRunning": "Залишити працювати",
     "showNotification": "Показати сповіщення",
     "showNotificationDescription": "Показати системне сповіщення при виявленні бездіяльності",
+    "stopOnScreensaver": "Зупиняти таймер під час запуску заставки",
+    "stopOnScreensaverDescription": "Негайно зупиняти активний таймер, коли в macOS вмикається заставка",
     "testReminder": "Перевірити нагадування про бездіяльність",
     "testReminderDescription": "Показати безпечний повноекранний перегляд без зміни таймера",
     "testReminderButton": "Показати тест",

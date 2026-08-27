@@ -713,11 +713,25 @@ export default function TrayPopup() {
   // Global shortcut: toggle timer
   const stopActiveTimerRef = useRef(stopActiveTimer);
   stopActiveTimerRef.current = stopActiveTimer;
+  const stopTimerOnScreensaverRef = useRef(
+    idleSettings.stopTimerOnScreensaver,
+  );
+  stopTimerOnScreensaverRef.current = idleSettings.stopTimerOnScreensaver;
 
   useEffect(() => {
     const win = getCurrentWindow();
     const unlisten = win.listen("kimai://toggle-timer", () => {
       stopActiveTimerRef.current();
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://screensaver-started", () => {
+      if (stopTimerOnScreensaverRef.current) {
+        stopActiveTimerRef.current();
+      }
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
