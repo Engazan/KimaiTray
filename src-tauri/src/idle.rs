@@ -4,8 +4,10 @@ pub fn get_idle_seconds() -> Result<u64, String> {
 }
 
 /// Emitted when macOS announces that its screen saver has started.
+#[cfg(target_os = "macos")]
 pub const SCREENSAVER_STARTED_EVENT: &str = "kimai://screensaver-started";
 /// Emitted when macOS announces that the current session has been locked.
+#[cfg(target_os = "macos")]
 pub const SCREEN_LOCKED_EVENT: &str = "kimai://screen-locked";
 
 #[cfg(target_os = "macos")]
