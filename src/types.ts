@@ -106,6 +106,8 @@ export interface AppSettings {
   showIdleNotification: boolean;
   /** macOS: stop the active timer as soon as the screen saver starts. */
   stopTimerOnScreensaver: boolean;
+  /** macOS: stop the active timer as soon as the user session is locked. */
+  stopTimerOnScreenLock: boolean;
 
   enableNoTimerReminder: boolean;
   noTimerReminderMinutes: number;

@@ -26,6 +26,7 @@ interface IdleSettings {
   idleAction: "ask" | "stop" | "discard" | "continue";
   showIdleNotification: boolean;
   stopTimerOnScreensaver: boolean;
+  stopTimerOnScreenLock: boolean;
 }
 
 interface TimerReminderSettings {
@@ -83,6 +84,7 @@ const defaultIdleSettings: IdleSettings = {
   idleAction: "ask",
   showIdleNotification: true,
   stopTimerOnScreensaver: false,
+  stopTimerOnScreenLock: false,
 };
 
 const defaultTimerReminderSettings: TimerReminderSettings = {
@@ -192,6 +194,7 @@ export function useKimaiClient(): UseKimaiClientResult {
       idleAction: s.idleAction,
       showIdleNotification: s.showIdleNotification,
       stopTimerOnScreensaver: s.stopTimerOnScreensaver,
+      stopTimerOnScreenLock: s.stopTimerOnScreenLock,
     });
     setTimerReminderSettings({
       enabled: s.enableNoTimerReminder,

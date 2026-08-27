@@ -717,6 +717,8 @@ export default function TrayPopup() {
     idleSettings.stopTimerOnScreensaver,
   );
   stopTimerOnScreensaverRef.current = idleSettings.stopTimerOnScreensaver;
+  const stopTimerOnScreenLockRef = useRef(idleSettings.stopTimerOnScreenLock);
+  stopTimerOnScreenLockRef.current = idleSettings.stopTimerOnScreenLock;
 
   useEffect(() => {
     const win = getCurrentWindow();
@@ -730,6 +732,16 @@ export default function TrayPopup() {
     const win = getCurrentWindow();
     const unlisten = win.listen("kimai://screensaver-started", () => {
       if (stopTimerOnScreensaverRef.current) {
+        stopActiveTimerRef.current();
+      }
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("kimai://screen-locked", () => {
+      if (stopTimerOnScreenLockRef.current) {
         stopActiveTimerRef.current();
       }
     });

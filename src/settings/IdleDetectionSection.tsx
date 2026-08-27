@@ -84,15 +84,26 @@ export default function IdleDetectionSection({ settings, update }: Props) {
         </SettingsRow>
 
         {os === "macos" && (
-          <SettingsRow
-            label={t("idle.stopOnScreensaver")}
-            description={t("idle.stopOnScreensaverDescription")}
-          >
-            <Toggle
-              checked={settings.stopTimerOnScreensaver}
-              onChange={(v) => update("stopTimerOnScreensaver", v)}
-            />
-          </SettingsRow>
+          <>
+            <SettingsRow
+              label={t("idle.stopOnScreensaver")}
+              description={t("idle.stopOnScreensaverDescription")}
+            >
+              <Toggle
+                checked={settings.stopTimerOnScreensaver}
+                onChange={(v) => update("stopTimerOnScreensaver", v)}
+              />
+            </SettingsRow>
+            <SettingsRow
+              label={t("idle.stopOnScreenLock")}
+              description={t("idle.stopOnScreenLockDescription")}
+            >
+              <Toggle
+                checked={settings.stopTimerOnScreenLock}
+                onChange={(v) => update("stopTimerOnScreenLock", v)}
+              />
+            </SettingsRow>
+          </>
         )}
 
         <SettingsRow

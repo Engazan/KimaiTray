@@ -250,6 +250,8 @@
     "showNotificationDescription": "Показати системне сповіщення при виявленні бездіяльності",
     "stopOnScreensaver": "Зупиняти таймер під час запуску заставки",
     "stopOnScreensaverDescription": "Негайно зупиняти активний таймер, коли в macOS вмикається заставка",
+    "stopOnScreenLock": "Зупиняти таймер під час блокування Mac",
+    "stopOnScreenLockDescription": "Негайно зупиняти активний таймер, коли сеанс користувача macOS блокується",
     "testReminder": "Перевірити нагадування про бездіяльність",
     "testReminderDescription": "Показати безпечний повноекранний перегляд без зміни таймера",
     "testReminderButton": "Показати тест",

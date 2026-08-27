@@ -171,6 +171,7 @@ describe("reminder sections", () => {
     await user.selectOptions(screen.getByRole("combobox"), "discard");
     await user.click(screen.getAllByRole("switch")[1]);
     await user.click(screen.getAllByRole("switch")[2]);
+    await user.click(screen.getAllByRole("switch")[3]);
     await user.click(screen.getByRole("button", { name: "idle.testReminderButton" }));
 
     expect(update).toHaveBeenCalledWith("enableIdleDetection", false);
@@ -178,6 +179,7 @@ describe("reminder sections", () => {
     expect(update).toHaveBeenCalledWith("idleAction", "discard");
     expect(update).toHaveBeenCalledWith("showIdleNotification", false);
     expect(update).toHaveBeenCalledWith("stopTimerOnScreensaver", true);
+    expect(update).toHaveBeenCalledWith("stopTimerOnScreenLock", true);
     await waitFor(() => expect(mocks.showFullscreenReminder).toHaveBeenCalledWith(expect.objectContaining({
       kind: "idle", test: true, idleDurationSeconds: 420, processing: false,
     })));
@@ -187,6 +189,7 @@ describe("reminder sections", () => {
     mocks.platformOs = "linux";
     render(<IdleDetectionSection settings={settings()} update={vi.fn()} />);
     expect(screen.queryByText("idle.stopOnScreensaver")).toBeNull();
+    expect(screen.queryByText("idle.stopOnScreenLock")).toBeNull();
   });
 
   it("logs idle reminder failures and disables dependent controls", async () => {

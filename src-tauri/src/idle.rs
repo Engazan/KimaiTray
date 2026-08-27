@@ -5,10 +5,12 @@ pub fn get_idle_seconds() -> Result<u64, String> {
 
 /// Emitted when macOS announces that its screen saver has started.
 pub const SCREENSAVER_STARTED_EVENT: &str = "kimai://screensaver-started";
+/// Emitted when macOS announces that the current session has been locked.
+pub const SCREEN_LOCKED_EVENT: &str = "kimai://screen-locked";
 
 #[cfg(target_os = "macos")]
-mod screensaver {
-    use super::SCREENSAVER_STARTED_EVENT;
+mod screen_state {
+    use super::{SCREENSAVER_STARTED_EVENT, SCREEN_LOCKED_EVENT};
     use objc::declare::ClassDecl;
     use objc::runtime::{Object, Sel};
     use objc::{class, msg_send, sel, sel_impl};
@@ -31,6 +33,14 @@ mod screensaver {
         }
     }
 
+    extern "C" fn screen_did_lock(_observer: &Object, _selector: Sel, _notification: *mut Object) {
+        if let Some(app) = APP_HANDLE.get() {
+            if let Err(error) = app.emit(SCREEN_LOCKED_EVENT, ()) {
+                log::error!("Failed to emit screen locked event: {error}");
+            }
+        }
+    }
+
     pub fn register(app: &AppHandle) -> Result<(), String> {
         if REGISTERED.get().is_some() {
             return Ok(());
@@ -43,6 +53,10 @@ mod screensaver {
             declaration.add_method(
                 sel!(screenSaverDidStart:),
                 screen_saver_did_start as extern "C" fn(&Object, Sel, *mut Object),
+            );
+            declaration.add_method(
+                sel!(screenDidLock:),
+                screen_did_lock as extern "C" fn(&Object, Sel, *mut Object),
             );
         }
         let observer_class = declaration.register();
@@ -59,7 +73,12 @@ mod screensaver {
                 stringWithUTF8String: b"com.apple.screensaver.didstart\0".as_ptr()
                     as *const c_char
             ];
-            if center.is_null() || notification_name.is_null() {
+            let lock_notification_name: *mut Object = msg_send![
+                class!(NSString),
+                stringWithUTF8String: b"com.apple.screenIsLocked\0".as_ptr()
+                    as *const c_char
+            ];
+            if center.is_null() || notification_name.is_null() || lock_notification_name.is_null() {
                 return Err("Failed to access macOS distributed notifications".into());
             }
             let nil: *mut Object = std::ptr::null_mut();
@@ -68,6 +87,13 @@ mod screensaver {
                 addObserver: observer
                 selector: sel!(screenSaverDidStart:)
                 name: notification_name
+                object: nil
+            ];
+            let _: () = msg_send![
+                center,
+                addObserver: observer
+                selector: sel!(screenDidLock:)
+                name: lock_notification_name
                 object: nil
             ];
 
@@ -80,8 +106,8 @@ mod screensaver {
 }
 
 #[cfg(target_os = "macos")]
-pub fn register_screensaver_listener(app: &tauri::AppHandle) -> Result<(), String> {
-    screensaver::register(app)
+pub fn register_screen_state_listener(app: &tauri::AppHandle) -> Result<(), String> {
+    screen_state::register(app)
 }
 
 #[cfg(target_os = "macos")]

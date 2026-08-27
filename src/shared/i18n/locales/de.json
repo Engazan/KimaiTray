@@ -250,6 +250,8 @@
     "showNotificationDescription": "Systembenachrichtigung bei erkanntem Leerlauf anzeigen",
     "stopOnScreensaver": "Timer beim Start des Bildschirmschoners stoppen",
     "stopOnScreensaverDescription": "Den aktiven Timer sofort stoppen, wenn der macOS-Bildschirmschoner aktiviert wird",
+    "stopOnScreenLock": "Timer beim Sperren des Macs stoppen",
+    "stopOnScreenLockDescription": "Den aktiven Timer sofort stoppen, wenn die macOS-Benutzersitzung gesperrt wird",
     "testReminder": "Leerlauf-Erinnerung testen",
     "testReminderDescription": "Sichere Vollbild-Vorschau anzeigen, ohne den Timer zu ändern",
     "testReminderButton": "Test anzeigen",

@@ -239,7 +239,7 @@ pub fn run() {
             info!("System tray created");
 
             #[cfg(target_os = "macos")]
-            idle::register_screensaver_listener(app.handle())?;
+            idle::register_screen_state_listener(app.handle())?;
 
             #[cfg(any(target_os = "windows", target_os = "linux"))]
             {

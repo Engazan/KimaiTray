@@ -250,6 +250,8 @@
     "showNotificationDescription": "Display a system notification when idle is detected",
     "stopOnScreensaver": "Stop timer when screen saver starts",
     "stopOnScreensaverDescription": "Immediately stop the active timer when the macOS screen saver is activated",
+    "stopOnScreenLock": "Stop timer when Mac is locked",
+    "stopOnScreenLockDescription": "Immediately stop the active timer when the macOS user session is locked",
     "testReminder": "Test idle reminder",
     "testReminderDescription": "Show a safe full-screen preview without changing the timer",
     "testReminderButton": "Show test",

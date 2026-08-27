@@ -173,7 +173,7 @@ beforeEach(() => {
   mocks.kimai = {
     client: { connectionId: "conn", cacheScope: "conn" }, settingsReady: true, isConfigured: true,
     refreshInterval: 60, baseUrl: "https://kimai.test", openKimaiInBrowser: true,
-    idleSettings: { enableIdleDetection: true, idleThresholdMinutes: 5, idleAction: "ask", showIdleNotification: false, stopTimerOnScreensaver: false },
+    idleSettings: { enableIdleDetection: true, idleThresholdMinutes: 5, idleAction: "ask", showIdleNotification: false, stopTimerOnScreensaver: false, stopTimerOnScreenLock: false },
     timerReminderSettings: { enabled: false, thresholdMinutes: 15 },
     traySettings: { menuBarLabelStyle: "timer", showSecondsInTimer: true },
     shortcutSettings: { shortcutTogglePopup: "Ctrl+K", shortcutStartStopTimer: "", shortcutNewTask: "", shortcutPauseResume: "", shortcutContinueLastTask: "", shortcutEditNote: "", shortcutOpenKimai: "", shortcutOpenSettings: "" },
@@ -292,6 +292,20 @@ describe("TrayPopup", () => {
     mocks.kimai.idleSettings.stopTimerOnScreensaver = false;
     rerender(<TrayPopup />);
     act(() => mocks.events.get("kimai://screensaver-started")?.());
+    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the active timer on a screen lock event only when enabled", () => {
+    mocks.active.timer = timer;
+    mocks.kimai.idleSettings.stopTimerOnScreenLock = true;
+    const { rerender } = render(<TrayPopup />);
+
+    act(() => mocks.events.get("kimai://screen-locked")?.());
+    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
+
+    mocks.kimai.idleSettings.stopTimerOnScreenLock = false;
+    rerender(<TrayPopup />);
+    act(() => mocks.events.get("kimai://screen-locked")?.());
     expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
   });
 

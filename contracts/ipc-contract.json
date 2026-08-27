@@ -19,6 +19,7 @@
     "idleAction",
     "showIdleNotification",
     "stopTimerOnScreensaver",
+    "stopTimerOnScreenLock",
     "enableNoTimerReminder",
     "noTimerReminderMinutes",
     "theme",
