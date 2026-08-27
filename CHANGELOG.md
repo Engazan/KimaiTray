@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.8] - 2026-08-27
+
+### New Features
+
+- **Stop timers when the macOS screen saver starts** ([#33](https://github.com/Engazan/KimaiTray/issues/33)) — an optional setting now stops the active Kimai timer immediately when the screen saver is activated, including through a Hot Corner. The setting is disabled by default
+- **Stop timers when the Mac is locked** — a separate optional setting now stops the active Kimai timer as soon as the macOS user session is locked. It can be enabled independently from screen-saver detection and is disabled by default
+
 ## [0.22.7] - 2026-08-27
 
 ### New Features

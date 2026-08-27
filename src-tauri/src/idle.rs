@@ -14,7 +14,6 @@ mod screen_state {
     use objc::declare::ClassDecl;
     use objc::runtime::{Object, Sel};
     use objc::{class, msg_send, sel, sel_impl};
-    use std::os::raw::c_char;
     use std::sync::OnceLock;
     use tauri::{AppHandle, Emitter};
 
@@ -70,13 +69,11 @@ mod screen_state {
                 msg_send![class!(NSDistributedNotificationCenter), defaultCenter];
             let notification_name: *mut Object = msg_send![
                 class!(NSString),
-                stringWithUTF8String: b"com.apple.screensaver.didstart\0".as_ptr()
-                    as *const c_char
+                stringWithUTF8String: c"com.apple.screensaver.didstart".as_ptr()
             ];
             let lock_notification_name: *mut Object = msg_send![
                 class!(NSString),
-                stringWithUTF8String: b"com.apple.screenIsLocked\0".as_ptr()
-                    as *const c_char
+                stringWithUTF8String: c"com.apple.screenIsLocked".as_ptr()
             ];
             if center.is_null() || notification_name.is_null() || lock_notification_name.is_null() {
                 return Err("Failed to access macOS distributed notifications".into());
