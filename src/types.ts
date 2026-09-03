@@ -139,8 +139,8 @@ export interface AppSettings {
   // Plugin toggles are per-connection, keyed by connection id.
   plugins: Record<string, PluginSettings>;
 
-  // Timesheet custom fields are configured per Kimai connection because the
-  // REST API exposes values, but not the server-side field definitions.
+  // Timesheet custom fields are configured per Kimai connection. Definitions
+  // can also be discovered when the optional Kimai Custom Fields API exists.
   timesheetCustomFields: Record<string, TimesheetCustomFieldDefinition[]>;
 
   shortcutTogglePopup: string;

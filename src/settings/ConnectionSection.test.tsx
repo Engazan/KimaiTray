@@ -146,6 +146,58 @@ describe("connection internal ID", () => {
     expect(screen.getByText(/Connected as Tester/)).toBeTruthy();
   });
 
+  it("adds discovered fields without replacing manual connection fields", async () => {
+    const user = userEvent.setup();
+    const connection = { id: "conn", name: "Kimai", url: "https://kimai.test" };
+    const manualField = {
+      name: "notes",
+      label: "My notes",
+      type: "text" as const,
+      required: false,
+    };
+    const detectedField = {
+      name: "ticket_url",
+      label: "Ticket URL",
+      type: "url" as const,
+      required: true,
+    };
+    apiMocks.testConnection.mockResolvedValue({
+      success: true,
+      user: { alias: "Tester", username: "tester" },
+      customFields: [
+        { ...manualField, label: "Server notes", required: true },
+        detectedField,
+      ],
+    });
+    const update = vi.fn();
+    render(
+      <I18nextProvider i18n={i18n}>
+        <ConnectionSection
+          settings={{
+            ...defaultSettings,
+            connections: [connection],
+            activeConnectionId: connection.id,
+            timesheetCustomFields: { [connection.id]: [manualField] },
+          }}
+          token="secret-token"
+          selectedConnectionId={connection.id}
+          onSelectedConnectionChange={vi.fn()}
+          saveConnection={vi.fn().mockResolvedValue(undefined)}
+          removeConnection={vi.fn()}
+          update={update}
+        />
+      </I18nextProvider>,
+    );
+
+    await screen.findByDisplayValue("secret-token");
+    await user.click(screen.getByRole("button", { name: "Test & Save" }));
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith("timesheetCustomFields", {
+        conn: [manualField, detectedField],
+      }),
+    );
+  });
+
   it("derives a hostname name and warns about insecure URLs", async () => {
     const user = userEvent.setup();
     apiMocks.isInsecureUrl.mockReturnValue(true);

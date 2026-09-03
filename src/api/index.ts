@@ -16,6 +16,7 @@ export type {
   KimaiProject,
   KimaiActivity,
   KimaiMetaField,
+  KimaiMetaFieldRule,
   KimaiTimesheetEntry,
   KimaiTimesheetCreate,
   KimaiTimesheetMetaUpdate,
@@ -30,6 +31,7 @@ export {
   testConnection,
   getCurrentUser,
   getVersion,
+  getTimesheetCustomFieldDefinitions,
   type ConnectionResult,
 } from "./connectionService";
 

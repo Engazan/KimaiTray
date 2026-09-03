@@ -161,6 +161,19 @@ export default function ConnectionSection({
         setStatusMessage(t("connection.unexpectedError"));
         return;
       }
+      if (result.customFields && result.customFields.length > 0) {
+        const existingFields = settings.timesheetCustomFields[id] ?? [];
+        const existingNames = new Set(existingFields.map((field) => field.name));
+        const discoveredFields = result.customFields.filter(
+          (field) => !existingNames.has(field.name),
+        );
+        if (discoveredFields.length > 0) {
+          update("timesheetCustomFields", {
+            ...settings.timesheetCustomFields,
+            [id]: [...existingFields, ...discoveredFields],
+          });
+        }
+      }
       setEditingId(id);
       onSelectedConnectionChange(id);
       if (!name) setName(connName);
@@ -179,6 +192,8 @@ export default function ConnectionSection({
     name,
     editingId,
     saveConnection,
+    settings.timesheetCustomFields,
+    update,
     onSelectedConnectionChange,
     t,
   ]);

@@ -70,6 +70,21 @@ export interface KimaiMetaField {
   value: unknown;
 }
 
+/** Custom Fields plugin rule returned by GET /api/metafields. */
+export interface KimaiMetaFieldRule {
+  name: string;
+  label?: string | null;
+  help?: string | null;
+  value?: string | null;
+  type?: string | null;
+  visible?: boolean;
+  required?: boolean;
+  customer?: number | null;
+  project?: number | null;
+  activity?: number | null;
+  entityType?: string | null;
+}
+
 export interface KimaiTimesheetEntry {
   id: number;
   begin: string;

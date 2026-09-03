@@ -14,6 +14,7 @@ vi.mock("../shared/i18n", () => ({
 
 import {
   getCurrentUser,
+  getTimesheetCustomFieldDefinitions,
   getVersion,
   testConnection,
 } from "./connectionService";
@@ -73,11 +74,13 @@ describe("Kimai connection verification", () => {
   });
 
   it("checks user and version in parallel and reports a secure success", async () => {
-    mocks.safeHttpFetch.mockImplementation((url: string) =>
-      Promise.resolve(
-        jsonResponse(url.endsWith("/api/users/me") ? user : version),
-      ),
-    );
+    mocks.safeHttpFetch.mockImplementation((url: string) => {
+      if (url.endsWith("/api/users/me")) return Promise.resolve(jsonResponse(user));
+      if (url.includes("/api/metafields?")) {
+        return Promise.resolve(jsonResponse({ message: "Not found" }, 404));
+      }
+      return Promise.resolve(jsonResponse(version));
+    });
 
     await expect(
       testConnection("https://kimai.test/", "secret"),
@@ -87,7 +90,7 @@ describe("Kimai connection verification", () => {
       version,
       insecure: false,
     });
-    expect(mocks.safeHttpFetch).toHaveBeenCalledTimes(2);
+    expect(mocks.safeHttpFetch).toHaveBeenCalledTimes(3);
     expect(mocks.safeHttpFetch).toHaveBeenCalledWith(
       "https://kimai.test/api/users/me",
       expect.objectContaining({
@@ -96,6 +99,52 @@ describe("Kimai connection verification", () => {
         headers: expect.objectContaining({ Authorization: "Bearer secret" }),
       }),
     );
+    expect(mocks.safeHttpFetch).toHaveBeenCalledWith(
+      "https://kimai.test/api/metafields?entity=timesheet",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("normalizes supported visible timesheet custom-field definitions", async () => {
+    const longLabel = "x".repeat(300);
+    const client = {
+      get: vi.fn().mockResolvedValue([
+        null,
+        [],
+        {},
+        { name: 42 },
+        { name: "hidden", visible: false },
+        { name: "bad name" },
+        {
+          name: " Ticket_URL ",
+          label: " Ticket link ",
+          type: "UrlType",
+          required: true,
+        },
+        { name: "notes", label: null, type: null },
+        { name: "details", label: longLabel, type: "textarea" },
+        { name: "ticket_url", label: "Duplicate" },
+      ]),
+    } as unknown as KimaiClient;
+
+    await expect(getTimesheetCustomFieldDefinitions(client)).resolves.toEqual([
+      {
+        name: "ticket_url",
+        label: "Ticket link",
+        type: "url",
+        required: true,
+      },
+      { name: "notes", label: "notes", type: "text", required: false },
+      {
+        name: "details",
+        label: longLabel.slice(0, 256),
+        type: "text",
+        required: false,
+      },
+    ]);
+    expect(client.get).toHaveBeenCalledWith("/api/metafields", {
+      entity: "timesheet",
+    });
   });
 
   it("flags non-loopback HTTP while still allowing connection tests", async () => {
