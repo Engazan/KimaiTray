@@ -118,6 +118,25 @@
     "issueFieldLabel": "Issue / Ticket",
     "issueFieldPlaceholder": "z. B. PROJ-123 oder URL"
   },
+  "customFields": {
+    "title": "Benutzerdefinierte Zeiterfassungsfelder",
+    "description": "Felder über ihren technischen Internal title aus Kimai hinzufügen. Definitionen werden für diese Verbindung gespeichert.",
+    "add": "Benutzerdefiniertes Feld hinzufügen",
+    "remove": "Entfernen",
+    "defaultLabel": "Benutzerdefiniertes Feld",
+    "internalName": "Internal title",
+    "label": "Anzeigename",
+    "type": "Feldtyp",
+    "text": "Text",
+    "url": "URL",
+    "required": "Erforderlich",
+    "requiredHint": "Muss vor dem Start ausgefüllt werden",
+    "invalidDefinition": "Geben Sie einen Namen und einen 2–50 Zeichen langen technischen Titel aus Buchstaben, Zahlen, Unterstrichen oder Bindestrichen ein.",
+    "duplicateName": "Jeder technische Titel kann nur einmal konfiguriert werden.",
+    "invalidUrl": "Geben Sie eine gültige HTTP- oder HTTPS-URL ein.",
+    "requiredError": "Dieses Feld ist erforderlich.",
+    "openUrl": "{{label}} öffnen"
+  },
   "settings": {
     "title": "Einstellungen",
     "general": "Allgemein",

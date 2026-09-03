@@ -14,6 +14,7 @@ import type {
   ColorMode,
   FeatureSettings,
   PluginSettings,
+  TimesheetCustomFieldDefinition,
 } from "../types";
 import type { IssueIntegrationSettings } from "../integrations/issues/types";
 import { getIssueToken } from "../integrations/issues/issueTokenStore";
@@ -67,6 +68,7 @@ interface UseKimaiClientResult {
   shortcutSettings: ShortcutSettings;
   featureFlags: FeatureSettings;
   pluginFlags: PluginSettings;
+  timesheetCustomFields: TimesheetCustomFieldDefinition[];
   autoUpdate: boolean;
   popupLayout: PopupLayout;
   colorMode: ColorMode;
@@ -132,6 +134,9 @@ export function useKimaiClient(): UseKimaiClientResult {
     useState<FeatureSettings>(defaultFeatureSettings);
   const [pluginFlags, setPluginFlags] =
     useState<PluginSettings>(defaultPluginSettings);
+  const [timesheetCustomFields, setTimesheetCustomFields] = useState<
+    TimesheetCustomFieldDefinition[]
+  >([]);
   const [shortcutSettings, setShortcutSettings] =
     useState<ShortcutSettings>(defaultShortcutSettings);
   const [issueIntegration, setIssueIntegration] =
@@ -229,6 +234,7 @@ export function useKimaiClient(): UseKimaiClientResult {
       ...defaultPluginSettings,
       ...((s.plugins ?? {})[connId] ?? {}),
     });
+    setTimesheetCustomFields((s.timesheetCustomFields ?? {})[connId] ?? []);
     const issueConfig = (s.issueIntegrations ?? {})[connId] ?? {
       enabled: false,
       provider: "gitlab" as const,
@@ -338,6 +344,7 @@ export function useKimaiClient(): UseKimaiClientResult {
     shortcutSettings,
     featureFlags,
     pluginFlags,
+    timesheetCustomFields,
     autoUpdate,
     popupLayout,
     colorMode,

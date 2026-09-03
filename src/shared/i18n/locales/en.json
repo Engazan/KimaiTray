@@ -118,6 +118,25 @@
     "issueFieldLabel": "Issue / Ticket",
     "issueFieldPlaceholder": "e.g. PROJ-123 or issue URL"
   },
+  "customFields": {
+    "title": "Timesheet custom fields",
+    "description": "Add fields by their technical Internal title from Kimai. Definitions are stored separately for this connection.",
+    "add": "Add custom field",
+    "remove": "Remove",
+    "defaultLabel": "Custom field",
+    "internalName": "Internal title",
+    "label": "Display label",
+    "type": "Field type",
+    "text": "Text",
+    "url": "URL",
+    "required": "Required",
+    "requiredHint": "Must be filled before starting",
+    "invalidDefinition": "Enter a label and a 2–50 character internal title using letters, numbers, underscores, or hyphens.",
+    "duplicateName": "Each internal title can only be configured once.",
+    "invalidUrl": "Enter a valid HTTP or HTTPS URL.",
+    "requiredError": "This field is required.",
+    "openUrl": "Open {{label}}"
+  },
   "settings": {
     "title": "Settings",
     "general": "General",

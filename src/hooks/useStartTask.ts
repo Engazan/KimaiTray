@@ -121,7 +121,7 @@ export function useStartTask(
 
       if (err instanceof TaskMetadataError) {
         setSwitchError(
-          `Timer started, but plugin metadata could not be saved: ${err.message}`,
+          `Timer started, but custom field data could not be saved: ${err.message}`,
         );
         // Creation already succeeded. Publish the running timer so callers can
         // close the form and keep any other post-start associations intact.

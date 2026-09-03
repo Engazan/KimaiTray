@@ -54,6 +54,24 @@ describe("settings schema defaults", () => {
     expect(defaultSettings.trayColors.running).not.toBe("#123456");
   });
 
+  it("normalizes per-connection timesheet custom fields", () => {
+    const merged = mergeSettings({
+      timesheetCustomFields: {
+        conn: [
+          { name: " URL_Link ", label: "Ticket URL", type: "url", required: true },
+          { name: "url_link", label: "Duplicate", type: "text", required: false },
+          { name: "!", label: "Invalid", type: "other", required: "yes" },
+        ],
+        malformed: "not-an-array",
+        primitives: [null, "field"],
+      },
+    } as unknown as Partial<typeof defaultSettings>);
+
+    expect(merged.timesheetCustomFields.conn).toEqual([
+      { name: "url_link", label: "Ticket URL", type: "url", required: true },
+    ]);
+  });
+
   it("rejects a malformed connections collection by restoring an empty list", () => {
     const merged = mergeSettings({
       connections: "invalid" as unknown as typeof defaultSettings.connections,

@@ -33,4 +33,19 @@ describe("plugin custom input registry", () => {
     expect(pickPluginMetadata(undefined, inputs)).toBeUndefined();
     expect(pickPluginMetadata({ issue_link: " " }, inputs)).toBeUndefined();
   });
+
+  it("combines configured fields with plugin inputs and de-duplicates names", () => {
+    expect(
+      getEnabledPluginCustomInputs(
+        { creativeIssueLink: true },
+        [
+          { name: "url_link", label: "URL link", type: "url", required: true },
+          { name: "issue_link", label: "Duplicate", type: "text", required: false },
+        ],
+      ),
+    ).toMatchObject([
+      { metadataName: "issue_link" },
+      { metadataName: "url_link", label: "URL link", type: "url", required: true },
+    ]);
+  });
 });

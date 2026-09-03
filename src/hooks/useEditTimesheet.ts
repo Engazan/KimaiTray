@@ -1,27 +1,39 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { KimaiTimesheetUpdate } from "../api/kimaiTypes";
 import type { KimaiClient } from "../api/kimaiClient";
-import { updateTimesheet } from "../api/timesheetApi";
+import { updateTimesheet, updateTimesheetMeta } from "../api/timesheetApi";
 import { invalidateTimesheets } from "./invalidateTimesheets";
+
+export interface EditTimesheetPayload extends KimaiTimesheetUpdate {
+  metadata?: Record<string, string>;
+}
 
 interface EditTimesheetRequest {
   id: number;
-  payload: KimaiTimesheetUpdate;
+  payload: EditTimesheetPayload;
 }
 
 export function useEditTimesheet(client: KimaiClient | null) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: ({ id, payload }: EditTimesheetRequest) => {
+    mutationFn: async ({ id, payload }: EditTimesheetRequest) => {
       if (!client) throw new Error("Kimai client is not configured");
-      return updateTimesheet(client, id, payload);
+      const { metadata, ...timesheet } = payload;
+      let result: unknown;
+      if (Object.keys(timesheet).length > 0) {
+        result = await updateTimesheet(client, id, timesheet);
+      }
+      for (const [name, value] of Object.entries(metadata ?? {})) {
+        result = await updateTimesheetMeta(client, id, { name, value });
+      }
+      return result;
     },
-    onSuccess: () => invalidateTimesheets(queryClient),
+    onSettled: () => invalidateTimesheets(queryClient),
     retry: false,
   });
 
   return {
-    editTimesheet: (id: number, payload: KimaiTimesheetUpdate) =>
+    editTimesheet: (id: number, payload: EditTimesheetPayload) =>
       mutation.mutateAsync({ id, payload }),
   };
 }

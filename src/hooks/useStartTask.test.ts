@@ -227,7 +227,7 @@ describe("transactional timer switching", () => {
     );
     expect(onFailed).not.toHaveBeenCalled();
     expect(result.current.switchError).toContain(
-      "plugin metadata could not be saved",
+      "custom field data could not be saved",
     );
     queryClient.clear();
   });

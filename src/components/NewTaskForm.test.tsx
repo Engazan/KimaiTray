@@ -579,6 +579,36 @@ describe("new task keyboard flow", () => {
     );
   });
 
+  it("requires configured fields and validates URL values", async () => {
+    apiMocks.getActivities.mockResolvedValue([{ id: 10, name: "Work", project: 1, visible: true, billable: true, color: null, comment: null }]);
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({
+      autoFocusProject: false,
+      pluginCustomInputs: getEnabledPluginCustomInputs(
+        { creativeIssueLink: false },
+        [{ name: "url_link", label: "URL link", type: "url", required: true }],
+      ),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Project" }));
+    await user.click(await screen.findByRole("option", { name: "Alpha" }));
+    await waitFor(() => expect(screen.getByLabelText("Activity").textContent).toContain("Work"));
+    const start = screen.getByRole("button", { name: "Start" });
+    expect((start as HTMLButtonElement).disabled).toBe(true);
+
+    await user.type(screen.getByLabelText("URL link"), "ftp://invalid.test");
+    expect(screen.getByText("Enter a valid HTTP or HTTPS URL.")).toBeTruthy();
+    expect((start as HTMLButtonElement).disabled).toBe(true);
+    await user.clear(screen.getByLabelText("URL link"));
+    await user.type(screen.getByLabelText("URL link"), "https://example.test/ticket/34");
+    await user.click(start);
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { url_link: "https://example.test/ticket/34" } }),
+      null,
+    );
+  });
+
   it("keeps deep-linked issue and custom plugin values on initial mount", () => {
     const issue = {
       id: 42,

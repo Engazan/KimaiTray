@@ -19,6 +19,9 @@ import ActivityCreateDialog from "./ActivityCreateDialog";
 import { normalizeCustomStartTime } from "../utils/customStartTime";
 import {
   DESCRIPTION_INPUT_TARGET,
+  customInputLabel,
+  customInputPlaceholder,
+  isValidCustomInputValue,
   type PluginCustomInputDefinition,
 } from "../plugins/customInputs";
 
@@ -371,7 +374,10 @@ export default function NewTaskForm({
     projectId != null &&
     activityId != null &&
     !isSubmitting &&
-    (!useCustomTime || customBegin != null);
+    (!useCustomTime || customBegin != null) &&
+    pluginCustomInputs.every((input) =>
+      isValidCustomInputValue(input, customInputValues[input.id] ?? ""),
+    );
 
   useEffect(() => {
     if (!focusSubmitWhenReady || !canSubmit) return;
@@ -623,23 +629,37 @@ export default function NewTaskForm({
 
         {pluginCustomInputs.map((input) => {
           const controlId = `${formId}-${input.id.replace(/[^a-z0-9-]/gi, "-")}`;
+          const label = customInputLabel(input, t);
+          const placeholder = customInputPlaceholder(input, t);
+          const value = customInputValues[input.id] ?? "";
+          const invalid = value !== "" && !isValidCustomInputValue(input, value);
           return (
             <div key={input.id}>
-              <FieldLabel htmlFor={controlId}>{t(input.labelKey)}</FieldLabel>
+              <FieldLabel htmlFor={controlId} required={input.required}>{label}</FieldLabel>
               <input
                 id={controlId}
-                type="text"
-                value={customInputValues[input.id] ?? ""}
+                type={input.type === "url" ? "url" : "text"}
+                required={input.required}
+                aria-invalid={invalid || undefined}
+                value={value}
                 onChange={(event) =>
-                  setCustomInputValues((current) => ({
-                    ...current,
-                    [input.id]: event.target.value,
-                  }))
+                  {
+                    setFocusSubmitWhenReady(false);
+                    setCustomInputValues((current) => ({
+                      ...current,
+                      [input.id]: event.target.value,
+                    }));
+                  }
                 }
                 disabled={isSubmitting}
-                placeholder={t(input.placeholderKey)}
+                placeholder={placeholder}
                 className={selectCls}
               />
+              {invalid && (
+                <p className="mt-1 text-[10px] text-red-500" role="alert">
+                  {t("customFields.invalidUrl")}
+                </p>
+              )}
             </div>
           );
         })}

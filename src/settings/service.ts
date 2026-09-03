@@ -7,6 +7,7 @@ import type {
   IssueIntegrationSettings,
   PluginSettings,
   SavedConnection,
+  TimesheetCustomFieldDefinition,
   TrayStateColors,
 } from "../types";
 import { DESCRIPTION_INPUT_TARGET } from "../plugins/customInputs";
@@ -79,6 +80,7 @@ export const defaultSettings: AppSettings = {
 
   features: {},
   plugins: {},
+  timesheetCustomFields: {},
 
   shortcutTogglePopup: "",
   shortcutStartStopTimer: "",
@@ -268,6 +270,33 @@ function normalizePlugins(value: unknown): Record<string, PluginSettings> {
         ),
       ),
     };
+  }
+  return normalized;
+}
+
+function normalizeTimesheetCustomFields(
+  value: unknown,
+): Record<string, TimesheetCustomFieldDefinition[]> {
+  if (!isRecord(value)) return {};
+  const normalized: Record<string, TimesheetCustomFieldDefinition[]> = {};
+  for (const [connectionId, rawFields] of Object.entries(value)) {
+    if (!connectionId || connectionId.length > 256 || !Array.isArray(rawFields)) continue;
+    const names = new Set<string>();
+    const fields: TimesheetCustomFieldDefinition[] = [];
+    for (const raw of rawFields.slice(0, 50)) {
+      if (!isRecord(raw)) continue;
+      const name = stringValue(raw.name, "", 50).trim().toLowerCase();
+      const label = stringValue(raw.label, name, 256).trim() || name;
+      if (!/^[a-z0-9_-]{2,50}$/.test(name) || names.has(name)) continue;
+      names.add(name);
+      fields.push({
+        name,
+        label,
+        type: enumValue(raw.type, ["text", "url"] as const, "text"),
+        required: booleanValue(raw.required, false),
+      });
+    }
+    normalized[connectionId] = fields;
   }
   return normalized;
 }
@@ -481,6 +510,9 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     ),
     features: normalizeFeatures(value.features),
     plugins: normalizePlugins(value.plugins),
+    timesheetCustomFields: normalizeTimesheetCustomFields(
+      value.timesheetCustomFields,
+    ),
     shortcutTogglePopup: stringValue(value.shortcutTogglePopup, "", 256),
     shortcutStartStopTimer: stringValue(value.shortcutStartStopTimer, "", 256),
     shortcutNewTask: stringValue(value.shortcutNewTask, "", 256),

@@ -76,6 +76,7 @@ import {
 } from "../api/reminderWindow";
 import { getRecordedDurationSeconds } from "../utils/timesheetDuration";
 import { toKimaiLocal } from "../utils/time";
+import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 import {
   claimInstalledChangelog,
   rememberPendingChangelog,
@@ -198,6 +199,7 @@ export default function TrayPopup() {
     shortcutSettings,
     featureFlags,
     pluginFlags,
+    timesheetCustomFields,
     autoUpdate,
     popupLayout,
     colorMode,
@@ -209,8 +211,8 @@ export default function TrayPopup() {
     issueToken,
   } = useKimaiClient();
   const pluginCustomInputs = useMemo(
-    () => getEnabledPluginCustomInputs(pluginFlags),
-    [pluginFlags],
+    () => getEnabledPluginCustomInputs(pluginFlags, timesheetCustomFields ?? []),
+    [pluginFlags, timesheetCustomFields],
   );
   const isDetached = displayMode === "detached";
   const [pinned, setPinned] = useState(false);
@@ -1401,6 +1403,7 @@ export default function TrayPopup() {
           activity: task.activity,
           description: entry.description ?? task.description,
           tags: task.tags,
+          metadata: getStringTimesheetMetadata(entry),
           billable: entry.billable,
           beginIso: entry.begin,
           endIso: entry.end,
@@ -2009,6 +2012,7 @@ export default function TrayPopup() {
       {editingEntry && (
         <TimesheetEditDialog
           entry={editingEntry}
+          customInputs={pluginCustomInputs}
           onSave={editCompletedTimesheet}
           onClose={() => setEditingEntry(null)}
         />

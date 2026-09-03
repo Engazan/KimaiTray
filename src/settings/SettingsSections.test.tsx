@@ -231,10 +231,54 @@ describe("feature and plugin settings", () => {
     await user.click(screen.getByRole("switch"));
     expect(update).toHaveBeenCalledWith("plugins", { conn: { creativeIssueLink: true } });
 
+    await user.click(screen.getByRole("button", { name: "customFields.add" }));
+    expect(update).toHaveBeenCalledWith("timesheetCustomFields", {
+      conn: [{ name: "custom_field_1", label: "customFields.defaultLabel", type: "text", required: false }],
+    });
+
     update.mockClear();
     rerender(<PluginsSection settings={base} update={update} connectionId="" />);
     await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("button", { name: "customFields.add" }));
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("edits, validates, removes and uniquely names configured custom fields", async () => {
+    const user = userEvent.setup();
+    const update = vi.fn();
+    const base = settings({
+      timesheetCustomFields: {
+        conn: [
+          { name: "custom_field_3", label: "First", type: "text", required: false },
+          { name: "other_field", label: "Second", type: "text", required: false },
+        ],
+      },
+    });
+    render(<PluginsSection settings={base} update={update} connectionId="conn" />);
+
+    const names = screen.getAllByLabelText("customFields.internalName");
+    fireEvent.change(names[0], { target: { value: "renamed_field" } });
+    expect(update).toHaveBeenLastCalledWith("timesheetCustomFields", expect.objectContaining({
+      conn: expect.arrayContaining([expect.objectContaining({ name: "renamed_field" })]),
+    }));
+    const callCount = update.mock.calls.length;
+    fireEvent.change(names[0], { target: { value: "!" } });
+    fireEvent.change(names[0], { target: { value: "other_field" } });
+    expect(update).toHaveBeenCalledTimes(callCount);
+
+    fireEvent.change(screen.getAllByLabelText("customFields.label")[0], { target: { value: "Ticket URL" } });
+    await user.click(screen.getAllByRole("button", { name: "customFields.url" })[0]);
+    await user.click(screen.getAllByLabelText("customFields.required")[0]);
+    await user.click(screen.getAllByRole("button", { name: "customFields.remove" })[0]);
+    await user.click(screen.getByRole("button", { name: "customFields.add" }));
+
+    expect(update).toHaveBeenLastCalledWith("timesheetCustomFields", {
+      ...base.timesheetCustomFields,
+      conn: [
+        ...base.timesheetCustomFields.conn,
+        { name: "custom_field_4", label: "customFields.defaultLabel", type: "text", required: false },
+      ],
+    });
   });
 
   it("updates toggles and clamps daily goal inputs", async () => {

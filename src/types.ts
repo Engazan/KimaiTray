@@ -81,6 +81,17 @@ export interface PluginSettings {
   creativeIssueLink: boolean;
 }
 
+export type TimesheetCustomFieldType = "text" | "url";
+
+export interface TimesheetCustomFieldDefinition {
+  /** Technical/internal field name configured in Kimai. */
+  name: string;
+  /** Label shown in KimaiTray. */
+  label: string;
+  type: TimesheetCustomFieldType;
+  required: boolean;
+}
+
 export interface AppSettings {
   kimaiUrl: string;
   connections: SavedConnection[];
@@ -127,6 +138,10 @@ export interface AppSettings {
 
   // Plugin toggles are per-connection, keyed by connection id.
   plugins: Record<string, PluginSettings>;
+
+  // Timesheet custom fields are configured per Kimai connection because the
+  // REST API exposes values, but not the server-side field definitions.
+  timesheetCustomFields: Record<string, TimesheetCustomFieldDefinition[]>;
 
   shortcutTogglePopup: string;
   shortcutStartStopTimer: string;
@@ -182,6 +197,7 @@ export interface TodayEntry {
   activity: string;
   description: string;
   tags: string[];
+  metadata?: Record<string, string>;
   billable: boolean;
   beginIso: string;
   endIso: string | null;

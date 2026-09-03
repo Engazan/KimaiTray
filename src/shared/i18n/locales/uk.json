@@ -118,6 +118,25 @@
     "issueFieldLabel": "Issue / Ticket",
     "issueFieldPlaceholder": "напр. PROJ-123 або URL"
   },
+  "customFields": {
+    "title": "Власні поля записів часу",
+    "description": "Додайте поля за технічною назвою Internal title у Kimai. Визначення зберігаються окремо для цього підключення.",
+    "add": "Додати власне поле",
+    "remove": "Видалити",
+    "defaultLabel": "Власне поле",
+    "internalName": "Internal title",
+    "label": "Відображувана назва",
+    "type": "Тип поля",
+    "text": "Текст",
+    "url": "URL",
+    "required": "Обов’язкове",
+    "requiredHint": "Має бути заповнене перед запуском",
+    "invalidDefinition": "Введіть назву та технічну назву довжиною 2–50 символів із літер, цифр, підкреслень або дефісів.",
+    "duplicateName": "Кожну технічну назву можна налаштувати лише один раз.",
+    "invalidUrl": "Введіть дійсну HTTP- або HTTPS-адресу.",
+    "requiredError": "Це поле обов’язкове.",
+    "openUrl": "Відкрити {{label}}"
+  },
   "settings": {
     "title": "Налаштування",
     "general": "Загальні",

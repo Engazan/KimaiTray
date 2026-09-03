@@ -1,4 +1,8 @@
-import type { PluginSettings } from "../types";
+import type {
+  PluginSettings,
+  TimesheetCustomFieldDefinition,
+  TimesheetCustomFieldType,
+} from "../types";
 import { ISSUE_LINK_META_NAME } from "../api/timesheetMeta";
 
 export const DESCRIPTION_INPUT_TARGET = "description";
@@ -6,10 +10,14 @@ export const DESCRIPTION_INPUT_TARGET = "description";
 export interface PluginCustomInputDefinition {
   /** Stable identifier persisted by integrations as an insertion target. */
   id: string;
-  pluginKey: keyof PluginSettings;
+  pluginKey?: keyof PluginSettings;
   metadataName: string;
   labelKey: string;
   placeholderKey: string;
+  label?: string;
+  placeholder?: string;
+  type?: TimesheetCustomFieldType;
+  required?: boolean;
 }
 
 export const CREATIVE_ISSUE_LINK_INPUT_ID =
@@ -27,8 +35,56 @@ const pluginCustomInputs: readonly PluginCustomInputDefinition[] = [
 
 export function getEnabledPluginCustomInputs(
   settings: PluginSettings,
+  customFields: readonly TimesheetCustomFieldDefinition[] = [],
 ): PluginCustomInputDefinition[] {
-  return pluginCustomInputs.filter((input) => settings[input.pluginKey]);
+  const inputs = pluginCustomInputs.filter(
+    (input) => input.pluginKey !== undefined && settings[input.pluginKey],
+  );
+  const names = new Set(inputs.map((input) => input.metadataName));
+  for (const field of customFields) {
+    if (names.has(field.name)) continue;
+    names.add(field.name);
+    inputs.push({
+      id: `custom-field:${field.name}`,
+      metadataName: field.name,
+      labelKey: "",
+      placeholderKey: "",
+      label: field.label.trim() || field.name,
+      placeholder: field.type === "url" ? "https://…" : "",
+      type: field.type,
+      required: field.required,
+    });
+  }
+  return inputs;
+}
+
+export function customInputLabel(
+  input: PluginCustomInputDefinition,
+  translate: (key: string) => string,
+): string {
+  return input.label ?? translate(input.labelKey);
+}
+
+export function customInputPlaceholder(
+  input: PluginCustomInputDefinition,
+  translate: (key: string) => string,
+): string {
+  return input.placeholder ?? translate(input.placeholderKey);
+}
+
+export function isValidCustomInputValue(
+  input: PluginCustomInputDefinition,
+  value: string,
+): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return !input.required;
+  if (input.type !== "url") return true;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 export function pickPluginMetadata(

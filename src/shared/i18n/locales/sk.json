@@ -118,6 +118,25 @@
     "issueFieldLabel": "Issue / Ticket",
     "issueFieldPlaceholder": "napr. PROJ-123 alebo URL"
   },
+  "customFields": {
+    "title": "Vlastné polia časových záznamov",
+    "description": "Pridajte polia podľa technického názvu Internal title v Kimai. Definície sa ukladajú osobitne pre toto pripojenie.",
+    "add": "Pridať vlastné pole",
+    "remove": "Odstrániť",
+    "defaultLabel": "Vlastné pole",
+    "internalName": "Internal title",
+    "label": "Zobrazený názov",
+    "type": "Typ poľa",
+    "text": "Text",
+    "url": "URL",
+    "required": "Povinné",
+    "requiredHint": "Musí byť vyplnené pred spustením",
+    "invalidDefinition": "Zadajte názov a 2–50 znakový technický názov z písmen, číslic, podčiarkovníkov alebo pomlčiek.",
+    "duplicateName": "Každý technický názov môže byť nakonfigurovaný iba raz.",
+    "invalidUrl": "Zadajte platnú HTTP alebo HTTPS URL.",
+    "requiredError": "Toto pole je povinné.",
+    "openUrl": "Otvoriť {{label}}"
+  },
   "settings": {
     "title": "Nastavenia",
     "general": "Všeobecné",

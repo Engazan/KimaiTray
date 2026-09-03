@@ -1,8 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { KimaiApiError } from "../api/kimaiClient";
-import type { KimaiTimesheetUpdate } from "../api/kimaiTypes";
 import type { TodayEntry } from "../types";
+import type { EditTimesheetPayload } from "../hooks/useEditTimesheet";
+import {
+  customInputLabel,
+  customInputPlaceholder,
+  isValidCustomInputValue,
+  type PluginCustomInputDefinition,
+} from "../plugins/customInputs";
 import { formatDuration } from "../utils/time";
 import {
   buildTimesheetTimeUpdate,
@@ -13,9 +19,12 @@ import DateTimePicker from "./DateTimePicker";
 
 interface TimesheetEditDialogProps {
   entry: TodayEntry;
-  onSave: (id: number, payload: KimaiTimesheetUpdate) => Promise<unknown>;
+  customInputs?: readonly PluginCustomInputDefinition[];
+  onSave: (id: number, payload: EditTimesheetPayload) => Promise<unknown>;
   onClose: () => void;
 }
+
+const EMPTY_CUSTOM_INPUTS: readonly PluginCustomInputDefinition[] = [];
 
 function validationMessage(
   error: TimesheetTimeEditError,
@@ -43,6 +52,7 @@ function apiErrorMessage(
 
 export default function TimesheetEditDialog({
   entry,
+  customInputs = EMPTY_CUSTOM_INPUTS,
   onSave,
   onClose,
 }: TimesheetEditDialogProps) {
@@ -58,6 +68,11 @@ export default function TimesheetEditDialog({
   const [end, setEnd] = useState(initial.end);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const initialMetadata = useMemo(
+    () => Object.fromEntries(customInputs.map((input) => [input.metadataName, entry.metadata?.[input.metadataName] ?? ""])),
+    [customInputs, entry.metadata],
+  );
+  const [metadata, setMetadata] = useState<Record<string, string>>(initialMetadata);
 
   useEffect(() => {
     isSavingRef.current = isSaving;
@@ -68,7 +83,8 @@ export default function TimesheetEditDialog({
     setEnd(initial.end);
     setError(null);
     setIsSaving(false);
-  }, [entry.id, initial.begin, initial.end]);
+    setMetadata(initialMetadata);
+  }, [entry.id, initial.begin, initial.end, initialMetadata]);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -104,7 +120,20 @@ export default function TimesheetEditDialog({
     };
   }, [onClose]);
 
-  const changed = begin !== initial.begin || end !== initial.end;
+  const changedMetadata = Object.fromEntries(
+    customInputs.flatMap((input) => {
+      const before = initialMetadata[input.metadataName] ?? "";
+      const after = metadata[input.metadataName] ?? "";
+      return before === after ? [] : [[input.metadataName, after]];
+    }),
+  );
+  const metadataValid = customInputs.every((input) =>
+    isValidCustomInputValue(input, metadata[input.metadataName] ?? ""),
+  );
+  const changed =
+    begin !== initial.begin ||
+    end !== initial.end ||
+    Object.keys(changedMetadata).length > 0;
   const beginDate = new Date(begin);
   const endDate = new Date(end);
   const previewSeconds =
@@ -133,7 +162,12 @@ export default function TimesheetEditDialog({
     setError(null);
     setIsSaving(true);
     try {
-      await onSave(entry.id, result.payload);
+      await onSave(entry.id, {
+        ...result.payload,
+        ...(Object.keys(changedMetadata).length > 0
+          ? { metadata: changedMetadata }
+          : {}),
+      });
       onClose();
     } catch (saveError) {
       setError(apiErrorMessage(saveError, t));
@@ -191,6 +225,44 @@ export default function TimesheetEditDialog({
               disabled={isSaving}
             />
           </div>
+
+          {customInputs.map((input) => {
+            const label = customInputLabel(input, t);
+            const placeholder = customInputPlaceholder(input, t);
+            const value = metadata[input.metadataName] ?? "";
+            const valid = isValidCustomInputValue(input, value);
+            return (
+              <div key={input.id}>
+                <label
+                  htmlFor={`${titleId}-${input.id}`}
+                  className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500"
+                >
+                  {label}{input.required ? " *" : ""}
+                </label>
+                <input
+                  id={`${titleId}-${input.id}`}
+                  type={input.type === "url" ? "url" : "text"}
+                  value={value}
+                  required={input.required}
+                  aria-invalid={!valid || undefined}
+                  disabled={isSaving}
+                  placeholder={placeholder}
+                  onChange={(event) =>
+                    setMetadata((current) => ({
+                      ...current,
+                      [input.metadataName]: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[12px] text-gray-700 focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] dark:border-white/20 dark:bg-white/[0.08] dark:text-gray-300"
+                />
+                {!valid && (
+                  <p className="mt-1 text-[10px] text-red-500">
+                    {value === "" ? t("customFields.requiredError") : t("customFields.invalidUrl")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
           <div>
             <label
               htmlFor={endId}
@@ -242,7 +314,7 @@ export default function TimesheetEditDialog({
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={!changed || isSaving}
+            disabled={!changed || !metadataValid || isSaving}
             className="rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[11px] font-medium text-white hover:bg-[var(--accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:opacity-40 dark:ring-offset-[#202020]"
           >
             {isSaving ? t("common.saving") : t("common.save")}

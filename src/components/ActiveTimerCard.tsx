@@ -13,7 +13,12 @@ import TagsList from "./TagsList";
 import TagsInput from "./TagsInput";
 import DateTimePicker from "./DateTimePicker";
 import ColorDots from "./ColorDots";
-import type { PluginCustomInputDefinition } from "../plugins/customInputs";
+import {
+  customInputLabel,
+  customInputPlaceholder,
+  isValidCustomInputValue,
+  type PluginCustomInputDefinition,
+} from "../plugins/customInputs";
 import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
 
 interface ActiveTimerCardProps {
@@ -169,6 +174,7 @@ export default function ActiveTimerCard({
   }, [editingCustomInputId]);
 
   const saveCustomInput = (input: PluginCustomInputDefinition) => {
+    if (!isValidCustomInputValue(input, customInputValue)) return;
     setEditingCustomInputId(null);
     const previous = timer.metadata?.[input.metadataName] ?? "";
     if (customInputValue !== previous) {
@@ -499,24 +505,27 @@ export default function ActiveTimerCard({
         {pluginCustomInputs.map((input) => {
           const value = timer.metadata?.[input.metadataName] ?? "";
           const editing = editingCustomInputId === input.id;
+          const label = customInputLabel(input, t);
+          const placeholder = customInputPlaceholder(input, t);
           return (
             <div
               key={input.id}
               className="pl-4 mb-1.5 flex min-w-0 items-center gap-1.5"
             >
               <span className="shrink-0 text-[10px] font-medium text-gray-400 dark:text-gray-500">
-                {t(input.labelKey)}:
+                {label}:
               </span>
               {editing ? (
                 <input
                   ref={customInputRef}
-                  type="text"
-                  aria-label={t(input.labelKey)}
+                  type={input.type === "url" ? "url" : "text"}
+                  aria-label={label}
+                  aria-invalid={!isValidCustomInputValue(input, customInputValue) || undefined}
                   value={customInputValue}
                   onChange={(event) => setCustomInputValue(event.target.value)}
                   onBlur={() => saveCustomInput(input)}
                   onKeyDown={(event) => handleCustomInputKey(event, input)}
-                  placeholder={t(input.placeholderKey)}
+                  placeholder={placeholder}
                   className="min-w-0 flex-1 rounded border border-emerald-300 bg-white px-1.5 py-0.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 dark:border-emerald-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder:text-gray-500"
                 />
               ) : (
@@ -534,7 +543,22 @@ export default function ActiveTimerCard({
                       : "italic text-gray-400 dark:text-gray-500"
                   }`}
                 >
-                  {value || t(input.placeholderKey)}
+                  {value || placeholder}
+                </button>
+              )}
+              {!editing && input.type === "url" && isValidCustomInputValue(input, value) && value && (
+                <button
+                  type="button"
+                  aria-label={t("customFields.openUrl", { label })}
+                  title={t("integrations.openInBrowser")}
+                  onClick={() => {
+                    void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(value));
+                  }}
+                  className="shrink-0 rounded p-0.5 text-gray-400 hover:text-[var(--accent)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+                >
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
                 </button>
               )}
             </div>

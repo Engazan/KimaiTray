@@ -7,6 +7,7 @@ import { extractId } from "../api/kimaiTypes";
 import { normalizeKimaiTags } from "../api/tagUtils";
 import { getLocalDayRange, parseKimaiDate } from "../utils/time";
 import { useEntityLookup } from "./useEntityLookup";
+import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 
 const DEFAULT_VISIBLE = 5;
 
@@ -95,6 +96,7 @@ export function useTodayTimesheets(
         activity: act?.name ?? `Activity #${activityId}`,
         description: entry.description ?? "",
         tags: normalizeKimaiTags(entry.tags),
+        metadata: getStringTimesheetMetadata(entry),
         billable: entry.billable,
         beginIso: entry.begin,
         endIso: entry.end,

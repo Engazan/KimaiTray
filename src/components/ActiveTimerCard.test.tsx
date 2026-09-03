@@ -75,6 +75,32 @@ describe("ActiveTimerCard keyboard actions", () => {
     expect(formatElapsed(3_661, false)).toBe("01:01");
   });
 
+  it("opens a configured URL custom field", async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    render(
+      <I18nextProvider i18n={i18n}>
+        <ActiveTimerCard
+          timer={{ ...baseTimer, metadata: { url_link: "https://example.test/34" } }}
+          onStop={vi.fn()}
+          onEdit={onEdit}
+          pluginCustomInputs={getEnabledPluginCustomInputs(
+            { creativeIssueLink: false },
+            [{ name: "url_link", label: "URL link", type: "url", required: false }],
+          )}
+        />
+      </I18nextProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open URL link" }));
+    expect(nativeMocks.openUrl).toHaveBeenCalledWith("https://example.test/34");
+    await user.click(screen.getByText("https://example.test/34"));
+    const input = screen.getByLabelText("URL link");
+    await user.clear(input);
+    await user.type(input, "ftp://invalid.test{Enter}");
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
   it("opens and saves the note editor from a shortcut request in compact mode", async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();

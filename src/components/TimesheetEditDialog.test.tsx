@@ -101,4 +101,34 @@ describe("TimesheetEditDialog", () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("loads and clears a configured custom field", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    render(
+      <I18nextProvider i18n={i18n}>
+        <TimesheetEditDialog
+          entry={{ ...entry, metadata: { url_link: "https://example.test/34" } }}
+          customInputs={[{
+            id: "custom-field:url_link",
+            metadataName: "url_link",
+            label: "URL link",
+            labelKey: "",
+            placeholder: "https://…",
+            placeholderKey: "",
+            type: "url",
+          }]}
+          onSave={onSave}
+          onClose={onClose}
+        />
+      </I18nextProvider>,
+    );
+
+    await userEvent.clear(screen.getByLabelText("URL link"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(42, {
+      metadata: { url_link: "" },
+    }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });

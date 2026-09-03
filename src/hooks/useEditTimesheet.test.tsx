@@ -53,7 +53,7 @@ describe("useEditTimesheet", () => {
     });
   });
 
-  it("propagates permission failures without invalidating cached entries", async () => {
+  it("propagates permission failures and refreshes potentially partial writes", async () => {
     const forbidden = new KimaiApiError(403, "Forbidden", null, "forbidden");
     const patch = vi.fn().mockRejectedValue(forbidden);
     const { result, invalidate } = setup(patch);
@@ -64,7 +64,7 @@ describe("useEditTimesheet", () => {
       ).rejects.toBe(forbidden);
     });
 
-    expect(invalidate).not.toHaveBeenCalled();
+    expect(invalidate).toHaveBeenCalledOnce();
   });
 
   it("invalidates timesheet queries after a successful PATCH", async () => {
@@ -81,5 +81,25 @@ describe("useEditTimesheet", () => {
       end: "2026-07-22T11:00:00",
     });
     expect(invalidate).toHaveBeenCalledOnce();
+  });
+
+  it("updates changed custom fields, including clearing a value", async () => {
+    const patch = vi.fn().mockResolvedValue(response());
+    const { result } = setup(patch);
+
+    await act(async () => {
+      await result.current.editTimesheet(42, {
+        metadata: { url_link: "", location: "Office" },
+      });
+    });
+
+    expect(patch).toHaveBeenNthCalledWith(1, "/api/timesheets/42/meta", {
+      name: "url_link",
+      value: "",
+    });
+    expect(patch).toHaveBeenNthCalledWith(2, "/api/timesheets/42/meta", {
+      name: "location",
+      value: "Office",
+    });
   });
 });

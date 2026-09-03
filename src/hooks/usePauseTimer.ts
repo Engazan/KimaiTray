@@ -234,7 +234,7 @@ export function usePauseTimer(
       setPausedTimers(timers);
       setPauseError(
         metadataError
-          ? `Timer resumed, but plugin metadata could not be saved: ${metadataError.message}`
+          ? `Timer resumed, but custom field data could not be saved: ${metadataError.message}`
           : null,
       );
       setResumingId(null);
