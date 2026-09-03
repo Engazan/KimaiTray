@@ -719,7 +719,7 @@ fn desktop_needs_appindicator() -> bool {
 
 #[cfg(target_os = "linux")]
 fn desktop_name_needs_appindicator(desktop: &str) -> bool {
-    ["gnome", "ubuntu", "unity", "pantheon", "budgie"]
+    ["gnome", "ubuntu", "unity", "pantheon", "budgie", "sway"]
         .iter()
         .any(|name| desktop.contains(name))
 }
