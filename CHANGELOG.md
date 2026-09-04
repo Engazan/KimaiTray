@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.22.9] - 2026-09-04
+
+### New Features
+
+- **Configurable timesheet custom fields** ([#34](https://github.com/Engazan/KimaiTray/issues/34)) — define connection-specific text and URL fields, mark them as required, and use them when starting, viewing or editing timers while preserving their values in Kimai metadata
+- **Automatic custom-field discovery** — testing a connection now imports supported timesheet field definitions from Kimai's optional Custom Fields API while preserving manually configured fields and gracefully falling back when the endpoint is unavailable
+
+### Improvements
+
+- **Sway tray support** — Linux tray initialization now recognizes Sway sessions
+
+### Maintenance
+
+- **Patched Browserslist dependency** — updated the transitive Browserslist dependency to resolve its high-severity security advisories
+
 ## [0.22.8] - 2026-08-27
 
 ### New Features
