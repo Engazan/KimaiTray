@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { KimaiClient } from "../api/kimaiClient";
+import { KimaiApiError } from "../api/kimaiClient";
 import {
   switchTask,
   TaskMetadataError,
@@ -35,9 +36,9 @@ function mockClient(overrides: Partial<KimaiClient> = {}): KimaiClient {
   return {
     baseUrl: "https://kimai.example.test",
     connectionId: "connection-a",
-    get: vi.fn(async () => [timesheet(42)]),
+    get: vi.fn().mockResolvedValueOnce([timesheet(42)]).mockResolvedValue([]),
     post: vi.fn(async () => {
-      throw new Error("start failed");
+      throw KimaiApiError.fromResponse(422, "Unprocessable Entity", { message: "start failed" });
     }),
     patch: vi.fn(async () => timesheet(42)),
     del: vi.fn(async () => undefined),
@@ -46,7 +47,7 @@ function mockClient(overrides: Partial<KimaiClient> = {}): KimaiClient {
 }
 
 describe("transactional timer switching", () => {
-  it("restarts a stopped timer when the replacement fails to start", async () => {
+  it("restarts a stopped timer after an explicit rejection and an empty active snapshot", async () => {
     const client = mockClient();
 
     let caught: unknown;
@@ -64,6 +65,87 @@ describe("transactional timer switching", () => {
     expect((caught as TaskSwitchError).stoppedExisting).toBe(false);
     expect(client.patch).toHaveBeenCalledWith("/api/timesheets/42/stop");
     expect(client.patch).toHaveBeenCalledWith("/api/timesheets/42/restart");
+    expect(client.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not restart when the server created the replacement but its response was lost", async () => {
+    const running = new Map([[42, timesheet(42)]]);
+    const client = mockClient({
+      get: vi.fn(async () => [...running.values()]) as KimaiClient["get"],
+      patch: vi.fn(async (path: string) => {
+        if (path.endsWith("/stop")) running.delete(42);
+        else running.set(42, timesheet(42));
+        return timesheet(42);
+      }) as KimaiClient["patch"],
+      post: vi.fn(async () => {
+        running.set(99, timesheet(99));
+        throw new KimaiApiError(0, "Network Error", null, "network_error");
+      }),
+    });
+
+    await expect(switchTask(client, {
+      projectId: 1, activityId: 2, label: "Replacement",
+    })).rejects.toMatchObject({ recoveryBlocked: true });
+
+    expect([...running.keys()]).toEqual([99]);
+    expect(client.get).toHaveBeenCalledTimes(2);
+    expect(client.patch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    new KimaiApiError(0, "Network Error", null, "network_error"),
+    new KimaiApiError(200, "Parse Error", null, "parse_error"),
+    KimaiApiError.fromResponse(500, "Server Error", null),
+    KimaiApiError.fromResponse(408, "Request Timeout", null),
+    new Error("Unexpected transport failure"),
+  ])("does not treat an empty snapshot as proof an ambiguous create failed: %s", async (error) => {
+    const client = mockClient({ post: vi.fn().mockRejectedValue(error) });
+
+    await expect(switchTask(client, {
+      projectId: 1, activityId: 2, label: "Replacement",
+    })).rejects.toMatchObject({ recoveryBlocked: true });
+
+    expect(client.get).toHaveBeenCalledTimes(2);
+    expect(client.patch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["unavailable", "active"])("does not roll back a rejected create when verification is %s", async (state) => {
+    const get = vi.fn().mockResolvedValueOnce([timesheet(42)]);
+    if (state === "unavailable") get.mockRejectedValueOnce(new Error("offline"));
+    else get.mockResolvedValueOnce([timesheet(100)]);
+    const client = mockClient({ get });
+
+    await expect(switchTask(client, {
+      projectId: 1, activityId: 2, label: "Replacement",
+    })).rejects.toMatchObject({ recoveryBlocked: true });
+
+    expect(client.patch).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports safe recovery being blocked without claiming the replacement failed to start", async () => {
+    const client = mockClient({
+      post: vi.fn().mockRejectedValue(new KimaiApiError(0, "Network Error", null, "network_error")),
+      get: vi.fn().mockResolvedValueOnce([timesheet(42)]).mockRejectedValueOnce(new Error("offline")),
+    });
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const onStarted = vi.fn();
+    const onFailed = vi.fn();
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useStartTask(client, onStarted, onFailed), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startTask({ projectId: 1, activityId: 2, label: "Replacement" })).toBeNull();
+    });
+
+    expect(result.current.switchError).toContain("Check the current timer before trying again");
+    expect(result.current.switchError).not.toContain("failed to start");
+    expect(onStarted).not.toHaveBeenCalled();
+    expect(onFailed).toHaveBeenCalledWith(expect.objectContaining({ recoveryBlocked: true }), expect.anything());
+    expect(invalidate).toHaveBeenCalled();
+    expect(client.patch).toHaveBeenCalledTimes(1);
+    queryClient.clear();
   });
 
   it("reports a partial stop when rollback also fails", async () => {

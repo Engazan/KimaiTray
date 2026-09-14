@@ -25,7 +25,11 @@ export interface StartTaskPayload {
 
 export class TaskSwitchError extends Error {
   stoppedExisting: boolean;
-  constructor(cause: unknown, stoppedExisting: boolean) {
+  constructor(
+    cause: unknown,
+    stoppedExisting: boolean,
+    readonly recoveryBlocked: boolean = false,
+  ) {
     super(cause instanceof KimaiApiError ? cause.message : String(cause));
     this.stoppedExisting = stoppedExisting;
   }
@@ -45,6 +49,7 @@ export async function switchTask(
   payload: StartTaskPayload,
 ) {
   let stoppedExisting = false;
+  let startAttempted = false;
   const stoppedIds: number[] = [];
   let entry: KimaiTimesheetEntry;
   try {
@@ -54,6 +59,7 @@ export async function switchTask(
       stoppedExisting = true;
       stoppedIds.push(entry.id);
     }
+    startAttempted = true;
     entry = await startTimesheet(client, {
       project: payload.projectId,
       activity: payload.activityId,
@@ -64,6 +70,25 @@ export async function switchTask(
         : undefined,
     });
   } catch (err) {
+    if (startAttempted) {
+      // A timeout, failed response parsing, or server error does not prove the
+      // create failed. Only an explicit rejection permits automatic recovery.
+      const rejected =
+        err instanceof KimaiApiError &&
+        err.status >= 400 &&
+        err.status < 500 &&
+        err.status !== 408;
+
+      if (stoppedIds.length > 0 || !rejected) {
+        const active = await getActiveTimesheets(client).catch(() => null);
+        // Even an empty snapshot cannot rule out an in-flight create committing
+        // later. Never restart automatically after an ambiguous create result.
+        // Do not infer ownership of a running entry from matching task fields.
+        if (!rejected || active === null || active.length > 0) {
+          throw new TaskSwitchError(err, stoppedExisting, true);
+        }
+      }
+    }
     let rolledBack = stoppedIds.length > 0;
     for (const id of [...stoppedIds].reverse()) {
       try {
@@ -127,6 +152,10 @@ export function useStartTask(
         // close the form and keep any other post-start associations intact.
         onTaskStarted?.(err.entry, payload);
         return;
+      } else if (err instanceof TaskSwitchError && err.recoveryBlocked) {
+        setSwitchError(
+          `Could not safely complete the switch to "${payload.label}". No previous timer was restarted. Check the current timer before trying again: ${err.message}`,
+        );
       } else if (err instanceof TaskSwitchError && err.stoppedExisting) {
         setSwitchError(
           `Timer stopped but "${payload.label}" failed to start: ${err.message}`,
