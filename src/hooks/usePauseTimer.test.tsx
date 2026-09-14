@@ -16,6 +16,7 @@ const pauseStoreMocks = vi.hoisted(() => ({
   removeResumedTimer: vi.fn(),
 }));
 const timesheetMocks = vi.hoisted(() => ({
+  getActiveTimesheets: vi.fn(),
   startTimesheet: vi.fn(),
   stopTimesheet: vi.fn(),
   updateTimesheetMeta: vi.fn(),
@@ -25,6 +26,8 @@ vi.mock("../api/pauseStore", () => pauseStoreMocks);
 vi.mock("../api/timesheetApi", () => timesheetMocks);
 
 import { usePauseTimer } from "./usePauseTimer";
+import { useStartTask } from "./useStartTask";
+import { acquireTimerOperation } from "./timerOperationLock";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -102,12 +105,85 @@ describe("paused timer session isolation", () => {
     pauseStoreMocks.addPausedTimer.mockResolvedValue([]);
     pauseStoreMocks.removePausedTimer.mockResolvedValue([]);
     pauseStoreMocks.removeResumedTimer.mockResolvedValue([]);
+    timesheetMocks.getActiveTimesheets.mockResolvedValue([]);
     timesheetMocks.startTimesheet.mockResolvedValue({ id: 99 });
     timesheetMocks.stopTimesheet.mockResolvedValue(undefined);
     timesheetMocks.updateTimesheetMeta.mockResolvedValue({ id: 99 });
   });
 
   afterEach(() => vi.useRealTimers());
+
+  it.each(["pause", "resume", "discard", "stop", "start"] as const)(
+    "blocks all competing actions synchronously while %s is running",
+    async (first) => {
+      const pending = deferred<void>();
+      pauseStoreMocks.loadPausedTimers.mockResolvedValue([paused("connection-a")]);
+      pauseStoreMocks.addPausedTimer.mockImplementation(async () => { await pending.promise; return []; });
+      pauseStoreMocks.removePausedTimer.mockImplementation(async () => { await pending.promise; return []; });
+      timesheetMocks.stopTimesheet.mockImplementation(async () => { await pending.promise; });
+      timesheetMocks.startTimesheet.mockImplementation(async () => { await pending.promise; return { id: 99 }; });
+      const { result, unmount } = renderHook(() => ({
+        pause: usePauseTimer(client("connection-a"), activeTimer(), "connection-a"),
+        start: useStartTask(client("connection-a")),
+      }), { wrapper: wrapper() });
+      await waitFor(() => expect(result.current.pause.pausedTimers).toHaveLength(1));
+      const actions = {
+        pause: () => result.current.pause.pauseTimer(),
+        resume: () => result.current.pause.resumeTimer("paused-connection-a"),
+        discard: () => result.current.pause.discardPausedTimer("paused-connection-a"),
+        stop: () => result.current.pause.stopActiveTimer(),
+        start: () => { void result.current.start.startTask({ projectId: 2, activityId: 3, label: "New" }); },
+      };
+      act(() => {
+        actions[first]();
+        Object.values(actions).forEach(action => action());
+      });
+      const writes = () => [pauseStoreMocks.addPausedTimer, pauseStoreMocks.removePausedTimer,
+        timesheetMocks.stopTimesheet, timesheetMocks.startTimesheet]
+        .reduce((count, mock) => count + mock.mock.calls.length, 0);
+      await waitFor(() => expect(writes()).toBe(1));
+      // The same guard must hold after React has rendered the pending state.
+      act(() => Object.values(actions).forEach(action => action()));
+      await act(async () => Promise.resolve());
+      expect(writes()).toBe(1);
+      await act(async () => pending.resolve());
+      await waitFor(() => expect(result.current.pause.isPausing || result.current.pause.isStoppingActive ||
+        result.current.pause.resumingId !== null || result.current.pause.discardingId !== null ||
+        result.current.start.isStarting).toBe(false));
+      // Completion must permit a subsequent operation on this connection.
+      act(() => actions.discard());
+      await waitFor(() => expect(pauseStoreMocks.removePausedTimer).toHaveBeenCalledTimes(first === "discard" ? 2 : 1));
+      unmount();
+    },
+  );
+
+  it("releases the shared lock after a failure so another action can run", async () => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([paused("connection-a")]);
+    pauseStoreMocks.addPausedTimer.mockRejectedValueOnce(new Error("store failed"));
+    const { result } = renderHook(() => usePauseTimer(client("connection-a"), activeTimer(), "connection-a"), { wrapper: wrapper() });
+    await waitFor(() => expect(result.current.pausedTimers).toHaveLength(1));
+    act(() => result.current.pauseTimer());
+    await waitFor(() => expect(result.current.pauseError).toBe("store failed"));
+    act(() => result.current.discardPausedTimer("paused-connection-a"));
+    await waitFor(() => expect(pauseStoreMocks.removePausedTimer).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps competing actions blocked during the stop exit animation and releases on unmount", async () => {
+    vi.useFakeTimers();
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([paused("connection-a")]);
+    const qc = new QueryClient();
+    const { result, unmount } = renderHook(() => usePauseTimer(client("connection-a"), activeTimer(), "connection-a"), { wrapper: wrapperWithClient(qc) });
+    await act(async () => Promise.resolve());
+    act(() => result.current.stopActiveTimer());
+    await act(async () => Promise.resolve());
+    act(() => result.current.resumeTimer("paused-connection-a"));
+    expect(timesheetMocks.startTimesheet).not.toHaveBeenCalled();
+    expect(acquireTimerOperation(qc, "connection-a:1")).toBeNull();
+    unmount();
+    const release = acquireTimerOperation(qc, "connection-a:1");
+    expect(release).not.toBeNull();
+    release!();
+  });
 
   it("ignores a previous connection load that completes late", async () => {
     const loadA = deferred<PausedTimerData[]>();

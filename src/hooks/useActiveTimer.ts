@@ -10,6 +10,7 @@ import { normalizeKimaiTags } from "../api/tagUtils";
 import { parseKimaiDate } from "../utils/time";
 import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 import { useEntityLookup } from "./useEntityLookup";
+import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
 
 export type ConnectionStatus =
@@ -88,15 +89,19 @@ export function useActiveTimer(
   }, [entries, projects, activities, customers]);
 
   const stopMut = useMutation({
-    mutationFn: (id: number) => stopTimesheet(client!, id),
+    mutationFn: ({ id, operationClient }: { id: number; operationClient: KimaiClient; release: () => void }) => stopTimesheet(operationClient, id),
     onSuccess: () => {
-      invalidateTimesheets(qc);
+      return invalidateTimesheets(qc);
     },
+    onSettled: (_data, _error, { release }) => release(),
   });
 
   const stopTimer = useCallback(() => {
-    if (timer) stopMut.mutate(timer.id);
-  }, [timer, stopMut]);
+    if (!timer || !client) return;
+    const release = acquireTimerOperation(qc, client.cacheScope);
+    if (!release) return;
+    stopMut.mutate({ id: timer.id, operationClient: client, release });
+  }, [timer, client, qc, stopMut]);
 
   // Derive connection status
   let status: ConnectionStatus = "connected";

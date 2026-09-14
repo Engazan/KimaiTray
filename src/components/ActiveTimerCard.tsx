@@ -27,6 +27,7 @@ interface ActiveTimerCardProps {
   onPause?: () => void;
   isStopping?: boolean;
   isPausing?: boolean;
+  actionsDisabled?: boolean;
   multipleActive?: boolean;
   onEdit?: (
     id: number,
@@ -85,6 +86,7 @@ export default function ActiveTimerCard({
   onPause,
   isStopping,
   isPausing,
+  actionsDisabled = false,
   multipleActive,
   onEdit,
   isSaving,
@@ -295,9 +297,9 @@ export default function ActiveTimerCard({
   };
   const contextEntries: ContextMenuEntry[] = [
     ...(onPause
-      ? [{ text: t("pause.pause"), enabled: !exiting, action: onPause } satisfies ContextMenuEntry]
+      ? [{ text: t("pause.pause"), enabled: !exiting && !actionsDisabled, action: onPause } satisfies ContextMenuEntry]
       : []),
-    { text: t("timer.stopTimer"), enabled: !exiting, action: onStop },
+    { text: t("timer.stopTimer"), enabled: !exiting && !actionsDisabled, action: onStop },
     separator(),
     ...(onEdit
       ? [{ text: t("contextMenu.editNote"), action: editDescriptionFromMenu } satisfies ContextMenuEntry]
@@ -364,7 +366,7 @@ export default function ActiveTimerCard({
             <button
               type="button"
               onClick={onPause}
-              disabled={!!isPausing || !!isStopping}
+              disabled={actionsDisabled || !!isPausing || !!isStopping}
               title={t("pause.pause")}
               aria-label={t("pause.pause")}
               className="p-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
@@ -379,7 +381,7 @@ export default function ActiveTimerCard({
           <button
             type="button"
             onClick={onStop}
-            disabled={!!isStopping || !!isPausing}
+            disabled={actionsDisabled || !!isStopping || !!isPausing}
             title={t("timer.stopTimer")}
             aria-label={t("timer.stopTimer")}
             className="p-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
@@ -637,7 +639,7 @@ export default function ActiveTimerCard({
               <button
                 type="button"
                 onClick={onPause}
-                disabled={!!isPausing || !!isStopping}
+                disabled={actionsDisabled || !!isPausing || !!isStopping}
                 title={t("pause.pause")}
                 aria-label={t("pause.pause")}
                 className="p-1.5 rounded-md
@@ -656,7 +658,7 @@ export default function ActiveTimerCard({
             <button
               type="button"
               onClick={onStop}
-              disabled={!!isStopping || !!isPausing}
+              disabled={actionsDisabled || !!isStopping || !!isPausing}
               title={t("timer.stopTimer")}
               aria-label={t("timer.stopTimer")}
               className="p-1.5 rounded-md

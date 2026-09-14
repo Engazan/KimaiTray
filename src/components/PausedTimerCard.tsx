@@ -12,6 +12,7 @@ interface PausedTimerCardProps {
   onStop: () => void;
   isResuming?: boolean;
   isStopping?: boolean;
+  actionsDisabled?: boolean;
   error?: string | null;
   onDismissError?: () => void;
   compact?: boolean;
@@ -32,6 +33,7 @@ export default function PausedTimerCard({
   onStop,
   isResuming,
   isStopping,
+  actionsDisabled = false,
   error,
   onDismissError,
   compact,
@@ -45,11 +47,11 @@ export default function PausedTimerCard({
   const hasDescription = showDescriptionOnHover && description.length > 0;
   /* v8 ignore start -- callbacks execute from a native OS context menu */
   const contextEntries: ContextMenuEntry[] = [
-    { text: t("pause.resume"), enabled: !busy, action: onResume },
+    { text: t("pause.resume"), enabled: !busy && !actionsDisabled, action: onResume },
     separator(),
     {
       text: t("pause.discard"),
-      enabled: !busy,
+      enabled: !busy && !actionsDisabled,
       action: () => {
         if (window.confirm(t("contextMenu.discardPausedConfirm"))) onStop();
       },
@@ -102,7 +104,7 @@ export default function PausedTimerCard({
             <button
               type="button"
               onClick={onResume}
-              disabled={busy}
+              disabled={busy || actionsDisabled}
               title={t("pause.resume")}
               aria-label={t("pause.resume")}
               className="p-1 rounded-md bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 disabled:opacity-50 transition-colors focus:outline-none"
@@ -116,7 +118,7 @@ export default function PausedTimerCard({
             <button
               type="button"
               onClick={onStop}
-              disabled={busy}
+              disabled={busy || actionsDisabled}
               title={t("timer.stopTimer")}
               aria-label={t("timer.stopTimer")}
               className="p-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors focus:outline-none"
@@ -182,7 +184,7 @@ export default function PausedTimerCard({
             <button
               type="button"
               onClick={onResume}
-              disabled={busy}
+              disabled={busy || actionsDisabled}
               title={t("pause.resume")}
               aria-label={t("pause.resume")}
               className="p-1.5 rounded-md
@@ -200,7 +202,7 @@ export default function PausedTimerCard({
             <button
               type="button"
               onClick={onStop}
-              disabled={busy}
+              disabled={busy || actionsDisabled}
               title={t("timer.stopTimer")}
               aria-label={t("timer.stopTimer")}
               className="p-1.5 rounded-md

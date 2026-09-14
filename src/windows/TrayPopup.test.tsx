@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TrayPopup from "./TrayPopup";
+import { acquireTimerOperation } from "../hooks/timerOperationLock";
 
 const mocks = vi.hoisted(() => ({
   kimai: {} as any,
@@ -391,6 +392,42 @@ describe("TrayPopup", () => {
     render(<TrayPopup />);
     mocks.deepLinkHandler?.("unconfigured");
     expect(await screen.findByText(/Configure the requested/)).toBeTruthy();
+  });
+
+  it("blocks all idle stop actions while a timer operation holds the lock", async () => {
+    mocks.active.timer = timer;
+    mocks.idle = { idleState: "returned", idleStartedAt: new Date(), idleDurationSeconds: 600, dismissIdle: vi.fn() };
+    const release = acquireTimerOperation(mocks.queryClient, "conn")!;
+    try {
+      render(<TrayPopup />);
+      act(() => {
+        for (const action of ["stop-at-start", "stop-now", "stop-and-new"]) {
+          mocks.events.get("idle-action")?.({ payload: { action } });
+        }
+      });
+      await act(async () => Promise.resolve());
+      expect(mocks.timesheet.stop).not.toHaveBeenCalled();
+      expect(mocks.timesheet.update).not.toHaveBeenCalled();
+      expect(mocks.idle.dismissIdle).not.toHaveBeenCalled();
+    } finally {
+      release();
+    }
+    act(() => mocks.events.get("idle-action")?.({ payload: { action: "stop-now" } }));
+    await waitFor(() => expect(mocks.timesheet.stop).toHaveBeenCalledTimes(1));
+  });
+
+  it("defers automatic idle handling until a competing timer operation finishes", async () => {
+    mocks.active.timer = timer;
+    mocks.idle = { idleState: "returned", idleStartedAt: new Date(), idleDurationSeconds: 600, dismissIdle: vi.fn() };
+    mocks.kimai.idleSettings.idleAction = "stop";
+    mocks.kimai.isStarting = true;
+    const release = acquireTimerOperation(mocks.queryClient, "conn")!;
+    const { rerender } = render(<TrayPopup />);
+    expect(mocks.timesheet.stop).not.toHaveBeenCalled();
+    release();
+    mocks.kimai.isStarting = false;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.timesheet.stop).toHaveBeenCalledTimes(1));
   });
 
   it("runs idle reminder actions and notification behavior", async () => {

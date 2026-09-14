@@ -6,8 +6,11 @@ import type { KimaiClient } from "../api/kimaiClient";
 import { KimaiApiError } from "../api/kimaiClient";
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 
+interface StopRequest { id: number; operationClient: KimaiClient; release: () => void }
+
 interface MutationOptions {
-  mutationFn: (id: number) => Promise<unknown>;
+  mutationFn: (request: StopRequest) => Promise<unknown>;
+  onSettled: (data: unknown, error: unknown, request: StopRequest) => void;
   onSuccess: () => void;
 }
 
@@ -136,11 +139,14 @@ describe("active timer state", () => {
       refetchInterval: 15_000,
     });
     await expect(queryOptions.queryFn()).resolves.toEqual(queryState.data);
-    await expect(mocks.mutationOptions?.mutationFn(42)).resolves.toEqual(
+    await expect(mocks.mutationOptions?.mutationFn({ id: 42, operationClient: client, release: vi.fn() })).resolves.toEqual(
       queryState.data[0],
     );
     act(() => result.current.stopTimer());
-    expect(mocks.mutate).toHaveBeenCalledWith(42);
+    expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({ id: 42, operationClient: client }));
+    act(() => result.current.stopTimer());
+    expect(mocks.mutate).toHaveBeenCalledTimes(1);
+    mocks.mutationOptions?.onSettled(undefined, null, mocks.mutate.mock.calls[0][0]);
     mocks.mutationOptions?.onSuccess();
     expect(mocks.invalidateTimesheets).toHaveBeenCalledWith(mocks.queryClient);
   });

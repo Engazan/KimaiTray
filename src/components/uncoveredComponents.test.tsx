@@ -113,6 +113,21 @@ const today: TodayEntry = {
 };
 
 describe("previously uncovered tray components", () => {
+  it.each([false, true])("disables paused timer actions while another card is busy (compact=%s)", (compact) => {
+    const onResume = vi.fn();
+    const onStop = vi.fn();
+    const { container } = render(<PausedTimerCard paused={paused} onResume={onResume} onStop={onStop} compact={compact} actionsDisabled />);
+    const resume = screen.getByRole("button", { name: "pause.resume" }) as HTMLButtonElement;
+    const stop = screen.getByRole("button", { name: "timer.stopTimer" }) as HTMLButtonElement;
+    expect(resume.disabled).toBe(true);
+    expect(stop.disabled).toBe(true);
+    fireEvent.click(resume);
+    fireEvent.click(stop);
+    expect(onResume).not.toHaveBeenCalled();
+    expect(onStop).not.toHaveBeenCalled();
+    expect(container.querySelector(".animate-card-out")).toBeNull();
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.getByLabel.mockResolvedValue({

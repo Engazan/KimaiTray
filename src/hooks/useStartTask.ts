@@ -10,6 +10,7 @@ import {
   updateTimesheetMeta,
 } from "../api/timesheetApi";
 import { serializeKimaiTags } from "../api/tagUtils";
+import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 
@@ -137,12 +138,13 @@ export function useStartTask(
     },
     onSuccess: (entry, payload) => {
       setStartingKey(null);
-      invalidateTimesheets(qc);
+      const refresh = invalidateTimesheets(qc);
       onTaskStarted?.(entry, payload);
+      return refresh;
     },
     onError: (err: Error, payload) => {
       setStartingKey(null);
-      invalidateTimesheets(qc);
+      const refresh = invalidateTimesheets(qc);
 
       if (err instanceof TaskMetadataError) {
         setSwitchError(
@@ -151,7 +153,7 @@ export function useStartTask(
         // Creation already succeeded. Publish the running timer so callers can
         // close the form and keep any other post-start associations intact.
         onTaskStarted?.(err.entry, payload);
-        return;
+        return refresh;
       } else if (err instanceof TaskSwitchError && err.recoveryBlocked) {
         setSwitchError(
           `Could not safely complete the switch to "${payload.label}". No previous timer was restarted. Check the current timer before trying again: ${err.message}`,
@@ -164,6 +166,7 @@ export function useStartTask(
         setSwitchError(`Failed to start "${payload.label}": ${err.message}`);
       }
       onTaskFailed?.(err, payload);
+      return refresh;
     },
   });
 
@@ -173,15 +176,19 @@ export function useStartTask(
       trackingKey?: string,
     ): Promise<KimaiTimesheetEntry | null> => {
       if (!client || mutation.isPending) return null;
+      const release = acquireTimerOperation(qc, client.cacheScope);
+      if (!release) return null;
       setStartingKey(trackingKey ?? null);
       try {
         return await mutation.mutateAsync(payload);
       } catch {
         // The mutation callbacks already publish the user-facing error state.
         return null;
+      } finally {
+        release();
       }
     },
-    [client, mutation],
+    [client, mutation, qc],
   );
 
   const dismissError = useCallback(() => setSwitchError(null), []);

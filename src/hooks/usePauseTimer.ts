@@ -15,6 +15,7 @@ import {
   type PausedTimerData,
 } from "../api/pauseStore";
 import type { ActiveTimer } from "../types";
+import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
 import {
   pickPluginMetadata,
@@ -54,6 +55,7 @@ export function usePauseTimer(
   const timerRef = useRef(timer);
   timerRef.current = timer;
   const stopActiveInFlightRef = useRef<string | null>(null);
+  const stopExitReleaseRef = useRef<(() => void) | null>(null);
   const stopExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionScope = client?.cacheScope ?? `connection:${connectionId}`;
   const sessionScopeRef = useRef(sessionScope);
@@ -65,6 +67,8 @@ export function usePauseTimer(
       if (stopExitTimerRef.current) {
         clearTimeout(stopExitTimerRef.current);
         stopExitTimerRef.current = null;
+        stopExitReleaseRef.current?.();
+        stopExitReleaseRef.current = null;
       }
     };
   }, [sessionScope]);
@@ -83,7 +87,7 @@ export function usePauseTimer(
   }, [connectionId, sessionScope]);
 
   const invalidate = useCallback(() => {
-    invalidateTimesheets(qc);
+    return invalidateTimesheets(qc);
   }, [qc]);
 
   // Pause the currently active timer → add to paused array
@@ -98,6 +102,7 @@ export function usePauseTimer(
       operationClient: KimaiClient;
       operationConnectionId: string;
       scope: string;
+      release: () => void;
     }) => {
       const data: PausedTimerData = {
         id: crypto.randomUUID(),
@@ -139,12 +144,13 @@ export function usePauseTimer(
       if (sessionScopeRef.current !== scope) return;
       setPausedTimers(timers);
       setPauseError(null);
-      invalidate();
+      return invalidate();
     },
     onError: (err: Error, { scope }) => {
       if (sessionScopeRef.current !== scope) return;
       setPauseError(err.message);
     },
+    onSettled: (_data, _error, { release }) => release(),
   });
 
   // Resume a specific paused timer; auto-pause running timer if any (swap)
@@ -161,6 +167,7 @@ export function usePauseTimer(
       operationClient: KimaiClient;
       operationConnectionId: string;
       scope: string;
+      release: () => void;
     }) => {
       // Auto-pause the running timer first (swap)
       if (currentTimer) {
@@ -238,13 +245,14 @@ export function usePauseTimer(
           : null,
       );
       setResumingId(null);
-      invalidate();
+      return invalidate();
     },
     onError: (err: Error, { scope }) => {
       if (sessionScopeRef.current !== scope) return;
       setPauseError(err.message);
       setResumingId(null);
     },
+    onSettled: (_data, _error, { release }) => release(),
   });
 
   // Discard a specific paused timer without resuming
@@ -257,6 +265,7 @@ export function usePauseTimer(
       id: string;
       operationConnectionId: string;
       scope: string;
+      release: () => void;
     }) => {
       const updated = await removePausedTimer(id);
       return {
@@ -271,13 +280,14 @@ export function usePauseTimer(
       setPausedTimers(timers);
       setPauseError(null);
       setDiscardingId(null);
-      invalidate();
+      return invalidate();
     },
     onError: (err: Error, { scope }) => {
       if (sessionScopeRef.current !== scope) return;
       setPauseError(err.message);
       setDiscardingId(null);
     },
+    onSettled: (_data, _error, { release }) => release(),
   });
 
   // Stop only the active timer — does not touch paused timers
@@ -290,17 +300,20 @@ export function usePauseTimer(
       timerId: number;
       operationClient: KimaiClient;
       scope: string;
+      release: () => void;
     }) => {
       await stopTimesheet(operationClient, timerId);
       return { scope, timerId };
     },
-    onSuccess: ({ scope, timerId }) => {
+    onSuccess: ({ scope, timerId }, { release }) => {
       if (sessionScopeRef.current !== scope) {
+        release();
         if (stopActiveInFlightRef.current === scope) {
           stopActiveInFlightRef.current = null;
         }
         return;
       }
+      stopExitReleaseRef.current = release;
       setPauseError(null);
       setStoppingExitScope(scope);
       stopExitTimerRef.current = setTimeout(() => {
@@ -320,9 +333,12 @@ export function usePauseTimer(
         }
         setStoppingExitScope(null);
         void invalidate();
+        release();
+        stopExitReleaseRef.current = null;
       }, STOP_EXIT_ANIMATION_MS);
     },
-    onError: (err: Error, { scope }) => {
+    onError: (err: Error, { scope, release }) => {
+      release();
       if (stopActiveInFlightRef.current === scope) {
         stopActiveInFlightRef.current = null;
       }
@@ -344,20 +360,25 @@ export function usePauseTimer(
 
   const pauseTimer = useCallback(() => {
     if (!client || !timer || isPausingCurrentSession) return;
+    const release = acquireTimerOperation(qc, sessionScope);
+    if (!release) return;
     setPauseError(null);
     pauseMut.mutate({
       activeTimer: timer,
       operationClient: client,
       operationConnectionId: connectionId,
       scope: sessionScope,
+      release,
     });
-  }, [client, timer, isPausingCurrentSession, pauseMut, connectionId, sessionScope]);
+  }, [client, timer, isPausingCurrentSession, pauseMut, connectionId, sessionScope, qc]);
 
   const resumeTimer = useCallback(
     (id: string) => {
       if (!client || isResumingCurrentSession) return;
       const target = pausedTimers.find((t) => t.id === id);
       if (!target) return;
+      const release = acquireTimerOperation(qc, sessionScope);
+      if (!release) return;
       setPauseError(null);
       setResumingId(target.id);
       resumeMut.mutate({
@@ -366,6 +387,7 @@ export function usePauseTimer(
         operationClient: client,
         operationConnectionId: connectionId,
         scope: sessionScope,
+        release,
       });
     },
     [
@@ -373,6 +395,7 @@ export function usePauseTimer(
       isResumingCurrentSession,
       pausedTimers,
       resumeMut,
+      qc,
       connectionId,
       sessionScope,
     ],
@@ -381,15 +404,18 @@ export function usePauseTimer(
   const discardPausedTimer = useCallback(
     (id: string) => {
       if (isDiscardingCurrentSession) return;
+      const release = acquireTimerOperation(qc, sessionScope);
+      if (!release) return;
       setPauseError(null);
       setDiscardingId(id);
       discardMut.mutate({
         id,
         operationConnectionId: connectionId,
         scope: sessionScope,
+        release,
       });
     },
-    [discardMut, isDiscardingCurrentSession, connectionId, sessionScope],
+    [discardMut, isDiscardingCurrentSession, connectionId, sessionScope, qc],
   );
 
   const stopActiveTimer = useCallback(() => {
@@ -399,6 +425,8 @@ export function usePauseTimer(
       stopActiveInFlightRef.current === sessionScope
     ) return;
     if (!client) return;
+    const release = acquireTimerOperation(qc, sessionScope);
+    if (!release) return;
     setPauseError(null);
     setStoppingExitScope(sessionScope);
     stopActiveInFlightRef.current = sessionScope;
@@ -406,8 +434,9 @@ export function usePauseTimer(
       timerId: timer.id,
       operationClient: client,
       scope: sessionScope,
+      release,
     });
-  }, [client, timer, isStoppingCurrentSession, stopActiveMut, sessionScope]);
+  }, [client, timer, isStoppingCurrentSession, stopActiveMut, sessionScope, qc]);
 
   const dismissPauseError = useCallback(() => setPauseError(null), []);
 

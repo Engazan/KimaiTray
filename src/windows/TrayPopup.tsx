@@ -28,6 +28,7 @@ import { useKimaiClient } from "../hooks/useKimaiClient";
 import { useActiveTimer } from "../hooks/useActiveTimer";
 import { useRecentTasks } from "../hooks/useRecentTasks";
 import { useTodayTimesheets } from "../hooks/useTodayTimesheets";
+import { acquireTimerOperation } from "../hooks/timerOperationLock";
 import { useStartTask } from "../hooks/useStartTask";
 import type { StartTaskPayload } from "../hooks/useStartTask";
 import { useEditTimer } from "../hooks/useEditTimer";
@@ -362,10 +363,12 @@ export default function TrayPopup() {
       },
     );
   const isStartBusy = isStarting || deepLinkProcessing;
+  const timerActionsDisabled = isStartBusy || isPausing || isStoppingActive ||
+    resumingId !== null || discardingId !== null || idleProcessing;
 
   useEffect(() => {
     const pending = deepLinkQueue[0];
-    if (!pending || deepLinkProcessing || isStarting) return;
+    if (!pending || timerActionsDisabled) return;
     if (!settingsReady) return;
 
     const removePending = () => {
@@ -522,6 +525,7 @@ export default function TrayPopup() {
     deepLinkQueue,
     isConfigured,
     isStarting,
+    timerActionsDisabled,
     issueIntegration,
     issueToken,
     pluginCustomInputs,
@@ -804,6 +808,8 @@ export default function TrayPopup() {
     if (!client || !timer) return;
     const idleKey = idleStartedAt?.getTime() ?? 0;
     if (handledIdleStartRef.current === idleKey) return;
+    const release = acquireTimerOperation(qc, client.cacheScope);
+    if (!release) return;
     handledIdleStartRef.current = idleKey;
 
     const handle = async () => {
@@ -826,6 +832,7 @@ export default function TrayPopup() {
       } catch {
         setIdleActionError(t("errors.failedToStopTimer"));
       } finally {
+        release();
         setIdleProcessing(false);
       }
       if (succeeded) dismissIdle();
@@ -834,6 +841,7 @@ export default function TrayPopup() {
   }, [
     idleState,
     idleSettings.idleAction,
+    timerActionsDisabled,
     client,
     timer,
     idleStartedAt,
@@ -853,6 +861,8 @@ export default function TrayPopup() {
 
   const handleIdleStopAtStart = useCallback(async () => {
     if (!client || !timer || !idleStartedAt) return;
+    const release = acquireTimerOperation(qc, client.cacheScope);
+    if (!release) return;
     setIdleProcessing(true);
     setIdleActionError(null);
     let succeeded = false;
@@ -872,6 +882,7 @@ export default function TrayPopup() {
         setIdleActionError(t("errors.failedToStopTimer"));
       }
     } finally {
+      release();
       setIdleProcessing(false);
     }
     if (succeeded) dismissIdle();
@@ -879,6 +890,8 @@ export default function TrayPopup() {
 
   const handleIdleStopNow = useCallback(async () => {
     if (!client || !timer) return;
+    const release = acquireTimerOperation(qc, client.cacheScope);
+    if (!release) return;
     setIdleProcessing(true);
     setIdleActionError(null);
     let succeeded = false;
@@ -889,6 +902,7 @@ export default function TrayPopup() {
     } catch {
       setIdleActionError(t("errors.failedToStopTimer"));
     } finally {
+      release();
       setIdleProcessing(false);
     }
     if (succeeded) dismissIdle();
@@ -896,6 +910,8 @@ export default function TrayPopup() {
 
   const handleIdleStopAndNew = useCallback(async () => {
     if (!client || !timer || !idleStartedAt) return;
+    const release = acquireTimerOperation(qc, client.cacheScope);
+    if (!release) return;
     setIdleProcessing(true);
     setIdleActionError(null);
     let succeeded = false;
@@ -914,6 +930,7 @@ export default function TrayPopup() {
         setIdleActionError(t("errors.failedToStopTimer"));
       }
     } finally {
+      release();
       setIdleProcessing(false);
     }
     if (succeeded) {
@@ -1459,8 +1476,8 @@ export default function TrayPopup() {
       const entries: ContextMenuEntry[] = [
         ...(timer
           ? [
-              { text: t("pause.pause"), enabled: !isPausing && !isStoppingActive, action: pauseTimer },
-              { text: t("timer.stopTimer"), enabled: !isPausing && !isStoppingActive, action: stopActiveTimer },
+              { text: t("pause.pause"), enabled: !timerActionsDisabled, action: pauseTimer },
+              { text: t("timer.stopTimer"), enabled: !timerActionsDisabled, action: stopActiveTimer },
               separator(),
               { text: t("contextMenu.editNote"), action: () => setEditNoteRequest((request) => request + 1) },
             ] satisfies ContextMenuEntry[]
@@ -1483,7 +1500,7 @@ export default function TrayPopup() {
       ];
       void showContextMenu(event, entries);
     },
-    [isPausing, isStoppingActive, pauseTimer, stopActiveTimer, t, timer, timerIssueUrl],
+    [timerActionsDisabled, pauseTimer, stopActiveTimer, t, timer, timerIssueUrl],
   );
 
   const todayHeaderContextMenu = useCallback(
@@ -1645,6 +1662,7 @@ export default function TrayPopup() {
                     onPause={pauseTimer}
                     isStopping={isStoppingActive}
                     isPausing={isPausing}
+                    actionsDisabled={timerActionsDisabled}
                     multipleActive={multipleActive}
                     onEdit={editTimer}
                     isSaving={isSaving}
@@ -1694,6 +1712,7 @@ export default function TrayPopup() {
                     paused={pt}
                     onResume={() => resumeTimer(pt.id)}
                     onStop={() => discardPausedTimer(pt.id)}
+                    actionsDisabled={timerActionsDisabled}
                     isResuming={resumingId === pt.id}
                     isStopping={discardingId === pt.id}
                     error={pauseError}
@@ -1736,7 +1755,7 @@ export default function TrayPopup() {
                   hasActiveTimer={!!timer}
                   startTask={startTask}
                   startingKey={startingKey}
-                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={timerActionsDisabled}
                 />
                 {status !== "unconfigured" && (
                   <TodaySection
@@ -1772,7 +1791,7 @@ export default function TrayPopup() {
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
-                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={timerActionsDisabled}
                   colorMode={colorMode}
                 />
                 {focusTab === "recent" ? (
@@ -1788,7 +1807,7 @@ export default function TrayPopup() {
                     isLoading={status !== "unconfigured" && tasksLoading}
                     startingKey={startingKey}
                     deletingId={deletingId}
-                    disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                    disabled={timerActionsDisabled}
                     hiddenCount={hiddenCount}
                     onShowAll={clearHidden}
                     onHeaderContextMenu={recentHeaderContextMenu}
@@ -1846,7 +1865,7 @@ export default function TrayPopup() {
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
-                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={timerActionsDisabled}
                   colorMode={colorMode}
                 />
                 {/* Collapsible recent tasks */}
@@ -1868,7 +1887,7 @@ export default function TrayPopup() {
                       isLoading={status !== "unconfigured" && tasksLoading}
                       startingKey={startingKey}
                       deletingId={deletingId}
-                      disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                      disabled={timerActionsDisabled}
                       hiddenCount={hiddenCount}
                       onShowAll={clearHidden}
                       onHeaderContextMenu={recentHeaderContextMenu}
@@ -1885,7 +1904,7 @@ export default function TrayPopup() {
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
-                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={timerActionsDisabled}
                   colorMode={colorMode}
                 />
                 <RecentTasksList
@@ -1900,7 +1919,7 @@ export default function TrayPopup() {
                   isLoading={status !== "unconfigured" && tasksLoading}
                   startingKey={startingKey}
                   deletingId={deletingId}
-                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={timerActionsDisabled}
                   hiddenCount={hiddenCount}
                   onShowAll={clearHidden}
                   onHeaderContextMenu={recentHeaderContextMenu}
@@ -1954,7 +1973,7 @@ export default function TrayPopup() {
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
                   startingKey={startingKey}
-                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={timerActionsDisabled}
                   colorMode={colorMode}
                 />
                 <RecentTasksList
@@ -1969,7 +1988,7 @@ export default function TrayPopup() {
                   isLoading={status !== "unconfigured" && tasksLoading}
                   startingKey={startingKey}
                   deletingId={deletingId}
-                  disabled={isStartBusy || isStoppingActive || isPausing || resumingId !== null}
+                  disabled={timerActionsDisabled}
                   hiddenCount={hiddenCount}
                   onShowAll={clearHidden}
                   onHeaderContextMenu={recentHeaderContextMenu}

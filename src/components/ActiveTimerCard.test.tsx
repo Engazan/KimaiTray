@@ -70,6 +70,21 @@ const baseTimer = {
 };
 
 describe("ActiveTimerCard keyboard actions", () => {
+  it.each([false, true])("disables timer actions without an exit animation while another action runs (compact=%s)", (compact) => {
+    const onStop = vi.fn();
+    const onPause = vi.fn();
+    const { container } = render(<ActiveTimerCard timer={baseTimer} onStop={onStop} onPause={onPause} compact={compact} actionsDisabled />);
+    const stop = screen.getByRole("button", { name: "Stop" }) as HTMLButtonElement;
+    const pause = screen.getByRole("button", { name: "Pause" }) as HTMLButtonElement;
+    expect(stop.disabled).toBe(true);
+    expect(pause.disabled).toBe(true);
+    fireEvent.click(stop);
+    fireEvent.click(pause);
+    expect(onStop).not.toHaveBeenCalled();
+    expect(onPause).not.toHaveBeenCalled();
+    expect(container.querySelector(".animate-card-out")).toBeNull();
+  });
+
   it("formats elapsed values with and without seconds", () => {
     expect(formatElapsed(3_661)).toBe("01:01:01");
     expect(formatElapsed(3_661, false)).toBe("01:01");
