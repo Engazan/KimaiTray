@@ -242,7 +242,7 @@ describe("TrayPopup", () => {
     render(<TrayPopup />);
     await user.click(screen.getByRole("button", { name: "new-task" }));
     await user.click(screen.getByRole("button", { name: "submit-new" }));
-    expect(mocks.startTask).toHaveBeenCalledWith({ projectId: 10, activityId: 20, label: "New" });
+    expect(mocks.startTask).toHaveBeenCalledWith({ projectId: 10, activityId: 20, label: "New" }, undefined);
     const lastStartCall = mocks.startTask.mock.calls[mocks.startTask.mock.calls.length - 1];
     mocks.startSuccess?.({ id: 99 }, lastStartCall?.[0]);
     await waitFor(() => expect(screen.queryByTestId("new-form")).toBeNull());
