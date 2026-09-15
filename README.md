@@ -25,7 +25,10 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 - Optionally reveal paused-timer descriptions on hover
 - Quick-start tasks from per-connection favorites and recent entries
 - Searchable project, activity, customer and Kimai tag pickers with on-demand refresh
+- Create project-local or global activities from the new-timer form, with automatic or custom colors; the activity picker groups local activities before global ones
 - Optional notes, tags, customer filtering and a custom start time for new tasks
+- Per-connection text and URL custom fields, including required fields, for starting, viewing and editing timers; testing a connection discovers supported fields from Kimai's optional Custom Fields API while preserving manual definitions
+- Optional Creative Issue Link plugin for storing an Issue / Ticket URL in timer metadata
 - Edit the active timer's note, tags and start time
 - Edit the start and end time of completed entries when permitted by the Kimai API
 - Hide recent tasks locally or delete their time entries from Kimai
@@ -49,6 +52,7 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 - Idle detection with configurable threshold and actions: ask, stop at idle start, stop now or keep running
 - Automatic local idle statistics with period history, total duration and a daily chart in idle detection settings; retained for 30 days by default (configurable from 1 to 365 days). Recording runs while the app and idle detection are enabled, even without a running timer.
 - Full-screen idle prompt and optional desktop notification
+- Independently configurable options to stop the active timer when the macOS screen saver starts or the Mac is locked, both disabled by default
 - Configurable full-screen reminder when no timer has been running
 - Launch at login, configurable server refresh interval and one-click opening of Kimai
 - Automatic updates, manual update checks and a localized What's New screen after updates
@@ -69,6 +73,7 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 - macOS True Tray mode hides the Dock and Cmd+Tab entry
 - Custom tray icon shape, size and colors for running, paused, idle and error states
 - Configurable macOS menu-bar label (timer, project, activity or icon only) and tray left/right-click actions
+- Native context menus for timers, tasks, today's entries, issue selection, layout controls and editable text
 - Configurable popup monitor and placement on supported Linux/X11 desktops
 - Five bundled languages: English, Slovak, Czech, German and Ukrainian, plus system-language detection
 - Native support for macOS, Windows and Linux, including X11 and supported Wayland desktops
@@ -142,24 +147,29 @@ copy-link action.
 
 1. Create a new Tampermonkey userscript and paste the contents of
    `tempermonkey/gitlab.user.js` into it.
-2. Open the Tampermonkey menu and choose **KimaiTray: nastaviť GitLab
-   integráciu**.
+2. Open the Tampermonkey menu and choose **KimaiTray: pridať GitLab server**.
 3. Enter the GitLab base URL. Self-hosted GitLab installations and base-path
    URLs such as `https://example.com/gitlab` are supported.
-4. Optionally enter a KimaiTray connection ID and custom plugin metadata name.
-   Use `issue_link` for the Creative Issue Link plugin; leave it empty when the
-   plugin is disabled.
+4. Repeat for additional GitLab servers. Use **KimaiTray: zobraziť GitLab
+   servery** to list them or **KimaiTray: odstrániť GitLab server** to remove one.
+5. Optionally choose **KimaiTray: nastaviť custom plugin field** and enter a
+   custom plugin metadata name. Use `issue_link` for the Creative Issue Link
+   plugin; leave it empty when the plugin is disabled.
 
-Because the GitLab host is configured at runtime, the userscript uses a broad
-`@match` and exits immediately on every host except the manually configured
-GitLab URL.
+The userscript always uses the active KimaiTray connection, so select the
+appropriate connection in KimaiTray before opening an issue. Existing
+single-server settings are migrated automatically.
+
+Because GitLab servers are configured at runtime, the userscript uses a broad
+`@match`; it only adds buttons for issue URLs matching a configured server and
+base path.
 
 ## Prerequisites
 
 | Tool | Version |
 |------|---------|
 | [Node.js](https://nodejs.org/) | 22.12+ (22.x), 24.x or 26+ |
-| [Rust](https://rustup.rs/) | stable |
+| [Rust](https://rustup.rs/) | 1.95.0, pinned in [`rust-toolchain.toml`](rust-toolchain.toml) |
 | [Tauri CLI](https://tauri.app/start/) | Installed locally by `npm install` |
 
 TypeScript stays on 6.0 until `typescript-eslint` supports 7.x. Linux GTK/GLib bindings stay on 0.18 to match Tauri and libappindicator.
@@ -241,6 +251,7 @@ src/                    # React frontend
   components/           # UI components
   hooks/                # Custom React hooks
   integrations/         # Issue tracker integrations
+  plugins/              # Custom timer inputs and plugin metadata
   providers/            # React context providers (React Query)
   settings/             # Settings UI & service
   windows/              # TrayPopup & Settings windows
@@ -254,6 +265,7 @@ src-tauri/              # Tauri / Rust backend
   src/keychain.rs       # API token storage
   src/http.rs           # Bounded native HTTP broker
   src/idle.rs           # Platform idle detection
+  src/idle_stats.rs      # Persistent local idle statistics and retention
   tauri.conf.json       # App metadata & bundle config
   capabilities/         # Permission declarations
   icons/                # App icons (icns, ico, png)
