@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.22.11] - 2026-09-15
+
+### Bug Fixes
+
+- **macOS 27 tray clicks** — restore left-click popup activation while preserving the right-click menu, including repeated clicks after closing the menu
+- **Safe timer switching after connection failures** — avoid automatically restarting the previous timer when a timeout or server error leaves the new timer's status uncertain; prompt users to check the current timer before retrying
+- **Prevent overlapping timer operations** — serialize start, stop, pause and resume actions and disable conflicting controls while an operation is running
+- **Reliable issue time synchronization** — persist pending GitLab and Gitea time exports across restarts, resume safe retries after reconnection and offer review for uncertain writes to reduce duplicate time entries
+
+### Security
+
+- **Patched TLS dependency** — update rustls to 0.23.45 to fix RUSTSEC-2026-0285, which allowed TLS 1.3 handshake messages at incorrect encryption levels
+
+### Maintenance
+
+- **Tray internals** — separate popup workflows and native platform adapters into focused modules with regression coverage
+- **Current documentation and audit configuration** — refresh the README and remove the obsolete rkyv security audit exception
+
 ## [0.22.10] - 2026-09-10
 
 ### New Features
