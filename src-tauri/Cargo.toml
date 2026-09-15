@@ -57,3 +57,8 @@ gdk-pixbuf = "0.18"
 glib = "0.18"
 libappindicator = "0.9"
 libappindicator-sys = "0.9"
+
+# Temporary backport of https://github.com/tauri-apps/tray-icon/pull/365.
+# Remove after upgrading to a released tray-icon containing the macOS 27 fix.
+[patch.crates-io]
+tray-icon = { path = "vendor/tray-icon" }
