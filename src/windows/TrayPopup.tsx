@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import HeaderStatus from "../components/HeaderStatus";
+import IssueTimeSyncFeedback from "../components/IssueTimeSyncFeedback";
 import ActiveTimerCard from "../components/ActiveTimerCard";
 import PausedTimerCard from "../components/PausedTimerCard";
 import EmptyTimerState from "../components/EmptyTimerState";
@@ -654,6 +655,8 @@ export default function TrayPopup() {
         onRefresh={refreshAllData}
         onOpenConnectionSettings={openConnectionSettings}
       />
+
+      <IssueTimeSyncFeedback sync={issueLink.timeSync} />
 
       {updater.available && (
         <UpdateBanner

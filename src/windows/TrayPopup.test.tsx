@@ -7,6 +7,7 @@ import TrayPopup from "./TrayPopup";
 import { acquireTimerOperation } from "../hooks/timerOperationLock";
 
 const mocks = vi.hoisted(() => ({
+  syncJobs: [] as import("../integrations/issues/issueTimeSyncQueue").TimeSyncJob[],
   kimai: {} as any,
   active: {} as any,
   pause: {} as any,
@@ -50,6 +51,12 @@ const mocks = vi.hoisted(() => ({
   notification: vi.fn(),
 }));
 
+vi.mock("../integrations/issues/issueTimeSyncStore", () => ({
+  issueTimeSyncRepository: {
+    read: async () => structuredClone(mocks.syncJobs),
+    write: async (_connectionId: string, jobs: typeof mocks.syncJobs) => { mocks.syncJobs = structuredClone(jobs); },
+  },
+}));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }) }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => mocks.queryClient }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: mocks.getVersion }));
@@ -166,13 +173,14 @@ const timer = { id: 7, projectId: 10, activityId: 20, project: "Project", activi
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.events.clear();
+  mocks.syncJobs = [];
   mocks.deepLinkHandler = null;
   mocks.resolveConnection = null;
   mocks.activeProps = null;
   mocks.formIssue = null;
   mocks.resizeCallback = null;
   mocks.kimai = {
-    client: { connectionId: "conn", cacheScope: "conn" }, settingsReady: true, isConfigured: true,
+    client: { connectionId: "conn", cacheScope: "conn", baseUrl: "https://kimai.test" }, settingsReady: true, isConfigured: true,
     refreshInterval: 60, baseUrl: "https://kimai.test", openKimaiInBrowser: true,
     idleSettings: { enableIdleDetection: true, idleThresholdMinutes: 5, idleAction: "ask", showIdleNotification: false, stopTimerOnScreensaver: false, stopTimerOnScreenLock: false },
     timerReminderSettings: { enabled: false, thresholdMinutes: 15 },
@@ -181,7 +189,7 @@ beforeEach(() => {
     featureFlags: { featureNote: true, featureTags: true, featureCustomerSelect: true, featureCustomStartTime: true, featureDailyGoal: true, dailyGoalMinutes: 450, fullDailyGoalMinutes: 480, featureCategoryMode: false, featurePausedTimerDescriptionHover: true },
     pluginFlags: { inputs: [] }, autoUpdate: true, popupLayout: "classic", colorMode: "kimai", displayMode: "tray",
     connections: [{ id: "conn" }, { id: "other" }], activeConnectionId: "conn", switchConnection: vi.fn().mockResolvedValue(undefined),
-    issueIntegration: { enabled: false, baseUrl: "", provider: "gitlab", autoInsertUrl: false, syncTime: false }, issueToken: "",
+    issueIntegration: { enabled: false, apiBaseUrl: "", projectPathOrRepo: "group/project", baseUrl: "", provider: "gitlab", autoInsertUrl: false, syncTime: false }, issueToken: "",
     dismissSwitchError: vi.fn(), dismissDeleteError: vi.fn(),
   };
   mocks.active = { timer: null, multipleActive: false, status: "connected", errorMessage: null };
@@ -204,7 +212,7 @@ beforeEach(() => {
   mocks.reminder.hide.mockResolvedValue(undefined);
   mocks.timesheet.stop.mockResolvedValue(undefined);
   mocks.timesheet.update.mockResolvedValue(undefined);
-  mocks.timesheet.get.mockResolvedValue({ duration: 120 });
+  mocks.timesheet.get.mockResolvedValue({ duration: 120, end: "2026-09-15T09:00:00Z" });
   mocks.issueProvider = { fetchIssueByUrl: vi.fn().mockResolvedValue(null), addSpentTime: vi.fn().mockResolvedValue(undefined) };
   mocks.linked.readSelection.mockReturnValue(undefined);
   mocks.linked.readMap.mockReturnValue({});
@@ -637,7 +645,7 @@ describe("TrayPopup", () => {
   });
 
   it("maps deep-link plugin metadata and auto-inserts an issue into a custom target", async () => {
-    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a" };
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/group/project/-/issues/8", state: "opened", labels: [], author: "a" };
     mocks.kimai.pluginFlags.inputs = [{ id: "issue-input", metadataName: "issue_meta" }];
     mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, autoInsertUrl: true, autoInsertUrlTarget: "issue-input" };
     mocks.kimai.issueToken = "token";
@@ -669,7 +677,7 @@ describe("TrayPopup", () => {
   });
 
   it("restores a linked issue, displays its estimate and syncs spent time after stop", async () => {
-    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a", timeEstimate: 600, timeSpent: 60 };
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/group/project/-/issues/8", state: "opened", labels: [], author: "a", timeEstimate: 600, timeSpent: 60 };
     const refreshed = { ...issue, timeSpent: 120 };
     mocks.active.timer = { ...timer, description: issue.webUrl };
     mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true, syncTime: true, baseUrl: "https://git.test" };
@@ -862,6 +870,7 @@ describe("TrayPopup", () => {
 
   it("covers idle action guards and automatic failure handling", async () => {
     mocks.events.clear();
+  mocks.syncJobs = [];
     const { unmount } = render(<TrayPopup />);
     for (const action of ["stop-at-start", "stop-now", "stop-and-new"]) {
       mocks.events.get("idle-action")?.({ payload: { action } });
@@ -895,8 +904,25 @@ describe("TrayPopup", () => {
     await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalledTimes(2));
   });
 
+  it("persists a restored association before optional issue stats resolve, even with estimates disabled", async () => {
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/group/project/-/issues/8", state: "opened", labels: [], author: "a" };
+    mocks.active.timer = { ...timer, description: issue.webUrl };
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, showTimeEstimate: false, syncTime: true, baseUrl: "https://git.test" };
+    mocks.kimai.issueToken = "token";
+    mocks.linked.readSelection.mockReturnValue(issue);
+    let finish!: (value: null) => void;
+    mocks.issueProvider.fetchIssueByUrl.mockReturnValue(new Promise<null>((resolve) => { finish = resolve; }));
+    const { rerender } = render(<TrayPopup />);
+    await waitFor(() => expect(mocks.syncJobs).toHaveLength(1));
+    expect(mocks.issueProvider.addSpentTime).not.toHaveBeenCalled();
+    mocks.active.timer = null;
+    rerender(<TrayPopup />);
+    await waitFor(() => expect(mocks.issueProvider.addSpentTime).toHaveBeenCalledWith(8, 120));
+    await act(async () => finish(null));
+  });
+
   it("does not sync a stopped issue when Kimai reports no recorded duration", async () => {
-    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a" };
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/group/project/-/issues/8", state: "opened", labels: [], author: "a" };
     mocks.active.timer = { ...timer, description: issue.webUrl };
     mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true, syncTime: true, baseUrl: "https://git.test" };
     mocks.kimai.issueToken = "token";
@@ -911,8 +937,8 @@ describe("TrayPopup", () => {
     expect(mocks.issueProvider.addSpentTime).not.toHaveBeenCalled();
   });
 
-  it("logs a failed issue spent-time sync", async () => {
-    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/8", state: "opened", labels: [], author: "a" };
+  it("keeps an ambiguous issue spent-time sync for user review", async () => {
+    const issue = { id: 8, title: "Issue", webUrl: "https://git.test/group/project/-/issues/8", state: "opened", labels: [], author: "a" };
     mocks.active.timer = { ...timer, description: issue.webUrl };
     mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true, provider: "gitlab", showTimeEstimate: true, syncTime: true, baseUrl: "https://git.test" };
     mocks.kimai.issueToken = "token";
@@ -923,7 +949,8 @@ describe("TrayPopup", () => {
     await waitFor(() => expect(mocks.issueProvider.fetchIssueByUrl).toHaveBeenCalled());
     mocks.active.timer = null;
     rerender(<TrayPopup />);
-    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith("Failed to sync spent time to issue provider"));
+    await waitFor(() => expect(screen.getByText("timeSync.uncertain")).toBeTruthy());
+    expect(mocks.syncJobs[0]?.status).toBe("uncertain");
   });
 
   it("drops a pending submitted issue when the connection changes first", async () => {
@@ -963,7 +990,7 @@ describe("TrayPopup", () => {
     const issue = {
       id: 8,
       title: "Issue",
-      webUrl: "https://git.test/8",
+      webUrl: "https://git.test/group/project/-/issues/8",
       state: "opened",
       labels: [],
       author: "a",

@@ -1,3 +1,4 @@
+import { SpentTimeRejectedError } from "./spentTimeError";
 import { safeHttpFetch as fetch } from "../../api/safeHttp";
 import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIntegrationSettings } from "./types";
 import { logger } from "../../utils/logger";
@@ -223,6 +224,9 @@ export function createGiteaProvider(
 
       if (!res.ok) {
         logger.error(`Gitea add time failed with status ${res.status}`);
+        if ([400, 401, 403, 404, 422, 429].includes(res.status)) {
+          throw new SpentTimeRejectedError(res.status);
+        }
         throw new Error(`Failed to log time: ${res.status}`);
       }
 

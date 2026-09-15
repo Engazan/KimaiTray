@@ -1,3 +1,4 @@
+import { SpentTimeRejectedError } from "./spentTimeError";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createGiteaProvider } from "./giteaIssueProvider";
 import { createGitHubProvider } from "./githubIssueProvider";
@@ -70,6 +71,14 @@ describe("issue provider API boundaries", () => {
       ok: true,
       json: async () => [{ id: "unexpected-shape" }],
     });
+  });
+
+  it.each(["gitlab", "gitea"] as const)("classifies explicit %s time-write rejections", async (kind) => {
+    const provider = kind === "gitlab"
+      ? createGitLabProvider(config(kind), "secret", "connection-a")
+      : createGiteaProvider(config(kind), "secret", "connection-a");
+    http.safeHttpFetch.mockResolvedValue(response({}, false, 429));
+    await expect(provider.addSpentTime!(8, 120)).rejects.toBeInstanceOf(SpentTimeRejectedError);
   });
 
   it.each([

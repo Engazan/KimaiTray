@@ -717,5 +717,18 @@
     "changelog": "Náhľad changelogu",
     "changelogDescription": "Zobrazí changelog aktuálnej verzie tak, ako sa otvorí po aktualizácii aplikácie.",
     "showChangelog": "Zobraziť changelog"
+  },
+  "timeSync": {
+    "title": "Synchronizácia času do issues",
+    "storageError": "Históriu synchronizácie sa nepodarilo uložiť alebo načítať. Kým nebude dostupná, nový čas sa neodošle.",
+    "openError": "Issue sa nepodarilo otvoriť v prehliadači.",
+    "entry": "Záznam #{{timesheet}} → issue #{{issue}}",
+    "destinationChanged": "Pripojenie alebo integrácia sa zmenili. Na dokončenie obnovte pôvodné nastavenia.",
+    "uncertain": "Server už mohol tento čas zapísať. Pred výberom akcie skontrolujte issue.",
+    "pending": "Synchronizácia čaká a automaticky sa zopakuje, keď bude toto pripojenie aktívne.",
+    "recorded": "Čas je už zapísaný",
+    "retry": "Zopakovať…",
+    "retryWarning": "Zopakujte iba vtedy, ak tento čas v issue chýba. Opakovanie existujúceho zápisu započíta čas dvakrát.",
+    "confirmRetry": "Čas chýba — zopakovať"
   }
 }

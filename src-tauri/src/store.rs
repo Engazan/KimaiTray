@@ -136,7 +136,10 @@ pub struct LegacyStoreMigrationRequest {
 fn validate_request(request: &ScopedStoreRequest) -> Result<(), String> {
     if !matches!(
         request.key.as_str(),
-        "categoryConfig" | "categoryLastActivity" | "hiddenRecentTasksByConnection"
+        "categoryConfig"
+            | "categoryLastActivity"
+            | "hiddenRecentTasksByConnection"
+            | "issueTimeSyncJobs"
     ) {
         return Err("Scoped store key is not allowed".into());
     }
@@ -172,7 +175,10 @@ fn validate_scoped_store_window(
                 Err("Tray window cannot change the category source URL".into())
             }
         }
-        ("tray-popup", "categoryLastActivity" | "hiddenRecentTasksByConnection") => Ok(()),
+        (
+            "tray-popup",
+            "categoryLastActivity" | "hiddenRecentTasksByConnection" | "issueTimeSyncJobs",
+        ) => Ok(()),
         _ => Err("Window is not authorized to mutate this scoped store".into()),
     }
 }
@@ -954,6 +960,20 @@ mod tests {
 
         assert_eq!(second["activeConnectionId"], json!("window-a"));
         assert_eq!(second["connections"][0]["id"], json!("window-a"));
+    }
+
+    #[test]
+    fn only_tray_can_write_time_sync_history() {
+        assert!(
+            validate_scoped_store_window("tray-popup", "issueTimeSyncJobs", None, &json!([]))
+                .is_ok()
+        );
+        for window in ["settings", "timer-reminder", "changelog"] {
+            assert!(
+                validate_scoped_store_window(window, "issueTimeSyncJobs", None, &json!([]))
+                    .is_err()
+            );
+        }
     }
 
     #[test]

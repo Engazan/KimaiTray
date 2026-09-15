@@ -12,9 +12,7 @@ import {
   storeLinkedIssueForTimer,
   taskKeyOf,
 } from "../integrations/issues/linkedIssueStore";
-import { getTimesheet } from "../api/timesheetApi";
-import { getRecordedDurationSeconds } from "../utils/timesheetDuration";
-import { logger } from "../utils/logger";
+import { useIssueTimeSync } from "./useIssueTimeSync";
 
 interface Options {
   client: KimaiClient | null;
@@ -52,8 +50,8 @@ export function useTimerIssueLink({
     issue: ExternalIssue;
     connectionId: string;
   } | null>(null);
-  const issueTimeSyncsRef = useRef(new Map<string, Promise<void>>());
-  const prevTimerIdRef = useRef<number | null>(null);
+  const timeSync = useIssueTimeSync({ client, config: issueIntegration, token: issueToken, timerId: timer?.id });
+  const { track, flush } = timeSync;
 
   const rememberSubmission = useCallback((payload: StartTaskPayload, issue: ExternalIssue | null) => {
     submittedIssueRef.current = { payload, issue, connectionId: activeConnectionId };
@@ -72,6 +70,7 @@ export function useTimerIssueLink({
         submitted.issue,
       );
       if (!submitted.issue) return;
+      void track(entry.id, submitted.issue);
       pendingLinkedIssueRef.current = {
         timerId: entry.id,
         issue: submitted.issue,
@@ -84,7 +83,7 @@ export function useTimerIssueLink({
       );
       setPendingLinkedIssueVersion((version) => version + 1);
     }
-  }, [activeConnectionId]);
+  }, [activeConnectionId, track]);
   const onTaskFailed = useCallback((_error: Error, payload: StartTaskPayload) => {
     if (submittedIssueRef.current?.payload === payload) submittedIssueRef.current = null;
   }, []);
@@ -106,76 +105,11 @@ export function useTimerIssueLink({
   }, [activeConnectionId]);
 
   useEffect(() => {
-    const prevId = prevTimerIdRef.current;
-    const previousLink = linkedIssueRef.current;
-    const timerChanged =
-      prevId != null && (timer == null || timer.id !== prevId);
-
-    prevTimerIdRef.current = timer?.id ?? null;
-
-    // A linked issue belongs to one concrete Kimai timesheet. Do not let an
-    // in-memory issue snapshot from the previous timer suppress the refresh for
-    // a timer just started from recents/favorites.
-    if (
-      timer == null ||
-      (previousLink != null && previousLink.timerId !== timer.id)
-    ) {
+    if (!timer || linkedIssueRef.current?.timerId !== timer.id) {
       linkedIssueRef.current = null;
       setLinkedIssueLink(null);
     }
-
-    if (
-      timerChanged &&
-      previousLink?.timerId === prevId
-    ) {
-      const belongsToActiveConnection =
-        previousLink.connectionId === activeConnectionId;
-
-      if (
-        belongsToActiveConnection &&
-        issueIntegration.syncTime &&
-        issueIntegration.enabled &&
-        issueToken &&
-        client
-      ) {
-        const provider = createIssueProvider(
-          issueIntegration,
-          issueToken,
-          activeConnectionId,
-        );
-        if (provider.addSpentTime) {
-          const syncKey = `${previousLink.connectionId}:${previousLink.issue.webUrl}`;
-          const previousSync =
-            issueTimeSyncsRef.current.get(syncKey) ?? Promise.resolve();
-          const syncPromise = previousSync
-            .then(() => getTimesheet(client, prevId))
-            .then((entry) => {
-              const durationSeconds = getRecordedDurationSeconds(entry);
-              if (durationSeconds == null || durationSeconds <= 0) return;
-              return provider.addSpentTime?.(
-                previousLink.issue.id,
-                durationSeconds,
-              );
-            })
-            .catch(() => {
-              logger.error("Failed to sync spent time to issue provider");
-            });
-          issueTimeSyncsRef.current.set(syncKey, syncPromise);
-          void syncPromise.finally(() => {
-            if (issueTimeSyncsRef.current.get(syncKey) === syncPromise) {
-              issueTimeSyncsRef.current.delete(syncKey);
-            }
-          });
-        }
-      }
-    }
-  }, [
-    timer,
-    issueIntegration,
-    issueToken,
-    activeConnectionId,
-    client,
-  ]);
+  }, [timer]);
 
   useEffect(() => {
     const pending = pendingLinkedIssueRef.current;
@@ -221,6 +155,7 @@ export function useTimerIssueLink({
   // and Kimai never reuses timesheet ids.
   useEffect(() => {
     if (!timer || !linkedIssue) return;
+    void track(timer.id, linkedIssue);
     storeLinkedIssueForTimer(activeConnectionId, timer.id, linkedIssue);
     // Also remember the issue by task identity so the estimate can be restored
     // when the same project+activity+note is later started from recents/favorites,
@@ -230,13 +165,13 @@ export function useTimerIssueLink({
       taskKeyOf(timer.projectId, timer.activityId, timer.description),
       linkedIssue,
     );
-  }, [timer, linkedIssue, activeConnectionId]);
+  }, [timer, linkedIssue, activeConnectionId, track]);
 
   // When the current timer has no in-memory link (after a reload/restart or
   // when started from recents), restore it from localStorage and/or the issue
   // URL in the description, then refresh the time stats straight from GitLab.
   useEffect(() => {
-    if (!estimateEnabled || !timer || !issueToken) {
+    if ((!estimateEnabled && !issueIntegration.syncTime) || !issueIntegration.enabled || !timer || !issueToken) {
       return;
     }
     const currentLink = linkedIssueRef.current;
@@ -269,6 +204,11 @@ export function useTimerIssueLink({
       if (byKey) storedIssue = byKey;
     }
 
+    // The saved association is enough to durably watch this timer. Do not
+    // wait for optional issue-stat enrichment, which can fail or be cancelled
+    // if the timer stops while the Git server is unavailable.
+    if (storedIssue) void track(timer.id, storedIssue);
+
     const url = storedIssue?.webUrl ?? timerIssueUrl;
     const provider = createIssueProvider(
       issueIntegration,
@@ -292,12 +232,7 @@ export function useTimerIssueLink({
     // If this issue has just been stopped, let its GitLab spent-time write
     // finish before reading the stats. Otherwise a fast click on Recents can
     // win the race and leave the badge at the old value (commonly 0 / X).
-    const pendingSync = issueTimeSyncsRef.current.get(
-      `${activeConnectionId}:${url}`,
-    );
-    const refreshedIssue = pendingSync
-      ? pendingSync.then(() => provider.fetchIssueByUrl!(url))
-      : provider.fetchIssueByUrl(url);
+    const refreshedIssue = flush().then(() => provider.fetchIssueByUrl!(url));
     refreshedIssue
       .then((issue) => {
         if (!cancelled) {
@@ -329,6 +264,8 @@ export function useTimerIssueLink({
   }, [
     linkedIssue,
     estimateEnabled,
+    issueIntegration.syncTime,
+    issueIntegration.enabled,
     timer?.id,
     timerIssueUrl,
     issueToken,
@@ -338,5 +275,5 @@ export function useTimerIssueLink({
   const showIssueEstimate =
     estimateEnabled && linkedIssue?.timeEstimate != null;
 
-  return { rememberSubmission, onTaskStarted, onTaskFailed, timerIssueUrl, linkedIssue, showIssueEstimate };
+  return { rememberSubmission, onTaskStarted, onTaskFailed, timerIssueUrl, linkedIssue, showIssueEstimate, timeSync };
 }

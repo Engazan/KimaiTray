@@ -717,5 +717,18 @@
     "changelog": "Changelog-Vorschau",
     "changelogDescription": "Zeigt den Changelog der aktuellen Version so an, wie er nach einer Aktualisierung geöffnet wird.",
     "showChangelog": "Changelog anzeigen"
+  },
+  "timeSync": {
+    "title": "Zeitsynchronisierung mit Issues",
+    "storageError": "Der Synchronisierungsverlauf konnte nicht gespeichert oder gelesen werden. Bis er verfügbar ist, wird keine neue Zeit gesendet.",
+    "openError": "Das Issue konnte nicht im Browser geöffnet werden.",
+    "entry": "Zeiteintrag #{{timesheet}} → Issue #{{issue}}",
+    "destinationChanged": "Die Verbindung oder Integration wurde geändert. Stellen Sie zum Abschluss die ursprünglichen Einstellungen wieder her.",
+    "uncertain": "Der Server könnte diese Zeit bereits erfasst haben. Prüfen Sie das Issue, bevor Sie eine Aktion wählen.",
+    "pending": "Die Synchronisierung steht aus und wird automatisch wiederholt, solange diese Verbindung aktiv ist.",
+    "recorded": "Bereits erfasst",
+    "retry": "Erneut versuchen…",
+    "retryWarning": "Nur wiederholen, wenn diese Zeit im Issue fehlt. Ein erneuter Eintrag zählt die Zeit doppelt.",
+    "confirmRetry": "Zeit fehlt — erneut versuchen"
   }
 }

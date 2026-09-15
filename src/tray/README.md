@@ -7,7 +7,9 @@ to each workflow.
 - `useTrayDeepLinks`: bounded request queue, connection selection, issue
   enrichment, and dispatch to either the task form or the start command.
 - `useTimerIssueLink`: submitted issue associations, restoration, estimates,
-  and the existing in-memory spent-time synchronization.
+  and registration of timesheets for spent-time synchronization.
+- `useIssueTimeSync`: durable time-sync queue, periodic/focus/online recovery,
+  connection checks, and manual resolution of ambiguous writes.
 - `useIdleTimerWorkflow`: idle detection, notifications, reminder window, and
   idle actions. It returns its busy state to gate other timer actions.
 - `useTraySystemEvents`: native event subscriptions and shortcut registration.
@@ -22,9 +24,10 @@ React hooks retain responsibility for operation locks, pending/error state, and
 query invalidation. Start, pause/resume, stop, and idle actions continue to share
 `timerOperationLock`.
 
-Spent-time synchronization remains an in-memory workflow; this extraction does
-not add a persistent retry queue. Native subscriptions and background workflows
-still live for the lifetime of the tray window.
+Native subscriptions and background workflows live for the lifetime of the tray
+window. The time-sync queue survives restarts in `settings.json` under
+`issueTimeSyncJobs`; only the tray window can mutate it through the atomic native
+store broker. See [the queue contract](../integrations/issues/TIME-SYNC.md).
 
 `windows/TrayPopup.test.tsx` exercises these workflows together using mocked
 external adapters and data hooks. Service tests cover the idle boundary fallback;

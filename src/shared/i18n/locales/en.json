@@ -717,5 +717,18 @@
     "changelog": "Changelog preview",
     "changelogDescription": "Shows the current version changelog as it will appear after an application update.",
     "showChangelog": "Show changelog"
+  },
+  "timeSync": {
+    "title": "Issue time synchronization",
+    "storageError": "The sync history could not be saved or read. No new time is sent until it is available.",
+    "openError": "Could not open the issue in your browser.",
+    "entry": "Timesheet #{{timesheet}} → issue #{{issue}}",
+    "destinationChanged": "The connection or integration changed. Restore its original settings to finish this entry.",
+    "uncertain": "The server may already have recorded this time. Check the issue before choosing an action.",
+    "pending": "Synchronization is pending and will retry automatically while this connection is active.",
+    "recorded": "Already recorded",
+    "retry": "Retry…",
+    "retryWarning": "Retry only if this time is missing from the issue. Retrying an existing entry adds the time twice.",
+    "confirmRetry": "Time is missing — retry"
   }
 }
