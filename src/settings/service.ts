@@ -16,7 +16,7 @@ import { migrateLegacyStore } from "../api/storeMigrations";
 const STORE_PATH = "settings.json";
 const SETTINGS_KEY = "settings";
 
-// Default tray status-icon colors, mirroring the fallbacks in tray.rs.
+// Default tray status-icon colors, mirroring the fallbacks in tray/icons.rs.
 export const defaultTrayColors: TrayStateColors = {
   idle: "#9ca3af", // gray-400
   running: "#10b981", // emerald-500
