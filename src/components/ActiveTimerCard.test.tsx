@@ -400,3 +400,23 @@ describe("ActiveTimerCard keyboard actions", () => {
     expect(screen.getByRole("button", { name: /Old note/ }).hasAttribute("disabled")).toBe(true);
   });
 });
+
+describe("ActiveTimerCard entry animation", () => {
+  const renderCard = (timer: typeof baseTimer, animateIn: boolean) => (
+    <I18nextProvider i18n={i18n}>
+      <ActiveTimerCard timer={timer} onStop={vi.fn()} animateIn={animateIn} />
+    </I18nextProvider>
+  );
+  const card = () => screen.getByText(baseTimer.project).closest(".rounded-lg")!;
+
+  it("reads the entry animation once per timer so later renders cannot replay it", () => {
+    const { rerender } = render(renderCard(baseTimer, false));
+    expect(card().className).not.toContain("animate-timer-in");
+
+    rerender(renderCard(baseTimer, true));
+    expect(card().className).not.toContain("animate-timer-in");
+
+    rerender(renderCard({ ...baseTimer, id: baseTimer.id + 1 }, true));
+    expect(card().className).toContain("animate-timer-in");
+  });
+});

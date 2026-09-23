@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
 import { useFlipAnimation } from "./useFlipAnimation";
+import { markUserIntent, resetUserIntent } from "../utils/userIntent";
 
 const tops = new Map<string, number>();
 const animate = vi.fn();
@@ -20,6 +21,7 @@ function List({ keys, mounted = true }: { keys: string[]; mounted?: boolean }) {
 }
 
 beforeEach(() => {
+  markUserIntent();
   tops.clear();
   animate.mockClear();
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
@@ -60,6 +62,15 @@ describe("useFlipAnimation", () => {
 
     animate.mockClear();
     rerender(<List keys={["b", "c", "d"]} />);
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("does not animate changes that no user interaction caused", () => {
+    layout({ a: 0 });
+    const { rerender } = render(<List keys={["a"]} />);
+    resetUserIntent();
+    layout({ a: 40, b: 0 });
+    rerender(<List keys={["b", "a"]} />);
     expect(animate).not.toHaveBeenCalled();
   });
 

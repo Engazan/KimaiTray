@@ -54,7 +54,10 @@ interface ActiveTimerCardProps {
   colorMode?: ColorMode;
   editDescriptionRequest?: number;
   onEditDescriptionRequestHandled?: () => void;
-  /** False when the card replaces a pending-start placeholder in place. */
+  /**
+   * Whether a newly shown timer plays its entry animation. Read once per timer
+   * id: false when it replaces a pending-start placeholder or merely loaded.
+   */
   animateIn?: boolean;
 }
 
@@ -287,7 +290,16 @@ export default function ActiveTimerCard({
   }, [editDescriptionRequest, onEdit, timer.description]);
 
   const exiting = isStopping || isPausing;
-  const cardAnim = exiting ? "animate-card-out" : animateIn ? "animate-timer-in" : "";
+  // Latch the entry animation per timer so a later prop change cannot replay it.
+  const [entryAnimation, setEntryAnimation] = useState({ id: timer.id, animate: animateIn });
+  if (entryAnimation.id !== timer.id) {
+    setEntryAnimation({ id: timer.id, animate: animateIn });
+  }
+  const cardAnim = exiting
+    ? "animate-card-out"
+    : entryAnimation.animate && entryAnimation.id === timer.id
+      ? "animate-timer-in"
+      : "";
   /* v8 ignore start -- callbacks execute from a native OS context menu */
   const openIssue = async () => {
     if (!issueUrl) return;

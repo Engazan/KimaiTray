@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
+import { hasRecentUserIntent } from "../utils/userIntent";
 
 const MOVE_OPTIONS: KeyframeAnimationOptions = {
   duration: 220,
@@ -17,7 +18,8 @@ function prefersReducedMotion(): boolean {
  * FLIP animation for rows inside a container: after every render, elements
  * marked with `data-flip-key` glide from their previous position to the new
  * one, and newly added keys fade in. Positions are measured relative to the
- * container so rows in different sections move together.
+ * container so rows in different sections move together. Only changes that
+ * follow recent user interaction animate, so loading data does not shuffle.
  */
 export function useFlipAnimation(containerRef: RefObject<HTMLElement | null>) {
   const previous = useRef<Map<string, number> | null>(null);
@@ -31,7 +33,7 @@ export function useFlipAnimation(containerRef: RefObject<HTMLElement | null>) {
     const origin = container.getBoundingClientRect().top - container.scrollTop;
     const items = container.querySelectorAll<HTMLElement>("[data-flip-key]");
     const before = previous.current;
-    const animate = before !== null && !prefersReducedMotion();
+    const animate = before !== null && hasRecentUserIntent() && !prefersReducedMotion();
     const next = new Map<string, number>();
 
     items.forEach((item) => {

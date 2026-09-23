@@ -9,6 +9,7 @@ import ActiveTimerCard from "../components/ActiveTimerCard";
 import PendingTimerCard from "../components/PendingTimerCard";
 import AnimatedHeight from "../components/AnimatedHeight";
 import { useFlipAnimation } from "../hooks/useFlipAnimation";
+import { hasRecentUserIntent, installUserIntentTracking } from "../utils/userIntent";
 import PausedTimerCard from "../components/PausedTimerCard";
 import EmptyTimerState from "../components/EmptyTimerState";
 import RecentTasksList from "../components/RecentTasksList";
@@ -305,6 +306,7 @@ export default function TrayPopup() {
   const navContainerRef = useRef<HTMLDivElement>(null);
   const flipContainerRef = useRef<HTMLDivElement>(null);
   useFlipAnimation(flipContainerRef);
+  useEffect(() => installUserIntentTracking(), []);
   const quickFilter = useQuickFilter(visibleFavorites, visibleTasks, activeConnectionId);
   const { active: filterActive, setQuery: setFilterQuery } = quickFilter;
 
@@ -801,7 +803,7 @@ export default function TrayPopup() {
                       onEditDescriptionRequestHandled={() =>
                         setEditNoteRequest(0)
                       }
-                      animateIn={timer.id !== handoffTimerId}
+                      animateIn={timer.id !== handoffTimerId && hasRecentUserIntent()}
                     />
                   ) : (
                     <EmptyTimerState compact={compactTimer} onNewTask={openBlankNewTask} />
@@ -843,6 +845,7 @@ export default function TrayPopup() {
                       showDescriptionOnHover={
                         featureFlags.featurePausedTimerDescriptionHover
                       }
+                      animateIn={hasRecentUserIntent()}
                     />
                   ))}
                 </div>

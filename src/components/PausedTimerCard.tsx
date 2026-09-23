@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { PausedTimerData } from "../api/pauseStore";
 import type { ColorMode } from "../types";
@@ -18,6 +19,8 @@ interface PausedTimerCardProps {
   compact?: boolean;
   colorMode?: ColorMode;
   showDescriptionOnHover?: boolean;
+  /** Whether the card plays its entry animation; read once when it mounts. */
+  animateIn?: boolean;
 }
 
 function formatPausedAt(iso: string): string {
@@ -39,10 +42,12 @@ export default function PausedTimerCard({
   compact,
   colorMode = "kimai",
   showDescriptionOnHover = false,
+  animateIn = true,
 }: PausedTimerCardProps) {
   const { t } = useTranslation();
+  const [playEntryAnimation] = useState(animateIn);
   const busy = !!isResuming || !!isStopping;
-  const cardAnim = busy ? "animate-card-out" : "animate-timer-in";
+  const cardAnim = busy ? "animate-card-out" : playEntryAnimation ? "animate-timer-in" : "";
   const description = paused.description.trim();
   const hasDescription = showDescriptionOnHover && description.length > 0;
   /* v8 ignore start -- callbacks execute from a native OS context menu */

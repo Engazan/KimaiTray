@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import AnimatedHeight from "./AnimatedHeight";
+import { markUserIntent, resetUserIntent } from "../utils/userIntent";
 
 let onResize = () => {};
 const disconnect = vi.fn();
@@ -11,6 +12,7 @@ let outerHeight = 40;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  markUserIntent();
   disconnect.mockClear();
   contentHeight = 40;
   outerHeight = 40;
@@ -74,6 +76,15 @@ describe("AnimatedHeight", () => {
 
     vi.advanceTimersByTime(400);
     expect(outer.style.height).toBe("");
+  });
+
+  it("jumps without animating when no user interaction caused the change", () => {
+    const { outer } = renderWrapper();
+    resetUserIntent();
+    contentHeight = 96;
+    onResize();
+    expect(outer.style.height).toBe("");
+    expect(outer.style.overflow).toBe("");
   });
 
   it("ignores resizes that do not change the height and cleans up on unmount", () => {

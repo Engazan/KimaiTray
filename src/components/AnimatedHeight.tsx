@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { hasRecentUserIntent } from "../utils/userIntent";
 
 interface AnimatedHeightProps {
   children: ReactNode;
@@ -37,7 +38,9 @@ export default function AnimatedHeight({ children, className = "" }: AnimatedHei
       const animating = outer.style.height !== "";
       const from = animating ? outer.getBoundingClientRect().height : lastHeight;
       lastHeight = next;
-      if (Math.abs(from - next) < 1) {
+      // Content that merely finished loading appears in place; only changes
+      // the user caused are animated.
+      if (Math.abs(from - next) < 1 || !hasRecentUserIntent()) {
         settle();
         return;
       }
