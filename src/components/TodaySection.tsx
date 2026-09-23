@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next";
 import type { TodayEntry, ColorMode } from "../types";
 import TodayEntryItem from "./TodayEntryItem";
-import { formatDuration } from "../utils/time";
+import { formatDuration, formatTime } from "../utils/time";
 import DailyGoalProgress from "./DailyGoalProgress";
-import type { MouseEvent as ReactMouseEvent, MouseEventHandler } from "react";
+import TodayTimelineBar from "./TodayTimelineBar";
+import { computeTodayGaps, type TodayGap } from "../utils/todayGaps";
+import { Fragment, type MouseEvent as ReactMouseEvent, type MouseEventHandler } from "react";
 
 export interface DailyGoalSettings {
   requiredMinutes: number;
@@ -32,6 +34,10 @@ interface TodaySectionProps {
   onDeleteEntry?: (entry: TodayEntry) => void;
   onRunningEntryContextMenu?: (event: ReactMouseEvent<HTMLElement>, entry: TodayEntry) => void;
   onHeaderContextMenu?: MouseEventHandler<HTMLDivElement>;
+  /** All of today's entries, including those collapsed behind "show all". */
+  timelineEntries?: TodayEntry[];
+  /** Opens a new-timer form starting at the given Kimai datetime. */
+  onFillGap?: (beginIso: string) => void;
 }
 
 function LoadingSkeleton() {
@@ -42,6 +48,25 @@ function LoadingSkeleton() {
       <div className="flex-1 h-3 rounded bg-gray-200 dark:bg-gray-700" />
       <div className="w-8 h-3 rounded bg-gray-200 dark:bg-gray-700 shrink-0" />
     </div>
+  );
+}
+
+function GapRow({ gap, onFill }: { gap: TodayGap; onFill: (beginIso: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={() => onFill(gap.beginIso)}
+      title={t("today.fillGap", { time: formatTime(gap.beginIso) })}
+      className="focus-ring group flex w-full items-center gap-2 rounded-md px-2.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400 hover:bg-[var(--accent-light)] hover:text-[var(--accent)] transition-colors"
+    >
+      <span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600 group-hover:border-[var(--accent)]" />
+      <span className="tabular-nums">{t("today.untracked", { duration: formatDuration(gap.seconds) })}</span>
+      <svg aria-hidden="true" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+      </svg>
+      <span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600 group-hover:border-[var(--accent)]" />
+    </button>
   );
 }
 
@@ -66,8 +91,13 @@ export default function TodaySection({
   onDeleteEntry,
   onRunningEntryContextMenu,
   onHeaderContextMenu,
+  timelineEntries,
+  onFillGap,
 }: TodaySectionProps) {
   const { t } = useTranslation();
+  const gapsByEntry = new Map(
+    (onFillGap ? computeTodayGaps(entries) : []).map((gap) => [gap.beforeEntryId, gap]),
+  );
 
   return (
     <div className="mt-1.5">
@@ -104,6 +134,10 @@ export default function TodaySection({
           </button>
         )}
       </div>
+
+      {timelineEntries && !isLoading && !isError && (
+        <TodayTimelineBar entries={timelineEntries} colorMode={colorMode} />
+      )}
 
       {dailyGoal && !isLoading && !isError && (
         <DailyGoalProgress
@@ -143,19 +177,26 @@ export default function TodaySection({
           </div>
         ) : (
           <>
-            {entries.map((entry) => (
-              <TodayEntryItem
-                key={entry.id}
-                entry={entry}
-                colorMode={colorMode}
-                onEdit={onEditEntry}
-                onRestart={onRestartEntry}
-                onToggleFavorite={onToggleFavoriteEntry}
-                isFavorite={isFavoriteEntry?.(entry)}
-                onDelete={onDeleteEntry}
-                onRunningContextMenu={onRunningEntryContextMenu}
-              />
-            ))}
+            {entries.map((entry) => {
+              const gap = gapsByEntry.get(entry.id);
+              const gapRow = gap && onFillGap ? <GapRow gap={gap} onFill={onFillGap} /> : null;
+              return (
+                <Fragment key={entry.id}>
+                  {sortAsc && gapRow}
+                  <TodayEntryItem
+                    entry={entry}
+                    colorMode={colorMode}
+                    onEdit={onEditEntry}
+                    onRestart={onRestartEntry}
+                    onToggleFavorite={onToggleFavoriteEntry}
+                    isFavorite={isFavoriteEntry?.(entry)}
+                    onDelete={onDeleteEntry}
+                    onRunningContextMenu={onRunningEntryContextMenu}
+                  />
+                  {!sortAsc && gapRow}
+                </Fragment>
+              );
+            })}
             {hasMore && !expanded && (
               <button
                 type="button"

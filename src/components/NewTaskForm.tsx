@@ -17,6 +17,7 @@ import DateTimePicker from "./DateTimePicker";
 import SearchableSelect from "./SearchableSelect";
 import ActivityCreateDialog from "./ActivityCreateDialog";
 import { normalizeCustomStartTime } from "../utils/customStartTime";
+import { toDateTimeLocalInput } from "../utils/time";
 import {
   DESCRIPTION_INPUT_TARGET,
   customInputLabel,
@@ -33,6 +34,8 @@ export interface NewTaskFormInitialValues {
   /** Values keyed by the custom input's stable id. */
   customInputValues?: Record<string, string>;
   selectedIssue?: ExternalIssue | null;
+  /** Custom start time as a Kimai datetime, e.g. when filling a gap in Today. */
+  begin?: string;
 }
 
 interface NewTaskFormProps {
@@ -246,9 +249,13 @@ export default function NewTaskForm({
       }
     }
   };
-  const [useCustomTime, setUseCustomTime] = useState(false);
-  const [beginTime, setBeginTime] = useState("");
-  const [moreOpen, setMoreOpen] = useState(false);
+  const initialBegin =
+    showCustomStartTime && initialValues?.begin
+      ? toDateTimeLocalInput(initialValues.begin)
+      : "";
+  const [useCustomTime, setUseCustomTime] = useState(initialBegin !== "");
+  const [beginTime, setBeginTime] = useState(initialBegin);
+  const [moreOpen, setMoreOpen] = useState(initialBegin !== "");
 
   const customersQ = useQuery({
     queryKey: ["customers", client.cacheScope],

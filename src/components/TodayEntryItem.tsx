@@ -89,11 +89,7 @@ export default function TodayEntryItem({
   return (
     <div
       onContextMenu={openItemContextMenu}
-      className={`px-2.5 py-1.5 rounded-md transition-colors ${
-        entry.isRunning
-          ? "bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/40 dark:border-emerald-800/30"
-          : ""
-      }`}
+      className="group/row px-2.5 py-1.5 rounded-md transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.03] focus-within:bg-gray-50 dark:focus-within:bg-white/[0.03]"
     >
       <div className="grid grid-cols-[max-content_auto_minmax(0,1fr)_auto] items-center gap-x-2">
         {/* Time range */}
@@ -169,6 +165,19 @@ export default function TodayEntryItem({
           >
             {formatDuration(duration)}
           </span>
+          {onRestart && !entry.isRunning && (
+            <button
+              type="button"
+              onClick={() => onRestart(entry)}
+              title={t("contextMenu.startAgain")}
+              aria-label={t("contextMenu.startAgain")}
+              className="focus-ring -mr-1 rounded p-0.5 text-gray-400 dark:text-gray-500 opacity-0 transition-opacity hover:text-[var(--accent)] focus-visible:opacity-100 group-hover/row:opacity-100"
+            >
+              <svg aria-hidden="true" className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Subtitle row */}

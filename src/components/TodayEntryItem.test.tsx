@@ -73,4 +73,23 @@ describe("TodayEntryItem editing", () => {
 
     expect(screen.getByLabelText("Billable").textContent).toBe("$");
   });
+
+  it("offers a visible start-again control for completed entries only", async () => {
+    const onRestart = vi.fn();
+    const { rerender } = render(
+      <I18nextProvider i18n={i18n}>
+        <TodayEntryItem entry={entry} onRestart={onRestart} />
+      </I18nextProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Start again" }));
+    expect(onRestart).toHaveBeenCalledWith(entry);
+
+    rerender(
+      <I18nextProvider i18n={i18n}>
+        <TodayEntryItem entry={{ ...entry, isRunning: true, endIso: null }} onRestart={onRestart} />
+      </I18nextProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Start again" })).toBeNull();
+  });
 });

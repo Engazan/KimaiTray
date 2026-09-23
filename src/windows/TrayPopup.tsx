@@ -616,6 +616,10 @@ export default function TrayPopup() {
     onDeleteEntry: (entry: TodayEntry) => deleteEntry(entry.id),
     onRunningEntryContextMenu: runningEntryContextMenu,
     onHeaderContextMenu: todayHeaderContextMenu,
+    timelineEntries: today.allEntries,
+    onFillGap: featureFlags.featureCustomStartTime
+      ? (beginIso: string) => openNewTaskForm({ begin: beginIso })
+      : undefined,
   };
   /* v8 ignore stop */
 

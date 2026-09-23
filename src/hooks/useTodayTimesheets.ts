@@ -126,6 +126,7 @@ export function useTodayTimesheets(
 
   return {
     entries: visibleEntries,
+    allEntries: entries,
     totalCount: entries.length,
     totalDuration,
     hasMore,

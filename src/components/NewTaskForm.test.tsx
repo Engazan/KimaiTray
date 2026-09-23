@@ -892,6 +892,19 @@ describe("new task keyboard flow", () => {
     await user.click(screen.getByRole("button", { name: "More options" }));
   });
 
+  it("prefills a custom start time from the initial begin value", async () => {
+    renderForm({ autoFocusProject: false, showCustomStartTime: true, initialValues: { begin: "2026-09-23T10:15:00" } });
+
+    expect((screen.getByLabelText("mock-date-time") as HTMLInputElement).value).toBe("2026-09-23T10:15");
+    expect(screen.getByRole("button", { name: "Use now" })).toBeTruthy();
+  });
+
+  it("ignores the initial begin value when custom start time is disabled", () => {
+    renderForm({ autoFocusProject: false, initialValues: { begin: "2026-09-23T10:15:00" } });
+
+    expect(screen.queryByLabelText("mock-date-time")).toBeNull();
+  });
+
   it("ignores submit shortcuts while incomplete and follows changed integration configuration", async () => {
     const firstConfig: NonNullable<
       ComponentProps<typeof NewTaskForm>["issueIntegrationConfig"]
