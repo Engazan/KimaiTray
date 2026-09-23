@@ -187,8 +187,8 @@ describe("previously uncovered tray components", () => {
     expect((screen.getByRole("button") as HTMLButtonElement).disabled).toBe(true);
 
     rerender(<ErrorBanner message="Network unavailable" onDismiss={onDismiss} />);
-    expect(screen.getByText("Network unavailable")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.getByRole("alert").textContent).toContain("Network unavailable");
+    fireEvent.click(screen.getByRole("button", { name: "common.dismiss" }));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 

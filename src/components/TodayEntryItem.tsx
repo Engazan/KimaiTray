@@ -103,7 +103,7 @@ export default function TodayEntryItem({
             onClick={() => onEdit(entry)}
             aria-label={t("today.editEntryLabel", { project: entry.project })}
             title={t("today.editEntry")}
-            className="group inline-flex items-center rounded px-0.5 py-0.5 text-[10px] tabular-nums text-gray-400 transition-colors hover:bg-gray-100 hover:text-[var(--accent)] focus:outline-none focus-visible:bg-gray-100 focus-visible:text-[var(--accent)] focus-visible:ring-1 focus-visible:ring-[var(--accent)] dark:text-gray-500 dark:hover:bg-gray-800 dark:focus-visible:bg-gray-800"
+            className="group inline-flex items-center rounded px-0.5 py-0.5 text-[10px] tabular-nums text-gray-500 transition-colors hover:bg-gray-100 hover:text-[var(--accent)] focus:outline-none focus-visible:bg-gray-100 focus-visible:text-[var(--accent)] focus-visible:ring-1 focus-visible:ring-[var(--accent)] dark:text-gray-400 dark:hover:bg-gray-800 dark:focus-visible:bg-gray-800"
           >
             {timeRange}
             <svg
@@ -122,7 +122,7 @@ export default function TodayEntryItem({
             </svg>
           </button>
         ) : (
-          <div className="whitespace-nowrap px-0.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+          <div className="whitespace-nowrap px-0.5 text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
             {timeRange}
           </div>
         )}
@@ -143,7 +143,7 @@ export default function TodayEntryItem({
             <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate">
               {entry.project}
             </span>
-            <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate shrink-0">
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate shrink-0">
               {entry.activity}
             </span>
           </div>
@@ -152,7 +152,13 @@ export default function TodayEntryItem({
         {/* Duration + billable */}
         <div className="flex items-center gap-1 shrink-0">
           {entry.billable && (
-            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 font-bold">$</span>
+            <span
+              title={t("today.billable")}
+              aria-label={t("today.billable")}
+              className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold"
+            >
+              $
+            </span>
           )}
           <span
             className={`text-[10px] tabular-nums font-medium ${
@@ -169,7 +175,7 @@ export default function TodayEntryItem({
         {(subtitle || entry.tags.length > 0) && (
           <div className="col-span-2 col-start-3 mt-0.5 flex min-w-0 items-center gap-2">
             {subtitle && (
-              <span className="truncate text-[10px] text-gray-400 dark:text-gray-500">
+              <span className="truncate text-[10px] text-gray-500 dark:text-gray-400">
                 {subtitle}
               </span>
             )}

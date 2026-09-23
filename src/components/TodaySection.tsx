@@ -74,11 +74,11 @@ export default function TodaySection({
       {/* Header */}
       <div className="px-3 py-1.5 flex items-center justify-between" onContextMenu={onHeaderContextMenu}>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
             {t("today.title")}
           </span>
           {totalCount > 0 && (
-            <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+            <span className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
               {formatDuration(totalDuration)}
             </span>
           )}
@@ -87,11 +87,20 @@ export default function TodaySection({
           <button
             type="button"
             onClick={onToggleSort}
-            className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none"
+            className="focus-ring rounded p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
             title={sortAsc ? t("today.newestFirst") : t("today.oldestFirst")}
             aria-label={sortAsc ? t("today.newestFirst") : t("today.oldestFirst")}
           >
-            {sortAsc ? "↑" : "↓"}
+            <svg
+              aria-hidden="true"
+              className={`h-3 w-3 transition-transform ${sortAsc ? "rotate-180" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5h12M3 12h8m-8 4.5h5M17.25 6v12m0 0l-3-3m3 3l3-3" />
+            </svg>
           </button>
         )}
       </div>
@@ -115,20 +124,20 @@ export default function TodaySection({
           </>
         ) : isError ? (
           <div className="px-2.5 py-3 text-center">
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1.5">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1.5">
               {t("today.loadError")}
             </p>
             <button
               type="button"
               onClick={onRetry}
-              className="text-[11px] text-[var(--accent)] hover:underline focus:outline-none"
+              className="focus-ring rounded text-[11px] text-[var(--accent)] hover:underline"
             >
               {t("common.retry")}
             </button>
           </div>
         ) : entries.length === 0 ? (
           <div className="px-2.5 py-3 text-center">
-            <p className="text-[11px] text-gray-400 dark:text-gray-500">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
               {t("today.empty")}
             </p>
           </div>
@@ -151,7 +160,7 @@ export default function TodaySection({
               <button
                 type="button"
                 onClick={onToggleExpand}
-                className="w-full py-1.5 text-[11px] text-[var(--accent)] hover:underline focus:outline-none transition-colors"
+                className="w-full py-1.5 text-[11px] text-[var(--accent)] hover:underline focus-ring rounded transition-colors"
               >
                 {t("today.showAll", { count: totalCount })}
               </button>
@@ -160,7 +169,7 @@ export default function TodaySection({
               <button
                 type="button"
                 onClick={onToggleExpand}
-                className="w-full py-1.5 text-[11px] text-gray-400 dark:text-gray-500 hover:underline focus:outline-none transition-colors"
+                className="w-full py-1.5 text-[11px] text-gray-500 dark:text-gray-400 hover:underline focus-ring rounded transition-colors"
               >
                 {t("today.showLess")}
               </button>

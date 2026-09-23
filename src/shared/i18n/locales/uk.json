@@ -69,7 +69,12 @@
     "notConnected": "Не підключено",
     "connectHint": "Правий клік на іконку → Налаштування",
     "setupConnection": "Налаштувати з'єднання",
-    "stopping": "Зупиняється…"
+    "stopping": "Зупиняється…",
+    "keyboardHint": "Друкуйте для пошуку · ↑↓ переміщення · {{mod}}1–9 запускає обране",
+    "filterPlaceholder": "Фільтрувати завдання…",
+    "filterLabel": "Фільтрувати обрані та нещодавні завдання",
+    "clearFilter": "Очистити фільтр",
+    "noFilterResults": "Немає відповідних завдань"
   },
   "timer": {
     "startTimer": "Запустити",
@@ -605,7 +610,11 @@
     "remainingToFull": "до повної цілі залишилося {{duration}}",
     "dailyGoalComplete": "Повну денну ціль досягнуто",
     "estimatedCompletion": "Прогноз {{time}}",
-    "startTimerForEstimate": "Запустіть таймер для прогнозу"
+    "startTimerForEstimate": "Запустіть таймер для прогнозу",
+    "billable": "Оплачуване",
+    "untracked": "Не враховано {{duration}}",
+    "fillGap": "Запустити таймер з {{time}}",
+    "timeline": "Сьогоднішня шкала часу"
   },
   "errors": {
     "unknown": "Невідома помилка",

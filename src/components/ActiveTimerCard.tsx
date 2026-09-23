@@ -354,7 +354,7 @@ export default function ActiveTimerCard({
               <span className="text-[11px] font-medium text-gray-800 dark:text-gray-200 truncate">
                 {timer.project}
               </span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
                 {timer.activity}
               </span>
             </>
@@ -369,7 +369,7 @@ export default function ActiveTimerCard({
               disabled={actionsDisabled || !!isPausing || !!isStopping}
               title={t("pause.pause")}
               aria-label={t("pause.pause")}
-              className="p-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
+              className="p-1.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
             >
               {isPausing ? (
                 <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-500" />
@@ -384,7 +384,7 @@ export default function ActiveTimerCard({
             disabled={actionsDisabled || !!isStopping || !!isPausing}
             title={t("timer.stopTimer")}
             aria-label={t("timer.stopTimer")}
-            className="p-1 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
+            className="p-1.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
           >
             {isStopping ? (
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-red-400/30 border-t-red-500" />
@@ -416,7 +416,7 @@ export default function ActiveTimerCard({
           <span className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
             {timer.project}
           </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500">
+          <span className="text-[10px] text-gray-500 dark:text-gray-400">
             {timer.activity}
           </span>
           {(multipleActive || isSaving || timeEstimate != null) && (
@@ -514,7 +514,7 @@ export default function ActiveTimerCard({
               key={input.id}
               className="pl-4 mb-1.5 flex min-w-0 items-center gap-1.5"
             >
-              <span className="shrink-0 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+              <span className="shrink-0 text-[10px] font-medium text-gray-500 dark:text-gray-400">
                 {label}:
               </span>
               {editing ? (
@@ -591,7 +591,7 @@ export default function ActiveTimerCard({
               <button
                 type="button"
                 onClick={startEditTags}
-                className="block w-full text-left text-[10px] text-gray-400 dark:text-gray-500 italic cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
+                className="block w-full text-left text-[10px] text-gray-500 dark:text-gray-400 italic cursor-text hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 rounded px-1 -mx-1 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
               >
                 {t("tags.addTags")}
               </button>
@@ -628,7 +628,7 @@ export default function ActiveTimerCard({
                 type="button"
                 onClick={startEditBegin}
                 disabled={!onEdit}
-                className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors disabled:hover:text-gray-400 dark:disabled:hover:text-gray-500 shrink-0"
+                className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors disabled:hover:text-gray-400 dark:disabled:hover:text-gray-500 shrink-0"
               >
                 {t("common.since", { time: formatStartTime(timer.beginIso) })}
               </button>

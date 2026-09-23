@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface UpdateBannerProps {
   downloading: boolean;
   label: string;
@@ -7,6 +9,7 @@ interface UpdateBannerProps {
 export function UpdateBanner({ downloading, label, onInstall }: UpdateBannerProps) {
   return (
     <button
+      type="button"
       onClick={onInstall}
       disabled={downloading}
       className="mx-3 mt-1.5 flex items-center gap-2 rounded-md bg-[var(--accent)]/10 border border-[var(--accent)]/20 px-2.5 py-1.5 text-[11px] text-[var(--accent)] hover:bg-[var(--accent)]/15 transition-colors disabled:opacity-60"
@@ -39,15 +42,18 @@ interface ErrorBannerProps {
 }
 
 export function ErrorBanner({ message, onDismiss }: ErrorBannerProps) {
+  const { t } = useTranslation();
   return (
-    <div className="mx-3 mt-1.5 flex items-start gap-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/40 px-2.5 py-2">
+    <div role="alert" className="mx-3 mt-1.5 flex items-start gap-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/40 px-2.5 py-2">
       <span className="text-[11px] text-red-600 dark:text-red-400 flex-1 leading-snug">
         {message}
       </span>
       <button
+        type="button"
         onClick={onDismiss}
         className="text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300 text-xs leading-none shrink-0 p-0.5"
-        aria-label="Dismiss"
+        aria-label={t("common.dismiss")}
+        title={t("common.dismiss")}
       >
         ✕
       </button>

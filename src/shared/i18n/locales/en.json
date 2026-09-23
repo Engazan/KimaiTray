@@ -69,7 +69,12 @@
     "notConnected": "Not connected",
     "connectHint": "Right-click tray → Settings to connect",
     "setupConnection": "Setup Connection",
-    "stopping": "Stopping…"
+    "stopping": "Stopping…",
+    "keyboardHint": "Type to search · ↑↓ to move · {{mod}}1–9 starts a favorite",
+    "filterPlaceholder": "Filter tasks…",
+    "filterLabel": "Filter favorites and recent tasks",
+    "clearFilter": "Clear filter",
+    "noFilterResults": "No matching tasks"
   },
   "timer": {
     "startTimer": "Start",
@@ -605,7 +610,11 @@
     "remainingToFull": "{{duration}} remaining to full goal",
     "dailyGoalComplete": "Full daily goal complete",
     "estimatedCompletion": "Est. {{time}}",
-    "startTimerForEstimate": "Start timer for estimate"
+    "startTimerForEstimate": "Start timer for estimate",
+    "billable": "Billable",
+    "untracked": "Untracked {{duration}}",
+    "fillGap": "Start a timer from {{time}}",
+    "timeline": "Today's timeline"
   },
   "errors": {
     "unknown": "Unknown error",

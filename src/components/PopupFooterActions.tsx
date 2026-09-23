@@ -11,7 +11,7 @@ export default function PopupFooterActions({
 }: PopupFooterActionsProps) {
   const { t } = useTranslation();
   const btnBase =
-    "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400";
+    "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors focus-ring";
 
   return (
     <footer className="flex items-center gap-1 border-t border-gray-100 dark:border-gray-800 px-2 py-1.5">

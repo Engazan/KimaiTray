@@ -67,4 +67,10 @@ describe("TodayEntryItem editing", () => {
       screen.queryByRole("button", { name: /Edit Forest time entry/i }),
     ).toBeNull();
   });
+
+  it("labels the billable marker for assistive technology", () => {
+    renderEntry(entry);
+
+    expect(screen.getByLabelText("Billable").textContent).toBe("$");
+  });
 });

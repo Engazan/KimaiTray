@@ -69,7 +69,12 @@
     "notConnected": "Nicht verbunden",
     "connectHint": "Rechtsklick auf Symbol → Einstellungen",
     "setupConnection": "Verbindung einrichten",
-    "stopping": "Wird gestoppt…"
+    "stopping": "Wird gestoppt…",
+    "keyboardHint": "Tippen zum Suchen · ↑↓ bewegen · {{mod}}1–9 startet einen Favoriten",
+    "filterPlaceholder": "Aufgaben filtern…",
+    "filterLabel": "Favoriten und letzte Aufgaben filtern",
+    "clearFilter": "Filter löschen",
+    "noFilterResults": "Keine passenden Aufgaben"
   },
   "timer": {
     "startTimer": "Starten",
@@ -605,7 +610,11 @@
     "remainingToFull": "{{duration}} bis zum vollen Ziel",
     "dailyGoalComplete": "Volles Tagesziel erreicht",
     "estimatedCompletion": "Vsl. {{time}}",
-    "startTimerForEstimate": "Timer für Schätzung starten"
+    "startTimerForEstimate": "Timer für Schätzung starten",
+    "billable": "Abrechenbar",
+    "untracked": "Nicht erfasst {{duration}}",
+    "fillGap": "Timer ab {{time}} starten",
+    "timeline": "Heutige Zeitleiste"
   },
   "errors": {
     "unknown": "Unbekannter Fehler",

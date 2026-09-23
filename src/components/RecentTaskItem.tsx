@@ -104,12 +104,12 @@ export default function RecentTaskItem({
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
               {task.project}
             </span>
-            <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">
               {task.activity}
             </span>
           </div>
           {subtitle && (
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
               {subtitle}
             </p>
           )}
@@ -122,7 +122,7 @@ export default function RecentTaskItem({
       </button>
 
       <div className="flex items-center gap-1.5 shrink-0">
-        <span className="text-[10px] text-gray-400 dark:text-gray-500 group-hover:hidden">
+        <span className="text-[10px] text-gray-500 dark:text-gray-400 group-hover:hidden">
           {task.lastUsed}
         </span>
 

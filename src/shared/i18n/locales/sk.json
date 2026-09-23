@@ -69,7 +69,12 @@
     "notConnected": "Nepripojené",
     "connectHint": "Pravý klik na ikonu → Nastavenia",
     "setupConnection": "Nastaviť pripojenie",
-    "stopping": "Zastavuje sa…"
+    "stopping": "Zastavuje sa…",
+    "keyboardHint": "Píšte pre vyhľadanie · ↑↓ pohyb · {{mod}}1–9 spustí obľúbenú",
+    "filterPlaceholder": "Filtrovať úlohy…",
+    "filterLabel": "Filtrovať obľúbené a nedávne úlohy",
+    "clearFilter": "Zrušiť filter",
+    "noFilterResults": "Žiadne zodpovedajúce úlohy"
   },
   "timer": {
     "startTimer": "Spustiť",
@@ -605,7 +610,11 @@
     "remainingToFull": "do plného cieľa zostáva {{duration}}",
     "dailyGoalComplete": "Plný denný cieľ splnený",
     "estimatedCompletion": "Odhad {{time}}",
-    "startTimerForEstimate": "Spustite časovač pre odhad"
+    "startTimerForEstimate": "Spustite časovač pre odhad",
+    "billable": "Fakturovateľné",
+    "untracked": "Nezaznamenané {{duration}}",
+    "fillGap": "Spustiť časovač od {{time}}",
+    "timeline": "Dnešná časová os"
   },
   "errors": {
     "unknown": "Neznáma chyba",

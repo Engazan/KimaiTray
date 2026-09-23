@@ -17,6 +17,23 @@
   transition-duration: 0.05s !important;
 }
 
+/* Honor the OS-level "reduce motion" preference even when the in-app
+   reduced-visual-effects setting is off. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0s !important;
+    transition-duration: 0.05s !important;
+  }
+}
+
+/* Shared keyboard focus indicator that follows the selected accent color. */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+}
+
 /* ── Timer card entry animations ─────────────────────────────── */
 @keyframes card-in {
   from {
