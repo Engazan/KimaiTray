@@ -6,6 +6,7 @@ import type { StartTaskPayload } from "../services/timerService";
 import type { NewTaskFormInitialValues } from "../components/NewTaskForm";
 import {
   DESCRIPTION_INPUT_TARGET,
+  CREATIVE_ISSUE_LINK_INPUT_ID,
   type PluginCustomInputDefinition,
 } from "../plugins/customInputs";
 import { createIssueProvider } from "../integrations/issues/issueProvider";
@@ -15,6 +16,19 @@ import {
   resolveDeepLinkConnectionId,
   type KimaiTrayDeepLink,
 } from "../api/deepLinkPayload";
+
+// Enrichment must not hold an interactive form hostage to a slow Git server.
+async function enrichNewIssue(load: () => Promise<ExternalIssue | null>) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(load).catch(() => null),
+      new Promise<null>((resolve) => { timeout = setTimeout(() => resolve(null), 1_000); }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 interface PendingDeepLink {
   id: number;
@@ -151,39 +165,46 @@ export function useTrayDeepLinks({
       // a missing integration must not abort the whole deep link. The "start"
       // action commits a timer directly and still requires a resolved issue.
       if (request.issueUrl && issueIntegration.enabled && issueToken) {
-        const provider = createIssueProvider(
-          issueIntegration,
-          issueToken,
-          activeConnectionId,
-        );
-        if (!provider.fetchIssueByUrl) {
-          throw new Error("The configured Git provider cannot load issue URLs");
-        }
-        linkedIssue = await provider.fetchIssueByUrl(request.issueUrl);
+        const loadIssue = async () => {
+          const provider = createIssueProvider(issueIntegration, issueToken, activeConnectionId);
+          if (!provider.fetchIssueByUrl) {
+            throw new Error("The configured Git provider cannot load issue URLs");
+          }
+          return provider.fetchIssueByUrl(request.issueUrl!);
+        };
+        linkedIssue = request.action === "new"
+          ? await enrichNewIssue(loadIssue)
+          : await loadIssue();
         if (!linkedIssue && request.action === "start") {
           throw new Error(
             "The issue URL does not match an accessible issue on the configured Git provider",
           );
         }
+      }
 
-        if (issueIntegration.autoInsertUrl) {
-          // Opening the interactive form must keep working when GitLab is
-          // temporarily unreachable. Use the original, already validated deep
-          // link URL when the optional issue enrichment could not be loaded.
-          const issueWebUrl = linkedIssue?.webUrl ?? request.issueUrl;
-          const target =
-            issueIntegration.autoInsertUrlTarget ?? DESCRIPTION_INPUT_TARGET;
-          const customTarget = pluginCustomInputs.find(
-            (input) => input.id === target,
-          );
-          if (customTarget) {
-            metadata[customTarget.metadataName] ??= issueWebUrl;
-            customInputValues[customTarget.id] ??= issueWebUrl;
-          } else if (!description?.includes(issueWebUrl)) {
-            description = description?.trim()
-              ? `${description.trim()}\n${issueWebUrl}`
-              : issueWebUrl;
-          }
+      if (request.issueUrl) {
+        // A new-form link must always preserve its URL, including when Git is
+        // disabled, unauthenticated, unreachable, or a custom field is absent.
+        const issueWebUrl = linkedIssue?.webUrl ?? request.issueUrl;
+        const target = issueIntegration.autoInsertUrlTarget ?? DESCRIPTION_INPUT_TARGET;
+        const customTarget = pluginCustomInputs.find((input) =>
+          issueIntegration.autoInsertUrl
+            ? input.id === target
+            : request.action === "new" && input.id === CREATIVE_ISSUE_LINK_INPUT_ID,
+        );
+        if (customTarget) {
+          metadata[customTarget.metadataName] ??= issueWebUrl;
+          customInputValues[customTarget.id] ??= issueWebUrl;
+        }
+        const alreadyInCustomField = Object.values(customInputValues).some(
+          (value) => value === request.issueUrl || value === issueWebUrl,
+        );
+        if (((issueIntegration.autoInsertUrl && !customTarget) ||
+          (request.action === "new" && !alreadyInCustomField)) &&
+          !description?.includes(issueWebUrl)) {
+          description = description?.trim()
+            ? `${description.trim()}\n${issueWebUrl}`
+            : issueWebUrl;
         }
       }
 

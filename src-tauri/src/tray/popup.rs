@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, PhysicalPosition, WebviewWindow};
 
+static POPUP_ACTIVATION_UNTIL: AtomicU64 = AtomicU64::new(0);
 static LAST_POPUP_HIDE: AtomicU64 = AtomicU64::new(0);
 static POPUP_FOCUS_GENERATION: AtomicU64 = AtomicU64::new(0);
 static LAST_POPUP_RESIZE: AtomicU64 = AtomicU64::new(0);
@@ -30,6 +31,7 @@ enum PopupBlurAction {
     KeepOpen,
     Wait,
     Hide,
+    RestoreFocus,
 }
 
 fn popup_blur_action(
@@ -37,10 +39,13 @@ fn popup_blur_action(
     pointer_down: bool,
     resizing: bool,
     since_resize_ms: u64,
+    activating: bool,
 ) -> PopupBlurAction {
     if focused {
         PopupBlurAction::KeepOpen
-    } else if pointer_down || resizing || since_resize_ms < 250 {
+    } else if activating && !pointer_down && !resizing {
+        PopupBlurAction::RestoreFocus
+    } else if activating || pointer_down || resizing || since_resize_ms < 250 {
         PopupBlurAction::Wait
     } else {
         PopupBlurAction::Hide
@@ -66,10 +71,15 @@ fn recheck_popup_blur(window: &tauri::Window, generation: u64) -> bool {
         interaction.pointer_down,
         interaction.resizing,
         now_ms().saturating_sub(LAST_POPUP_RESIZE.load(Ordering::SeqCst)),
+        now_ms() < POPUP_ACTIVATION_UNTIL.load(Ordering::SeqCst),
     ) {
         // Child-window focus events can disagree with native foreground focus.
         // Keep watching for a real click away unless a focus-in event cancels us.
         PopupBlurAction::KeepOpen | PopupBlurAction::Wait => true,
+        PopupBlurAction::RestoreFocus => {
+            let _ = window.set_focus();
+            true
+        }
         PopupBlurAction::Hide => {
             LAST_POPUP_HIDE.store(now_ms(), Ordering::SeqCst);
             let _ = window.hide();
@@ -330,6 +340,10 @@ pub fn set_popup_zoom(app: AppHandle, zoom: f64) -> Result<(), String> {
 }
 
 pub fn show_popup_window(app: &AppHandle) {
+    // Cancel blur work from the previous opening before changing activation
+    // policy, which can itself emit focus events.
+    POPUP_FOCUS_GENERATION.fetch_add(1, Ordering::SeqCst);
+    POPUP_ACTIVATION_UNTIL.store(now_ms().saturating_add(1_000), Ordering::SeqCst);
     // Launching a custom protocol activates the application as a regular macOS
     // app after setup has already applied the persisted policy. Reassert it
     // immediately before showing/focusing the popup so a True Tray launch does
@@ -436,51 +450,71 @@ mod tests {
     use super::*;
 
     #[test]
-    fn popup_survives_transient_focus_loss_during_pointer_and_resize_grabs() {
+    fn activation_restores_focus_before_allowing_auto_hide() {
         assert_eq!(
-            popup_blur_action(true, false, false, 1_000),
+            popup_blur_action(false, false, false, 5_000, true),
+            PopupBlurAction::RestoreFocus
+        );
+        assert_eq!(
+            popup_blur_action(false, true, false, 5_000, true),
+            PopupBlurAction::Wait
+        );
+        assert_eq!(
+            popup_blur_action(true, false, false, 5_000, true),
             PopupBlurAction::KeepOpen
         );
         assert_eq!(
-            popup_blur_action(false, true, false, 1_000),
+            popup_blur_action(false, false, false, 5_000, false),
+            PopupBlurAction::Hide
+        );
+    }
+
+    #[test]
+    fn popup_survives_transient_focus_loss_during_pointer_and_resize_grabs() {
+        assert_eq!(
+            popup_blur_action(true, false, false, 1_000, false),
+            PopupBlurAction::KeepOpen
+        );
+        assert_eq!(
+            popup_blur_action(false, true, false, 1_000, false),
             PopupBlurAction::Wait
         );
         assert_eq!(
-            popup_blur_action(false, false, false, 0),
+            popup_blur_action(false, false, false, 0, false),
             PopupBlurAction::Wait
         );
         assert_eq!(
-            popup_blur_action(false, false, false, 249),
+            popup_blur_action(false, false, false, 249, false),
             PopupBlurAction::Wait
         );
         assert_eq!(
-            popup_blur_action(false, false, false, 250),
+            popup_blur_action(false, false, false, 250, false),
             PopupBlurAction::Hide
         );
     }
     #[test]
     fn keyboard_resize_waits_even_without_mouse_buttons_or_recent_resize_events() {
         assert_eq!(
-            popup_blur_action(false, false, true, 30_000),
+            popup_blur_action(false, false, true, 30_000, false),
             PopupBlurAction::Wait
         );
         assert_eq!(
-            popup_blur_action(false, false, false, 10),
+            popup_blur_action(false, false, false, 10, false),
             PopupBlurAction::Wait
         );
         assert_eq!(
-            popup_blur_action(true, false, false, 300),
+            popup_blur_action(true, false, false, 300, false),
             PopupBlurAction::KeepOpen
         );
     }
     #[test]
     fn real_focus_loss_dismisses_after_the_pointer_is_released() {
         assert_eq!(
-            popup_blur_action(false, true, false, 30_000),
+            popup_blur_action(false, true, false, 30_000, false),
             PopupBlurAction::Wait
         );
         assert_eq!(
-            popup_blur_action(false, false, false, 30_000),
+            popup_blur_action(false, false, false, 30_000, false),
             PopupBlurAction::Hide
         );
     }

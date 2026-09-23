@@ -137,6 +137,7 @@ vi.mock("../integrations/issues/linkedIssueStore", () => ({
 }));
 vi.mock("../plugins/customInputs", () => ({
   DESCRIPTION_INPUT_TARGET: "description",
+  CREATIVE_ISSUE_LINK_INPUT_ID: "plugin:creative-issue-link:issue-link",
   getEnabledPluginCustomInputs: (flags: any) => flags.inputs ?? [],
   pickPluginMetadata: (metadata: any) => metadata,
 }));
@@ -675,6 +676,61 @@ describe("TrayPopup", () => {
     mocks.deepLinkHandler?.("new-existing");
     expect((await screen.findByTestId("new-form")).textContent).toContain("Existing\\nhttps://git.test/2");
   });
+
+  it.each(["disabled", "no-token", "no-insertion", "missing-field"])(
+    "preserves a new-link URL with %s settings", async (scenario) => {
+      const url = "https://git.test/group/project/-/work_items/1275";
+      mocks.kimai.issueIntegration = {
+        ...mocks.kimai.issueIntegration,
+        enabled: scenario !== "disabled", autoInsertUrl: false,
+      };
+      mocks.kimai.issueToken = scenario === "no-token" ? null : "token";
+      mocks.issueProvider = { fetchIssueByUrl: vi.fn().mockResolvedValue(null) };
+      mocks.deepRequest = {
+        action: "new", tags: [], issueUrl: url,
+        customFields: scenario === "missing-field" ? { issue_link: url } : {},
+      };
+      render(<TrayPopup />);
+      await act(async () => mocks.deepLinkHandler?.("new-url"));
+      expect((await screen.findByTestId("new-form")).textContent).toContain(url);
+      expect(mocks.startTask).not.toHaveBeenCalled();
+    },
+  );
+
+  it("fills the Creative Issue Link field without requiring Git authentication", async () => {
+    const url = "https://git.test/group/project/-/work_items/1275";
+    const id = "plugin:creative-issue-link:issue-link";
+    mocks.kimai.pluginFlags.inputs = [{ id, metadataName: "issue_link" }];
+    mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: false };
+    mocks.kimai.issueToken = null;
+    mocks.deepRequest = { action: "new", tags: [], customFields: {}, issueUrl: url };
+    render(<TrayPopup />);
+    await act(async () => mocks.deepLinkHandler?.("creative-field"));
+    expect((await screen.findByTestId("new-form")).textContent).toContain(
+      JSON.stringify({ customInputValues: { [id]: url } }).slice(1, -1),
+    );
+  });
+
+  it.each(["rejected", "unsupported", "slow"])(
+    "opens a prefilled form when issue enrichment is %s", async (scenario) => {
+      mocks.kimai.issueIntegration = { ...mocks.kimai.issueIntegration, enabled: true };
+      mocks.kimai.issueToken = "token";
+      let resolveIssue: ((value: any) => void) | undefined;
+      mocks.issueProvider = scenario === "unsupported" ? {} : {
+        fetchIssueByUrl: vi.fn(() => scenario === "rejected"
+          ? Promise.reject(new Error("offline"))
+          : new Promise((resolve) => { resolveIssue = resolve; })),
+      };
+      const url = "https://git.test/group/project/-/work_items/1275";
+      mocks.deepRequest = { action: "new", tags: [], customFields: {}, issueUrl: url };
+      render(<TrayPopup />);
+      await act(async () => mocks.deepLinkHandler?.("new-enrichment"));
+      expect((await screen.findByTestId("new-form", {}, { timeout: 2_000 })).textContent).toContain(url);
+      await act(async () => resolveIssue?.({ webUrl: "https://git.test/late" }));
+      expect(screen.getByTestId("new-form").textContent).toContain(url);
+      expect(mocks.startTask).not.toHaveBeenCalled();
+    },
+  );
 
   it("restores a linked issue, displays its estimate and syncs spent time after stop", async () => {
     const issue = { id: 8, title: "Issue", webUrl: "https://git.test/group/project/-/issues/8", state: "opened", labels: [], author: "a", timeEstimate: 600, timeSpent: 60 };
