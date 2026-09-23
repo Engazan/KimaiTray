@@ -30,7 +30,9 @@ export default function AnimatedHeight({ children, className = "" }: AnimatedHei
       ref={outerRef}
       className={`overflow-hidden transition-[height] duration-200 ease-out ${className}`}
     >
-      <div ref={innerRef}>{children}</div>
+      {/* flow-root keeps the children's margins inside the measured box;
+          otherwise they collapse out of it and the last card is clipped. */}
+      <div ref={innerRef} className="flow-root">{children}</div>
     </div>
   );
 }

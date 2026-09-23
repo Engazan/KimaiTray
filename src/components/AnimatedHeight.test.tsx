@@ -24,6 +24,7 @@ describe("AnimatedHeight", () => {
     const outer = screen.getByText("content").parentElement!.parentElement!;
     expect(outer.style.height).toBe("40px");
     expect(outer.className).toContain("extra");
+    expect(screen.getByText("content").parentElement!.className).toContain("flow-root");
 
     height.mockReturnValue(96);
     onResize();
