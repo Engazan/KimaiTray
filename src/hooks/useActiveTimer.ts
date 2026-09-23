@@ -12,6 +12,7 @@ import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 import { useEntityLookup } from "./useEntityLookup";
 import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
+import { resolveEntityColors } from "../utils/colorMode";
 
 export type ConnectionStatus =
   | "connected"
@@ -76,9 +77,7 @@ export function useActiveTimer(
       projectId,
       activityId,
       project: proj?.name ?? `Project #${projectId}`,
-      projectColor: proj?.color ?? "",
-      activityColor: act?.color ?? "",
-      customerColor: cust?.color ?? "",
+      ...resolveEntityColors(proj, act, cust),
       activity: act?.name ?? `Activity #${activityId}`,
       description: entry.description ?? "",
       tags: normalizeKimaiTags(entry.tags),

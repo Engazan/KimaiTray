@@ -9,6 +9,7 @@ import { differenceInLocalCalendarDays, parseKimaiDate } from "../utils/time";
 import { getStringTimesheetMetadata } from "../api/timesheetMeta";
 import { useEntityLookup } from "./useEntityLookup";
 import { taskKeyOf } from "../utils/taskKey";
+import { resolveEntityColors } from "../utils/colorMode";
 
 function formatRelativeDate(iso: string): string {
   const d = parseKimaiDate(iso);
@@ -80,9 +81,7 @@ export function useRecentTasks(
         activityId,
         timesheetId: entry.id,
         project: proj?.name ?? `Project #${projectId}`,
-        projectColor: proj?.color ?? "",
-        activityColor: act?.color ?? "",
-        customerColor: cust?.color ?? "",
+        ...resolveEntityColors(proj, act, cust),
         customer: cust?.name ?? "",
         activity: act?.name ?? `Activity #${activityId}`,
         description: entry.description ?? "",

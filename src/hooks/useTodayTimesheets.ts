@@ -8,6 +8,7 @@ import { normalizeKimaiTags } from "../api/tagUtils";
 import { getLocalDayRange, parseKimaiDate } from "../utils/time";
 import { useEntityLookup } from "./useEntityLookup";
 import { getStringTimesheetMetadata } from "../api/timesheetMeta";
+import { resolveEntityColors } from "../utils/colorMode";
 
 const DEFAULT_VISIBLE = 5;
 
@@ -89,9 +90,7 @@ export function useTodayTimesheets(
         projectId,
         activityId,
         project: proj?.name ?? `Project #${projectId}`,
-        projectColor: proj?.color ?? "",
-        activityColor: act?.color ?? "",
-        customerColor: cust?.color ?? "",
+        ...resolveEntityColors(proj, act, cust),
         customer: cust?.name ?? "",
         activity: act?.name ?? `Activity #${activityId}`,
         description: entry.description ?? "",

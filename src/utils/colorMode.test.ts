@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ColorMode } from "../types";
-import { resolveDisplayColors } from "./colorMode";
+import { resolveDisplayColors, resolveEntityColors } from "./colorMode";
 
 describe("timer display color modes", () => {
   const colors = ["#activity", "#project", "#customer"] as const;
@@ -38,5 +38,30 @@ describe("timer display color modes", () => {
     expect(
       resolveDisplayColors("#activity", "#project", "#customer", "future" as ColorMode),
     ).toEqual(["#activity"]);
+  });
+});
+
+describe("resolveEntityColors", () => {
+  it("keeps explicit colors so the Kimai cascade is preserved", () => {
+    expect(
+      resolveEntityColors(
+        { color: "#111111", "color-safe": "#111111" },
+        { color: null, "color-safe": "#222222" },
+        undefined,
+      ),
+    ).toEqual({ projectColor: "#111111", activityColor: "", customerColor: "" });
+  });
+
+  it("falls back to Kimai's color-safe values when no color is configured", () => {
+    expect(
+      resolveEntityColors(
+        { color: null, "color-safe": "#333333" },
+        { color: null, "color-safe": "#444444" },
+        { color: null },
+      ),
+    ).toEqual({ projectColor: "#333333", activityColor: "#444444", customerColor: "" });
+    expect(resolveEntityColors(undefined, undefined, undefined)).toEqual({
+      projectColor: "", activityColor: "", customerColor: "",
+    });
   });
 });
