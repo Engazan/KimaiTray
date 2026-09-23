@@ -74,7 +74,8 @@
     "filterPlaceholder": "Фільтрувати завдання…",
     "filterLabel": "Фільтрувати обрані та нещодавні завдання",
     "clearFilter": "Очистити фільтр",
-    "noFilterResults": "Немає відповідних завдань"
+    "noFilterResults": "Немає відповідних завдань",
+    "starting": "Запуск…"
   },
   "timer": {
     "startTimer": "Запустити",

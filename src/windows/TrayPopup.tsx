@@ -6,6 +6,7 @@ import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import HeaderStatus from "../components/HeaderStatus";
 import IssueTimeSyncFeedback from "../components/IssueTimeSyncFeedback";
 import ActiveTimerCard from "../components/ActiveTimerCard";
+import PendingTimerCard from "../components/PendingTimerCard";
 import PausedTimerCard from "../components/PausedTimerCard";
 import EmptyTimerState from "../components/EmptyTimerState";
 import RecentTasksList from "../components/RecentTasksList";
@@ -201,7 +202,9 @@ export default function TrayPopup() {
     setNewTaskShortcutRequest(0);
     setShowNewTask(true);
   }, []);
-  const { startTask, startingKey, switchError, dismissError, isStarting } = useStartTask(
+  const {
+    startTask, startingKey, switchError, dismissError, isStarting, pendingPreview, handoffTimerId,
+  } = useStartTask(
     client,
     (entry, payload) => {
       closeNewTask();
@@ -258,7 +261,7 @@ export default function TrayPopup() {
         description: task.description || undefined,
         tags: task.tags?.length ? task.tags : undefined,
         metadata: pickPluginMetadata(task.metadata, pluginCustomInputs), label: task.project,
-      }, task.key);
+      }, task.key, task);
     },
     editNote: () => {
       if (!timer) return;
@@ -336,6 +339,7 @@ export default function TrayPopup() {
         label: task.project,
       },
       task.key,
+      task,
     );
   };
 
@@ -385,6 +389,7 @@ export default function TrayPopup() {
           label: task.project,
         },
         task.key,
+        task,
       );
     },
     [pluginCustomInputs, startTask],
@@ -508,7 +513,7 @@ export default function TrayPopup() {
         description: entry.description || undefined,
         tags: entry.tags.length > 0 ? entry.tags : undefined,
         label: entry.project,
-      }, `${entry.projectId}-${entry.activityId}`);
+      }, `${entry.projectId}-${entry.activityId}`, entry);
     },
     [startTask],
   );
@@ -749,12 +754,20 @@ export default function TrayPopup() {
             {(status === "loading" ||
               status === "unconfigured" ||
               timer ||
+              pendingPreview ||
               !hasPausedTimers) && (
               <div className="timer-area min-h-0 shrink-0">
                 {status === "loading" ? (
                   <EmptyTimerState variant="loading" compact={compactTimer} onNewTask={openBlankNewTask} />
                 ) : status === "unconfigured" ? (
                   <EmptyTimerState variant="unconfigured" compact={compactTimer} onNewTask={openBlankNewTask} />
+                ) : pendingPreview ? (
+                  <PendingTimerCard
+                    preview={pendingPreview}
+                    compact={compactTimer}
+                    focusMode={popupLayout === "focus"}
+                    colorMode={colorMode}
+                  />
                 ) : timer ? (
                   <ActiveTimerCard
                     timer={timer}
@@ -781,6 +794,7 @@ export default function TrayPopup() {
                     onEditDescriptionRequestHandled={() =>
                       setEditNoteRequest(0)
                     }
+                    animateIn={timer.id !== handoffTimerId}
                   />
                 ) : (
                   <EmptyTimerState compact={compactTimer} onNewTask={openBlankNewTask} />

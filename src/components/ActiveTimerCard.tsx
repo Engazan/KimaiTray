@@ -54,6 +54,8 @@ interface ActiveTimerCardProps {
   colorMode?: ColorMode;
   editDescriptionRequest?: number;
   onEditDescriptionRequestHandled?: () => void;
+  /** False when the card replaces a pending-start placeholder in place. */
+  animateIn?: boolean;
 }
 
 /** Compact duration formatting: "5h", "1h30m", "45m". */
@@ -103,6 +105,7 @@ export default function ActiveTimerCard({
   colorMode = "kimai",
   editDescriptionRequest = 0,
   onEditDescriptionRequestHandled,
+  animateIn = true,
 }: ActiveTimerCardProps) {
   const { t } = useTranslation();
   const [elapsed, setElapsed] = useState(() =>
@@ -284,7 +287,7 @@ export default function ActiveTimerCard({
   }, [editDescriptionRequest, onEdit, timer.description]);
 
   const exiting = isStopping || isPausing;
-  const cardAnim = exiting ? "animate-card-out" : "animate-timer-in";
+  const cardAnim = exiting ? "animate-card-out" : animateIn ? "animate-timer-in" : "";
   /* v8 ignore start -- callbacks execute from a native OS context menu */
   const openIssue = async () => {
     if (!issueUrl) return;

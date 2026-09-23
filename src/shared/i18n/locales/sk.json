@@ -74,7 +74,8 @@
     "filterPlaceholder": "Filtrovať úlohy…",
     "filterLabel": "Filtrovať obľúbené a nedávne úlohy",
     "clearFilter": "Zrušiť filter",
-    "noFilterResults": "Žiadne zodpovedajúce úlohy"
+    "noFilterResults": "Žiadne zodpovedajúce úlohy",
+    "starting": "Spúšťa sa…"
   },
   "timer": {
     "startTimer": "Spustiť",

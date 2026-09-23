@@ -82,7 +82,7 @@ vi.mock("../hooks/useStartTask", () => ({
   useStartTask: (_client: any, success: any, error: any) => {
     mocks.startSuccess = success;
     mocks.startError = error;
-    return { startTask: mocks.startTask, startingKey: null, switchError: mocks.kimai.switchError ?? null, dismissError: mocks.kimai.dismissSwitchError, isStarting: mocks.kimai.isStarting ?? false };
+    return { startTask: mocks.startTask, startingKey: null, switchError: mocks.kimai.switchError ?? null, dismissError: mocks.kimai.dismissSwitchError, isStarting: mocks.kimai.isStarting ?? false, pendingPreview: mocks.kimai.pendingPreview ?? null, handoffTimerId: mocks.kimai.handoffTimerId ?? null };
   },
 }));
 vi.mock("../hooks/useEditTimer", () => ({ useEditTimer: () => ({ editTimer: mocks.editTimer, isSaving: false, saveError: null }) }));
@@ -276,7 +276,7 @@ describe("TrayPopup", () => {
     fireEvent.change(input, { target: { value: "proj" } });
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(mocks.startTask).toHaveBeenCalledWith(expect.objectContaining({ projectId: 10 }), "fav");
+    expect(mocks.startTask).toHaveBeenCalledWith(expect.objectContaining({ projectId: 10 }), "fav", expect.objectContaining({ project: "Project" }));
     expect(screen.queryByRole("searchbox")).toBeNull();
 
     fireEvent.keyDown(document.body, { key: "p" });
@@ -295,7 +295,20 @@ describe("TrayPopup", () => {
     render(<TrayPopup />);
     fireEvent.keyDown(document.body, { key: "d" });
     fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Enter" });
-    expect(mocks.startTask).toHaveBeenCalledWith(expect.objectContaining({ projectId: 10 }), task.key);
+    expect(mocks.startTask).toHaveBeenCalledWith(expect.objectContaining({ projectId: 10 }), task.key, expect.objectContaining({ project: "Project" }));
+  });
+
+  it("shows a pending start card and hands off to the active card without re-animating", () => {
+    mocks.kimai.pendingPreview = { project: "Pending Project", activity: "Work", projectColor: "", activityColor: "", customerColor: "" };
+    mocks.active.timer = timer;
+    const { rerender } = render(<TrayPopup />);
+    expect(screen.getByRole("status", { name: "tray.starting" }).textContent).toContain("Pending Project");
+    expect(screen.queryByTestId("active")).toBeNull();
+
+    mocks.kimai.pendingPreview = null;
+    mocks.kimai.handoffTimerId = timer.id;
+    rerender(<TrayPopup />);
+    expect(mocks.activeProps.animateIn).toBe(false);
   });
 
   it("runs popup keyboard shortcuts for favorites, pause and new task", () => {

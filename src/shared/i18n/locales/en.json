@@ -74,7 +74,8 @@
     "filterPlaceholder": "Filter tasks…",
     "filterLabel": "Filter favorites and recent tasks",
     "clearFilter": "Clear filter",
-    "noFilterResults": "No matching tasks"
+    "noFilterResults": "No matching tasks",
+    "starting": "Starting…"
   },
   "timer": {
     "startTimer": "Start",

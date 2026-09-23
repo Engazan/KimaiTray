@@ -276,6 +276,64 @@ describe("transactional timer switching", () => {
     queryClient.clear();
   });
 
+  it("shows a pending preview and publishes the created timer without waiting for a refetch", async () => {
+    let resolveStart!: (entry: KimaiTimesheetEntry) => void;
+    const post = vi.fn(() => new Promise((resolve) => { resolveStart = resolve; }));
+    const client = {
+      ...mockClient({
+        get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+        post: post as unknown as KimaiClient["post"],
+      }),
+      cacheScope: "scope-a",
+    } as KimaiClient;
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const preview = {
+      project: "Alpha", activity: "Work", projectColor: "#111111", activityColor: "", customerColor: "",
+    };
+    const { result } = renderHook(() => useStartTask(client), { wrapper });
+
+    let startPromise!: ReturnType<typeof result.current.startTask>;
+    act(() => {
+      startPromise = result.current.startTask({ projectId: 1, activityId: 2, label: "Alpha" }, "1-2", preview);
+    });
+    expect(result.current.pendingPreview).toEqual(preview);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveStart(timesheet(99));
+      await startPromise;
+    });
+    expect(result.current.pendingPreview).toBeNull();
+    expect(result.current.handoffTimerId).toBe(99);
+    expect(queryClient.getQueryData(["active-timesheets", "scope-a"])).toEqual([timesheet(99)]);
+
+    post.mockImplementationOnce(async () => timesheet(100));
+    await act(async () => {
+      await result.current.startTask({ projectId: 1, activityId: 2, label: "Alpha" });
+    });
+    expect(result.current.handoffTimerId).toBe(99);
+    queryClient.clear();
+  });
+
+  it("drops the pending preview when the start fails", async () => {
+    const client = mockClient({ get: vi.fn(async () => []) as unknown as KimaiClient["get"] });
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useStartTask(client), { wrapper });
+
+    await act(async () => {
+      await result.current.startTask({ projectId: 1, activityId: 2, label: "Alpha" }, undefined, {
+        project: "Alpha", activity: "Work", projectColor: "", activityColor: "", customerColor: "",
+      });
+    });
+    expect(result.current.pendingPreview).toBeNull();
+    expect(result.current.handoffTimerId).toBeNull();
+    queryClient.clear();
+  });
+
   it("publishes the running timer when only its metadata write fails", async () => {
     const client = mockClient({
       get: vi.fn(async () => []) as unknown as KimaiClient["get"],

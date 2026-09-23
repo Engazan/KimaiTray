@@ -74,7 +74,8 @@
     "filterPlaceholder": "Aufgaben filtern…",
     "filterLabel": "Favoriten und letzte Aufgaben filtern",
     "clearFilter": "Filter löschen",
-    "noFilterResults": "Keine passenden Aufgaben"
+    "noFilterResults": "Keine passenden Aufgaben",
+    "starting": "Wird gestartet…"
   },
   "timer": {
     "startTimer": "Starten",

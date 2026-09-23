@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
 import { acquireTimerOperation } from "./timerOperationLock";
@@ -18,6 +18,16 @@ export {
   type StartTaskPayload,
 } from "../services/timerService";
 
+/** What the popup shows while a start request is still in flight. */
+export interface StartPreview {
+  project: string;
+  activity: string;
+  projectColor: string;
+  activityColor: string;
+  customerColor: string;
+  description?: string;
+}
+
 export function useStartTask(
   client: KimaiClient | null,
   onTaskStarted?: (
@@ -29,6 +39,20 @@ export function useStartTask(
   const qc = useQueryClient();
   const [startingKey, setStartingKey] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<StartPreview | null>(null);
+  const previewShownRef = useRef(false);
+  // Timer that replaced a pending-start preview in place, so the popup can
+  // skip its entry animation.
+  const [handoffTimerId, setHandoffTimerId] = useState<number | null>(null);
+
+  // Publish the created entry right away so the active card does not wait for
+  // the follow-up refetch; the invalidation below still reconciles it.
+  const publishActive = (entry: KimaiTimesheetEntry) => {
+    if (client) qc.setQueryData(["active-timesheets", client.cacheScope], [entry]);
+    if (previewShownRef.current) setHandoffTimerId(entry.id);
+    previewShownRef.current = false;
+    setPendingPreview(null);
+  };
 
   const mutation = useMutation({
     mutationFn: (payload: StartTaskPayload) => switchTask(client!, payload),
@@ -37,12 +61,14 @@ export function useStartTask(
     },
     onSuccess: (entry, payload) => {
       setStartingKey(null);
+      publishActive(entry);
       const refresh = invalidateTimesheets(qc);
       onTaskStarted?.(entry, payload);
       return refresh;
     },
     onError: (err: Error, payload) => {
       setStartingKey(null);
+      setPendingPreview(null);
       const refresh = invalidateTimesheets(qc);
 
       if (err instanceof TaskMetadataError) {
@@ -51,6 +77,7 @@ export function useStartTask(
         );
         // Creation already succeeded. Publish the running timer so callers can
         // close the form and keep any other post-start associations intact.
+        publishActive(err.entry);
         onTaskStarted?.(err.entry, payload);
         return refresh;
       } else if (err instanceof TaskSwitchError && err.recoveryBlocked) {
@@ -73,17 +100,22 @@ export function useStartTask(
     async (
       payload: StartTaskPayload,
       trackingKey?: string,
+      preview?: StartPreview,
     ): Promise<KimaiTimesheetEntry | null> => {
       if (!client || mutation.isPending) return null;
       const release = acquireTimerOperation(qc, client.cacheScope);
       if (!release) return null;
       setStartingKey(trackingKey ?? null);
+      previewShownRef.current = !!preview;
+      setPendingPreview(preview ?? null);
       try {
         return await mutation.mutateAsync(payload);
       } catch {
         // The mutation callbacks already publish the user-facing error state.
         return null;
       } finally {
+        previewShownRef.current = false;
+        setPendingPreview(null);
         release();
       }
     },
@@ -98,5 +130,7 @@ export function useStartTask(
     switchError,
     dismissError,
     isStarting: mutation.isPending,
+    pendingPreview,
+    handoffTimerId,
   };
 }
