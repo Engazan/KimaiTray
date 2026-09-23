@@ -1,37 +1,87 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import AnimatedHeight from "./AnimatedHeight";
+
+let onResize = () => {};
+const disconnect = vi.fn();
+let contentHeight = 40;
+let outerHeight = 40;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  disconnect.mockClear();
+  contentHeight = 40;
+  outerHeight = 40;
+  vi.stubGlobal("ResizeObserver", class {
+    constructor(callback: () => void) { onResize = callback; }
+    observe() {}
+    disconnect = disconnect;
+  });
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(() => contentHeight);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    () => ({ height: outerHeight }) as DOMRect,
+  );
+});
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
+function renderWrapper() {
+  const result = render(<AnimatedHeight className="extra"><p>content</p></AnimatedHeight>);
+  const inner = screen.getByText("content").parentElement!;
+  return { ...result, outer: inner.parentElement!, inner };
+}
+
 describe("AnimatedHeight", () => {
-  it("follows the content height and stops observing on unmount", () => {
-    let onResize = () => {};
-    const disconnect = vi.fn();
-    vi.stubGlobal("ResizeObserver", class {
-      constructor(callback: () => void) { onResize = callback; }
-      observe() {}
-      disconnect = disconnect;
-    });
-    const height = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(40);
-
-    const { unmount } = render(<AnimatedHeight className="extra"><p>content</p></AnimatedHeight>);
-    const outer = screen.getByText("content").parentElement!.parentElement!;
-    expect(outer.style.height).toBe("40px");
+  it("keeps its natural height at rest and contains child margins", () => {
+    const { outer, inner } = renderWrapper();
+    expect(outer.style.height).toBe("");
+    expect(outer.style.overflow).toBe("");
     expect(outer.className).toContain("extra");
-    expect(screen.getByText("content").parentElement!.className).toContain("flow-root");
+    expect(inner.className).toContain("flow-root");
+  });
 
-    height.mockReturnValue(96);
+  it("animates between heights and returns to auto after the transition", () => {
+    const { outer } = renderWrapper();
+
+    contentHeight = 96;
     onResize();
     expect(outer.style.height).toBe("96px");
+    expect(outer.style.overflow).toBe("hidden");
+
+    fireEvent.transitionEnd(outer, { propertyName: "opacity" });
+    expect(outer.style.height).toBe("96px");
+    fireEvent.transitionEnd(outer, { propertyName: "height" });
+    expect(outer.style.height).toBe("");
+    expect(outer.style.overflow).toBe("");
+  });
+
+  it("continues from the current height when interrupted and settles by timeout", () => {
+    const { outer } = renderWrapper();
+
+    contentHeight = 96;
+    onResize();
+    outerHeight = 70;
+    contentHeight = 120;
+    onResize();
+    expect(outer.style.height).toBe("120px");
+
+    vi.advanceTimersByTime(400);
+    expect(outer.style.height).toBe("");
+  });
+
+  it("ignores resizes that do not change the height and cleans up on unmount", () => {
+    const { outer, unmount } = renderWrapper();
+    onResize();
+    expect(outer.style.height).toBe("");
 
     unmount();
     expect(disconnect).toHaveBeenCalledOnce();
-    height.mockRestore();
   });
 });
