@@ -428,6 +428,7 @@ describe("previously uncovered tray components", () => {
     expect(screen.getByText("common.loading")).toBeTruthy();
     rerender(<EmptyTimerState />);
     expect(screen.getByText("tray.startHint")).toBeTruthy();
+    expect(screen.getByText(/tray.keyboardHint/)).toBeTruthy();
     rerender(<EmptyTimerState variant="unconfigured" />);
     const button = screen.getByRole("button", { name: "tray.setupConnection" });
     fireEvent.mouseEnter(button);

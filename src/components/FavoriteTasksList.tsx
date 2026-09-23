@@ -32,7 +32,7 @@ export default function FavoriteTasksList({
           {t("favorites.title")}
         </span>
       </div>
-      <div className="px-1.5 pb-1">
+      <div role="list" aria-label={t("favorites.title")} className="px-1.5 pb-1">
         {tasks.map((task) => (
           <FavoriteTaskItem
             key={task.key}

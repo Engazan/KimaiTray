@@ -264,6 +264,75 @@ describe("TrayPopup", () => {
     expect(mocks.windowHide).toHaveBeenCalled();
   });
 
+  it("filters tasks by typing and starts the first match from the keyboard", async () => {
+    render(<TrayPopup />);
+    fireEvent.keyDown(document.body, { key: "z" });
+    const input = screen.getByRole("searchbox") as HTMLInputElement;
+    expect(input.value).toBe("z");
+    expect(screen.getByRole("status")).toBeTruthy();
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mocks.startTask).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: "proj" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mocks.startTask).toHaveBeenCalledWith(expect.objectContaining({ projectId: 10 }), "fav");
+    expect(screen.queryByRole("searchbox")).toBeNull();
+
+    fireEvent.keyDown(document.body, { key: "p" });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(mocks.windowHide).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document.body, { key: "p" });
+    fireEvent.blur(window);
+    expect(screen.queryByRole("searchbox")).toBeNull();
+  });
+
+  it("starts the first recent match when no favorite matches", () => {
+    mocks.favorite.favorites = [];
+    mocks.kimai.popupLayout = "focus";
+    render(<TrayPopup />);
+    fireEvent.keyDown(document.body, { key: "d" });
+    fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Enter" });
+    expect(mocks.startTask).toHaveBeenCalledWith(expect.objectContaining({ projectId: 10 }), task.key);
+  });
+
+  it("runs popup keyboard shortcuts for favorites, pause and new task", () => {
+    mocks.active.timer = timer;
+    render(<TrayPopup />);
+    fireEvent.keyDown(document.body, { key: "1", metaKey: true });
+    fireEvent.keyDown(document.body, { key: "9", metaKey: true });
+    expect(mocks.startTask).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document.body, { key: " " });
+    expect(mocks.pause.pauseTimer).toHaveBeenCalledOnce();
+    fireEvent.keyDown(document.body, { key: "n", ctrlKey: true });
+    expect(screen.getByTestId("new-form")).toBeTruthy();
+  });
+
+  it("ignores timer shortcuts while an operation is busy and typing in category mode", () => {
+    mocks.pause.isPausing = true;
+    mocks.kimai.featureFlags = { ...mocks.kimai.featureFlags, featureCategoryMode: true };
+    render(<TrayPopup />);
+    fireEvent.keyDown(document.body, { key: "1", metaKey: true });
+    fireEvent.keyDown(document.body, { key: " " });
+    fireEvent.keyDown(document.body, { key: "a" });
+    expect(mocks.startTask).not.toHaveBeenCalled();
+    expect(mocks.pause.pauseTimer).not.toHaveBeenCalled();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+  });
+
+  it("keeps the filter across blur in detached mode and ignores busy filter submits", () => {
+    mocks.kimai.displayMode = "detached";
+    mocks.pause.isPausing = true;
+    render(<TrayPopup />);
+    fireEvent.keyDown(document.body, { key: "p" });
+    fireEvent.blur(window);
+    const input = screen.getByRole("searchbox");
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mocks.startTask).not.toHaveBeenCalled();
+  });
+
   it("handles active, paused and detached timer controls and native shortcuts", async () => {
     const user = userEvent.setup();
     mocks.active.timer = timer;

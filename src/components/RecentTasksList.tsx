@@ -104,7 +104,7 @@ export default function RecentTasksList({
           </button>
         </div>
       )}
-      <div className="px-1.5 pb-1">
+      <div role="list" aria-label={t("tray.recentTasks")} className="px-1.5 pb-1">
         {tasks.map((task) => (
           <RecentTaskItem
             key={task.key}

@@ -169,6 +169,7 @@ export default function TodayEntryItem({
             <button
               type="button"
               onClick={() => onRestart(entry)}
+              data-nav-item
               title={t("contextMenu.startAgain")}
               aria-label={t("contextMenu.startAgain")}
               className="focus-ring -mr-1 rounded p-0.5 text-gray-400 dark:text-gray-500 opacity-0 transition-opacity hover:text-[var(--accent)] focus-visible:opacity-100 group-hover/row:opacity-100"

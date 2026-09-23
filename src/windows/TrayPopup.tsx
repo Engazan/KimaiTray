@@ -60,6 +60,9 @@ import { useIdleTimerWorkflow } from "../tray/useIdleTimerWorkflow";
 import { useTrayDeepLinks } from "../tray/useTrayDeepLinks";
 import { useTimerIssueLink } from "../tray/useTimerIssueLink";
 import { separator, showContextMenu, type ContextMenuEntry } from "../components/contextMenu";
+import QuickFilterBar from "../components/QuickFilterBar";
+import { focusNavItem, usePopupKeyboardNav } from "../tray/usePopupKeyboardNav";
+import { useQuickFilter } from "../tray/useQuickFilter";
 
 export default function TrayPopup() {
   const { t } = useTranslation();
@@ -231,6 +234,14 @@ export default function TrayPopup() {
   const timerActionsDisabled = timerMutationBusy || idleProcessing || deepLinkProcessing;
 
   useTrayPresentation({ timer, status, hasPausedTimers, pausedTimers, traySettings, shortcutSettings });
+  const pauseOrResume = useCallback(() => {
+    if (timer) { pauseTimer(); return; }
+    const mostRecent = pausedTimers.reduce<(typeof pausedTimers)[number] | null>(
+      (latest, paused) => !latest || paused.pausedAt > latest.pausedAt ? paused : latest,
+      null,
+    );
+    if (mostRecent) resumeTimer(mostRecent.id);
+  }, [timer, pauseTimer, pausedTimers, resumeTimer]);
   useTraySystemEvents({
     shortcutSettings,
     stopTimerOnScreensaver: idleSettings.stopTimerOnScreensaver,
@@ -238,14 +249,7 @@ export default function TrayPopup() {
     stopTimer: stopActiveTimer,
     refresh: () => { void invalidateTimesheets(qc); },
     newTask: openTaskFromShortcut,
-    pauseResume: () => {
-      if (timer) { pauseTimer(); return; }
-      const mostRecent = pausedTimers.reduce<(typeof pausedTimers)[number] | null>(
-        (latest, paused) => !latest || paused.pausedAt > latest.pausedAt ? paused : latest,
-        null,
-      );
-      if (mostRecent) resumeTimer(mostRecent.id);
-    },
+    pauseResume: pauseOrResume,
     continueLastTask: () => {
       const task = tasks[0];
       if (!task) return;
@@ -275,20 +279,6 @@ export default function TrayPopup() {
     setEditingEntry(null);
   }, [activeConnectionId]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (showNewTask) {
-          setShowNewTask(false);
-          setNewTaskShortcutRequest(0);
-        } else if (!isDetached) {
-          getCurrentWindow().hide();
-        }
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [showNewTask, isDetached]);
 
   const visibleFavorites = useMemo(
     () => (activeKey ? favorites.filter((f) => f.key !== activeKey) : favorites),
@@ -306,6 +296,34 @@ export default function TrayPopup() {
   );
 
   const hiddenCount = hiddenKeys.size;
+
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const quickFilter = useQuickFilter(visibleFavorites, visibleTasks, activeConnectionId);
+  const { active: filterActive, setQuery: setFilterQuery } = quickFilter;
+
+  useEffect(() => {
+    if (isDetached) return;
+    const clearFilter = () => setFilterQuery("");
+    window.addEventListener("blur", clearFilter);
+    return () => window.removeEventListener("blur", clearFilter);
+  }, [isDetached, setFilterQuery]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (filterActive && !showNewTask) {
+          setFilterQuery("");
+        } else if (showNewTask) {
+          setShowNewTask(false);
+          setNewTaskShortcutRequest(0);
+        } else if (!isDetached) {
+          getCurrentWindow().hide();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showNewTask, isDetached, filterActive, setFilterQuery]);
 
   const handleStartRecent = (task: RecentTask) => {
     startTask(
@@ -623,6 +641,34 @@ export default function TrayPopup() {
   };
   /* v8 ignore stop */
 
+  const filterAvailable = !featureFlags.featureCategoryMode;
+  const startFirstFilterResult = () => {
+    const [favorite] = quickFilter.favorites;
+    const [recent] = quickFilter.tasks;
+    if (timerActionsDisabled || (!favorite && !recent)) return;
+    if (favorite) handleStartFavorite(favorite);
+    else handleStartRecent(recent);
+    setFilterQuery("");
+  };
+  usePopupKeyboardNav({
+    enabled: !showNewTask && !editingEntry && !!client,
+    containerRef: navContainerRef,
+    onFilterStart: filterAvailable
+      ? (text) => {
+          if (popupLayout === "focus") setFocusTab("recent");
+          setFilterQuery(text);
+        }
+      : undefined,
+    onStartFavorite: (index) => {
+      const favorite = quickFilter.favorites[index];
+      if (favorite && !timerActionsDisabled) handleStartFavorite(favorite);
+    },
+    onPauseResume: () => {
+      if (!timerActionsDisabled) pauseOrResume();
+    },
+    onNewTask: openBlankNewTask,
+  });
+
   const handleTogglePin = useCallback(() => {
     const next = !pinned;
     setPinned(next);
@@ -695,7 +741,7 @@ export default function TrayPopup() {
         />
       ) : (
         <>
-          <div className="flex flex-1 min-h-0 flex-col">
+          <div ref={navContainerRef} className="flex flex-1 min-h-0 flex-col">
             {/* Active timer / connection state. In the focus layout this is a
                 fixed-height band, so only render it when it has real content —
                 otherwise the paused list would sit under an empty reserved
@@ -798,6 +844,16 @@ export default function TrayPopup() {
 
             <div className="mx-3 mt-2 border-t border-gray-100 dark:border-gray-800" />
 
+            {filterActive && filterAvailable && (
+              <QuickFilterBar
+                query={quickFilter.query}
+                onChange={setFilterQuery}
+                onFocusResults={() => { focusNavItem(navContainerRef.current, "first"); }}
+                onSubmit={startFirstFilterResult}
+                isEmpty={quickFilter.isEmpty}
+              />
+            )}
+
             {/* Scrollable content — layout-dependent */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             {featureFlags.featureCategoryMode && client ? (
@@ -840,7 +896,7 @@ export default function TrayPopup() {
                   onChange={setFocusTab}
                 />
                 <FavoriteTasksList
-                  tasks={visibleFavorites}
+                  tasks={quickFilter.favorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
@@ -850,7 +906,7 @@ export default function TrayPopup() {
                 />
                 {focusTab === "recent" ? (
                   <RecentTasksList
-                    tasks={visibleTasks}
+                    tasks={quickFilter.tasks}
                     onStart={handleStartRecent}
                     onStartWithChanges={handleStartWithChanges}
                     onEditLastEntry={handleEditRecentEntry}
@@ -914,7 +970,7 @@ export default function TrayPopup() {
                   </>
                 )}
                 <FavoriteTasksList
-                  tasks={visibleFavorites}
+                  tasks={quickFilter.favorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
@@ -930,7 +986,7 @@ export default function TrayPopup() {
                   onContextMenu={recentHeaderContextMenu}
                 >
                     <RecentTasksList
-                      tasks={visibleTasks}
+                      tasks={quickFilter.tasks}
                       onStart={handleStartRecent}
                       onStartWithChanges={handleStartWithChanges}
                       onEditLastEntry={handleEditRecentEntry}
@@ -953,7 +1009,7 @@ export default function TrayPopup() {
             ) : popupLayout === "taskbar" ? (
               <>
                 <FavoriteTasksList
-                  tasks={visibleFavorites}
+                  tasks={quickFilter.favorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
@@ -962,7 +1018,7 @@ export default function TrayPopup() {
                   colorMode={colorMode}
                 />
                 <RecentTasksList
-                  tasks={visibleTasks}
+                  tasks={quickFilter.tasks}
                   onStart={handleStartRecent}
                   onStartWithChanges={handleStartWithChanges}
                   onEditLastEntry={handleEditRecentEntry}
@@ -1022,7 +1078,7 @@ export default function TrayPopup() {
               /* Classic layout */
               <>
                 <FavoriteTasksList
-                  tasks={visibleFavorites}
+                  tasks={quickFilter.favorites}
                   onStart={handleStartFavorite}
                   onRemove={handleRemoveFavorite}
                   onStartWithChanges={handleStartWithChanges}
@@ -1031,7 +1087,7 @@ export default function TrayPopup() {
                   colorMode={colorMode}
                 />
                 <RecentTasksList
-                  tasks={visibleTasks}
+                  tasks={quickFilter.tasks}
                   onStart={handleStartRecent}
                   onStartWithChanges={handleStartWithChanges}
                   onEditLastEntry={handleEditRecentEntry}

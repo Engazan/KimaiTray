@@ -45,6 +45,7 @@ export default function FavoriteTaskItem({
 
   return (
     <div
+      role="listitem"
       onContextMenu={openItemContextMenu}
       className="group flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5
         text-left transition-colors
@@ -55,6 +56,13 @@ export default function FavoriteTaskItem({
         type="button"
         onClick={() => onStart(task)}
         disabled={disabled}
+        data-nav-item
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && event.shiftKey && onStartWithChanges && !disabled) {
+            event.preventDefault();
+            onStartWithChanges(task);
+          }
+        }}
         className="flex items-center gap-2.5 flex-1 min-w-0
           focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] rounded
           disabled:opacity-50 disabled:cursor-not-allowed"

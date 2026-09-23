@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { MouseEventHandler } from "react";
 import { Window } from "@tauri-apps/api/window";
 import { showContextMenu, type ContextMenuEntry } from "./contextMenu";
+import { usePlatform } from "../platform";
 
 interface EmptyTimerStateProps {
   variant?: "empty" | "loading" | "unconfigured";
@@ -24,6 +25,7 @@ export default function EmptyTimerState({
   onNewTask,
 }: EmptyTimerStateProps) {
   const { t } = useTranslation();
+  const platform = usePlatform();
   /* v8 ignore start -- callbacks execute from a native OS context menu */
   const contextEntries: ContextMenuEntry[] = variant === "unconfigured"
     ? [{ text: t("tray.setupConnection"), action: () => { void openConnectionSettings(); } }]
@@ -137,6 +139,9 @@ export default function EmptyTimerState({
         </span>
         <span className="text-[10px] text-gray-500 dark:text-gray-400">
           {t("tray.startHint")}
+        </span>
+        <span className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">
+          {t("tray.keyboardHint", { mod: platform.os === "macos" ? "⌘" : "Ctrl+" })}
         </span>
       </div>
     </div>
