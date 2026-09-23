@@ -27,7 +27,7 @@ export default function FavoriteTasksList({
 
   return (
     <div className="mt-1.5">
-      <div className="px-3 py-1.5">
+      <div data-flip-key="favorites-header" className="px-3 py-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
           {t("favorites.title")}
         </span>
@@ -46,7 +46,7 @@ export default function FavoriteTasksList({
           />
         ))}
       </div>
-      <div className="mx-3 mt-1 border-t border-gray-100 dark:border-gray-800" />
+      <div data-flip-key="favorites-divider" className="mx-3 mt-1 border-t border-gray-100 dark:border-gray-800" />
     </div>
   );
 }

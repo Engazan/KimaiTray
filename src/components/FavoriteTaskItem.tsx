@@ -46,6 +46,7 @@ export default function FavoriteTaskItem({
   return (
     <div
       role="listitem"
+      data-flip-key={`favorite-${task.key}`}
       onContextMenu={openItemContextMenu}
       className="group flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5
         text-left transition-colors

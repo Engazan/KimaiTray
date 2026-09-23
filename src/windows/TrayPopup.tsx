@@ -7,6 +7,8 @@ import HeaderStatus from "../components/HeaderStatus";
 import IssueTimeSyncFeedback from "../components/IssueTimeSyncFeedback";
 import ActiveTimerCard from "../components/ActiveTimerCard";
 import PendingTimerCard from "../components/PendingTimerCard";
+import AnimatedHeight from "../components/AnimatedHeight";
+import { useFlipAnimation } from "../hooks/useFlipAnimation";
 import PausedTimerCard from "../components/PausedTimerCard";
 import EmptyTimerState from "../components/EmptyTimerState";
 import RecentTasksList from "../components/RecentTasksList";
@@ -301,6 +303,8 @@ export default function TrayPopup() {
   const hiddenCount = hiddenKeys.size;
 
   const navContainerRef = useRef<HTMLDivElement>(null);
+  const flipContainerRef = useRef<HTMLDivElement>(null);
+  useFlipAnimation(flipContainerRef);
   const quickFilter = useQuickFilter(visibleFavorites, visibleTasks, activeConnectionId);
   const { active: filterActive, setQuery: setFilterQuery } = quickFilter;
 
@@ -747,99 +751,103 @@ export default function TrayPopup() {
       ) : (
         <>
           <div ref={navContainerRef} className="flex flex-1 min-h-0 flex-col">
-            {/* Active timer / connection state. In the focus layout this is a
-                fixed-height band, so only render it when it has real content —
-                otherwise the paused list would sit under an empty reserved
-                strip. */}
-            {(status === "loading" ||
-              status === "unconfigured" ||
-              timer ||
-              pendingPreview ||
-              !hasPausedTimers) && (
-              <div className="timer-area min-h-0 shrink-0">
-                {status === "loading" ? (
-                  <EmptyTimerState variant="loading" compact={compactTimer} onNewTask={openBlankNewTask} />
-                ) : status === "unconfigured" ? (
-                  <EmptyTimerState variant="unconfigured" compact={compactTimer} onNewTask={openBlankNewTask} />
-                ) : pendingPreview ? (
-                  <PendingTimerCard
-                    preview={pendingPreview}
-                    compact={compactTimer}
-                    focusMode={popupLayout === "focus"}
-                    colorMode={colorMode}
-                  />
-                ) : timer ? (
-                  <ActiveTimerCard
-                    timer={timer}
-                    onStop={stopActiveTimer}
-                    onPause={pauseTimer}
-                    isStopping={isStoppingActive}
-                    isPausing={isPausing}
-                    actionsDisabled={timerActionsDisabled}
-                    multipleActive={multipleActive}
-                    onEdit={editTimer}
-                    isSaving={isSaving}
-                    saveError={saveError}
-                    compact={compactTimer}
-                    focusMode={popupLayout === "focus"}
-                    showNote={featureFlags.featureNote || editNoteRequest > 0}
-                    showTags={featureFlags.featureTags}
-                    pluginCustomInputs={pluginCustomInputs}
-                    tagSuggestions={tagSuggestions}
-                    issueUrl={timerIssueUrl}
-                    timeEstimate={showIssueEstimate ? linkedIssue!.timeEstimate : undefined}
-                    timeSpent={showIssueEstimate ? linkedIssue!.timeSpent : undefined}
-                    colorMode={colorMode}
-                    editDescriptionRequest={editNoteRequest}
-                    onEditDescriptionRequestHandled={() =>
-                      setEditNoteRequest(0)
-                    }
-                    animateIn={timer.id !== handoffTimerId}
-                  />
-                ) : (
-                  <EmptyTimerState compact={compactTimer} onNewTask={openBlankNewTask} />
-                )}
-              </div>
-            )}
-            {/* Paused timers live in their own scroll area so they are not
-                clipped by the focus layout's fixed-height timer band. */}
-            {pausedTimers.length > 0 && (
-              <div
-                ref={pausedListRef}
-                data-scroll-fade={pausedListScrolls ? "true" : undefined}
-                className="min-h-0 shrink-0 overflow-y-auto overscroll-contain"
-                style={{
-                  maxHeight: `${pausedListMaxHeight}px`,
-                  ...(pausedListScrolls
-                    ? {
-                        WebkitMaskImage:
-                          "linear-gradient(to bottom, #000 calc(100% - 12px), transparent)",
-                        maskImage:
-                          "linear-gradient(to bottom, #000 calc(100% - 12px), transparent)",
+            <AnimatedHeight className="shrink-0">
+              {/* Active timer / connection state. In the focus layout this is a
+                  fixed-height band, so only render it when it has real content —
+                  otherwise the paused list would sit under an empty reserved
+                  strip. */}
+              {(status === "loading" ||
+                status === "unconfigured" ||
+                timer ||
+                pendingPreview ||
+                !hasPausedTimers) && (
+                <div className="timer-area min-h-0 shrink-0">
+                  {status === "loading" ? (
+                    <EmptyTimerState variant="loading" compact={compactTimer} onNewTask={openBlankNewTask} />
+                  ) : status === "unconfigured" ? (
+                    <EmptyTimerState variant="unconfigured" compact={compactTimer} onNewTask={openBlankNewTask} />
+                  ) : pendingPreview ? (
+                    <PendingTimerCard
+                      preview={pendingPreview}
+                      compact={compactTimer}
+                      focusMode={popupLayout === "focus"}
+                      colorMode={colorMode}
+                      showNote={featureFlags.featureNote}
+                      showTags={featureFlags.featureTags}
+                    />
+                  ) : timer ? (
+                    <ActiveTimerCard
+                      timer={timer}
+                      onStop={stopActiveTimer}
+                      onPause={pauseTimer}
+                      isStopping={isStoppingActive}
+                      isPausing={isPausing}
+                      actionsDisabled={timerActionsDisabled}
+                      multipleActive={multipleActive}
+                      onEdit={editTimer}
+                      isSaving={isSaving}
+                      saveError={saveError}
+                      compact={compactTimer}
+                      focusMode={popupLayout === "focus"}
+                      showNote={featureFlags.featureNote || editNoteRequest > 0}
+                      showTags={featureFlags.featureTags}
+                      pluginCustomInputs={pluginCustomInputs}
+                      tagSuggestions={tagSuggestions}
+                      issueUrl={timerIssueUrl}
+                      timeEstimate={showIssueEstimate ? linkedIssue!.timeEstimate : undefined}
+                      timeSpent={showIssueEstimate ? linkedIssue!.timeSpent : undefined}
+                      colorMode={colorMode}
+                      editDescriptionRequest={editNoteRequest}
+                      onEditDescriptionRequestHandled={() =>
+                        setEditNoteRequest(0)
                       }
-                    : {}),
-                }}
-              >
-                {pausedTimers.map((pt) => (
-                  <PausedTimerCard
-                    key={pt.id}
-                    paused={pt}
-                    onResume={() => resumeTimer(pt.id)}
-                    onStop={() => discardPausedTimer(pt.id)}
-                    actionsDisabled={timerActionsDisabled}
-                    isResuming={resumingId === pt.id}
-                    isStopping={discardingId === pt.id}
-                    error={pauseError}
-                    onDismissError={dismissPauseError}
-                    compact={pausedCardsCompact}
-                    colorMode={colorMode}
-                    showDescriptionOnHover={
-                      featureFlags.featurePausedTimerDescriptionHover
-                    }
-                  />
-                ))}
-              </div>
-            )}
+                      animateIn={timer.id !== handoffTimerId}
+                    />
+                  ) : (
+                    <EmptyTimerState compact={compactTimer} onNewTask={openBlankNewTask} />
+                  )}
+                </div>
+              )}
+              {/* Paused timers live in their own scroll area so they are not
+                  clipped by the focus layout's fixed-height timer band. */}
+              {pausedTimers.length > 0 && (
+                <div
+                  ref={pausedListRef}
+                  data-scroll-fade={pausedListScrolls ? "true" : undefined}
+                  className="min-h-0 shrink-0 overflow-y-auto overscroll-contain"
+                  style={{
+                    maxHeight: `${pausedListMaxHeight}px`,
+                    ...(pausedListScrolls
+                      ? {
+                          WebkitMaskImage:
+                            "linear-gradient(to bottom, #000 calc(100% - 12px), transparent)",
+                          maskImage:
+                            "linear-gradient(to bottom, #000 calc(100% - 12px), transparent)",
+                        }
+                      : {}),
+                  }}
+                >
+                  {pausedTimers.map((pt) => (
+                    <PausedTimerCard
+                      key={pt.id}
+                      paused={pt}
+                      onResume={() => resumeTimer(pt.id)}
+                      onStop={() => discardPausedTimer(pt.id)}
+                      actionsDisabled={timerActionsDisabled}
+                      isResuming={resumingId === pt.id}
+                      isStopping={discardingId === pt.id}
+                      error={pauseError}
+                      onDismissError={dismissPauseError}
+                      compact={pausedCardsCompact}
+                      colorMode={colorMode}
+                      showDescriptionOnHover={
+                        featureFlags.featurePausedTimerDescriptionHover
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </AnimatedHeight>
 
             {(deepLinkError || switchError || pauseError || timesheetDeleteError) && (
               <ErrorBanner
@@ -869,7 +877,7 @@ export default function TrayPopup() {
             )}
 
             {/* Scrollable content — layout-dependent */}
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+            <div ref={flipContainerRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             {featureFlags.featureCategoryMode && client ? (
               <>
                 <CategoryModePanel
@@ -980,7 +988,7 @@ export default function TrayPopup() {
                       dailyGoal={dailyGoal}
                       {...todayContextProps}
                     />
-                    <div className="mx-3 border-t border-gray-100 dark:border-gray-800" />
+                    <div data-flip-key="today-divider" className="mx-3 border-t border-gray-100 dark:border-gray-800" />
                   </>
                 )}
                 <FavoriteTasksList
@@ -1051,7 +1059,7 @@ export default function TrayPopup() {
                 />
                 {status !== "unconfigured" && (
                   <>
-                    <div className="mx-3 border-t border-gray-100 dark:border-gray-800" />
+                    <div data-flip-key="today-divider" className="mx-3 border-t border-gray-100 dark:border-gray-800" />
                     {/* Collapsible today section */}
                     <CollapsibleTraySection
                       title={t("today.title")}
@@ -1120,7 +1128,7 @@ export default function TrayPopup() {
                 />
                 {status !== "unconfigured" && (
                   <>
-                    <div className="mx-3 border-t border-gray-100 dark:border-gray-800" />
+                    <div data-flip-key="today-divider" className="mx-3 border-t border-gray-100 dark:border-gray-800" />
                     <TodaySection
                       entries={today.entries}
                       totalCount={today.totalCount}

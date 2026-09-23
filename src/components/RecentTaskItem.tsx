@@ -75,6 +75,7 @@ export default function RecentTaskItem({
   return (
     <div
       role="listitem"
+      data-flip-key={`recent-${task.key}`}
       className="relative"
       onContextMenu={openItemContextMenu}
     >

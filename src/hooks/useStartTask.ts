@@ -26,6 +26,7 @@ export interface StartPreview {
   activityColor: string;
   customerColor: string;
   description?: string;
+  tags?: string[];
 }
 
 export function useStartTask(

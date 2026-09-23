@@ -89,6 +89,7 @@ export default function TodayEntryItem({
   return (
     <div
       onContextMenu={openItemContextMenu}
+      data-flip-key={`today-${entry.id}`}
       className="group/row px-2.5 py-1.5 rounded-md transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.03] focus-within:bg-gray-50 dark:focus-within:bg-white/[0.03]"
     >
       <div className="grid grid-cols-[max-content_auto_minmax(0,1fr)_auto] items-center gap-x-2">

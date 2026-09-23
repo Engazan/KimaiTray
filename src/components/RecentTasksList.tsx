@@ -80,7 +80,7 @@ export default function RecentTasksList({
   return (
     <div className={showHeader ? "mt-1.5" : ""}>
       {showHeader && (
-        <div className="px-3 py-1.5 flex items-center justify-between" onContextMenu={onHeaderContextMenu}>
+        <div data-flip-key="recent-header" className="px-3 py-1.5 flex items-center justify-between" onContextMenu={onHeaderContextMenu}>
           <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             {t("tray.recentTasks")}
           </span>
@@ -95,7 +95,7 @@ export default function RecentTasksList({
         </div>
       )}
       {!showHeader && hiddenCount > 0 && onShowAll && (
-        <div className="px-3 pb-1 flex justify-end">
+        <div data-flip-key="recent-hidden" className="px-3 pb-1 flex justify-end">
           <button
             onClick={onShowAll}
             className="text-[9px] text-gray-400 dark:text-gray-500 hover:text-[var(--accent)] transition-colors"

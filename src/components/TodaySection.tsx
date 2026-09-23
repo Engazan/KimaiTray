@@ -57,6 +57,7 @@ function GapRow({ gap, onFill }: { gap: TodayGap; onFill: (beginIso: string) => 
     <button
       type="button"
       onClick={() => onFill(gap.beginIso)}
+      data-flip-key={`gap-${gap.beforeEntryId}`}
       title={t("today.fillGap", { time: formatTime(gap.beginIso) })}
       className="focus-ring group flex w-full items-center gap-2 rounded-md px-2.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400 hover:bg-[var(--accent-light)] hover:text-[var(--accent)] transition-colors"
     >
@@ -102,7 +103,7 @@ export default function TodaySection({
   return (
     <div className="mt-1.5">
       {/* Header */}
-      <div className="px-3 py-1.5 flex items-center justify-between" onContextMenu={onHeaderContextMenu}>
+      <div data-flip-key="today-header" className="px-3 py-1.5 flex items-center justify-between" onContextMenu={onHeaderContextMenu}>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
             {t("today.title")}
@@ -136,16 +137,20 @@ export default function TodaySection({
       </div>
 
       {timelineEntries && !isLoading && !isError && (
-        <TodayTimelineBar entries={timelineEntries} colorMode={colorMode} />
+        <div data-flip-key="today-timeline">
+          <TodayTimelineBar entries={timelineEntries} colorMode={colorMode} />
+        </div>
       )}
 
       {dailyGoal && !isLoading && !isError && (
-        <DailyGoalProgress
-          totalDuration={totalDuration}
-          requiredMinutes={dailyGoal.requiredMinutes}
-          fullMinutes={dailyGoal.fullMinutes}
-          isTimerRunning={dailyGoal.isTimerRunning}
-        />
+        <div data-flip-key="today-goal">
+          <DailyGoalProgress
+            totalDuration={totalDuration}
+            requiredMinutes={dailyGoal.requiredMinutes}
+            fullMinutes={dailyGoal.fullMinutes}
+            isTimerRunning={dailyGoal.isTimerRunning}
+          />
+        </div>
       )}
 
       {/* Content */}
@@ -201,6 +206,7 @@ export default function TodaySection({
               <button
                 type="button"
                 onClick={onToggleExpand}
+                data-flip-key="today-more"
                 className="w-full py-1.5 text-[11px] text-[var(--accent)] hover:underline focus-ring rounded transition-colors"
               >
                 {t("today.showAll", { count: totalCount })}
@@ -210,6 +216,7 @@ export default function TodaySection({
               <button
                 type="button"
                 onClick={onToggleExpand}
+                data-flip-key="today-less"
                 className="w-full py-1.5 text-[11px] text-gray-500 dark:text-gray-400 hover:underline focus-ring rounded transition-colors"
               >
                 {t("today.showLess")}

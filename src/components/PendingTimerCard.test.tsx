@@ -36,4 +36,17 @@ describe("PendingTimerCard", () => {
     render(<PendingTimerCard preview={{ ...preview, description: undefined }} />);
     expect(screen.getByRole("status").querySelector(".text-lg")).toBeTruthy();
   });
+
+  it("reserves note and tag rows like the active card", () => {
+    const { rerender } = render(
+      <PendingTimerCard preview={{ ...preview, description: "" }} showNote showTags />,
+    );
+    const card = () => screen.getByRole("status");
+    expect(card().textContent).toContain("timer.addNote");
+    expect(card().textContent).toContain("tags.addTags");
+
+    rerender(<PendingTimerCard preview={{ ...preview, tags: ["urgent"] }} showNote showTags />);
+    expect(card().textContent).toContain("urgent");
+    expect(card().textContent).not.toContain("tags.addTags");
+  });
 });

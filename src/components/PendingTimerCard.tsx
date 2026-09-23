@@ -2,12 +2,16 @@ import { useTranslation } from "react-i18next";
 import type { ColorMode } from "../types";
 import type { StartPreview } from "../hooks/useStartTask";
 import ColorDots from "./ColorDots";
+import TagsList from "./TagsList";
 
 interface PendingTimerCardProps {
   preview: StartPreview;
   compact?: boolean;
   focusMode?: boolean;
   colorMode?: ColorMode;
+  /** Reserve the same optional rows as the active card so the swap keeps its height. */
+  showNote?: boolean;
+  showTags?: boolean;
 }
 
 function Spinner() {
@@ -25,6 +29,8 @@ export default function PendingTimerCard({
   compact,
   focusMode,
   colorMode = "kimai",
+  showNote,
+  showTags,
 }: PendingTimerCardProps) {
   const { t } = useTranslation();
   const dots = (
@@ -76,10 +82,29 @@ export default function PendingTimerCard({
             {preview.activity}
           </span>
         </div>
-        {preview.description && (
-          <p className="pl-4 mb-1.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">
-            {preview.description}
+        {(showNote || preview.description) && (
+          <p
+            className={`pl-4 mb-1.5 text-[11px] truncate ${
+              preview.description
+                ? "text-gray-500 dark:text-gray-400"
+                : "italic text-gray-400 dark:text-gray-500"
+            }`}
+          >
+            {preview.description || t("timer.addNote")}
           </p>
+        )}
+        {showTags && (
+          <div className="pl-4 mb-1.5">
+            {preview.tags?.length ? (
+              <div className="py-0.5">
+                <TagsList tags={preview.tags} maxVisible={3} />
+              </div>
+            ) : (
+              <span className="block text-[10px] italic text-gray-400 dark:text-gray-500">
+                {t("tags.addTags")}
+              </span>
+            )}
+          </div>
         )}
         <div className="flex items-center justify-between pl-4">
           <span
