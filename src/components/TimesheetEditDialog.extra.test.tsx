@@ -82,6 +82,7 @@ describe("TimesheetEditDialog extra behavior", () => {
     fireEvent.change(screen.getByLabelText("End time"), { target: { value: "2026-07-22T11:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByRole("button", { name: "Saving…" });
+    expect((screen.getByLabelText("Description") as HTMLTextAreaElement).disabled).toBe(true);
     fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.click(screen.getByRole("button", { name: "Saving…" }));
     expect(onClose).not.toHaveBeenCalled();
@@ -96,7 +97,7 @@ describe("TimesheetEditDialog extra behavior", () => {
     outside.focus();
     const { onClose, unmount } = setup();
     const focusable = Array.from(screen.getByRole("dialog").querySelectorAll<HTMLElement>(
-      "button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex='-1'])",
+      "button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])",
     ));
     focusable[focusable.length - 1].focus();
     fireEvent.keyDown(document, { key: "Tab" });
@@ -109,7 +110,7 @@ describe("TimesheetEditDialog extra behavior", () => {
     document.dispatchEvent(prevented);
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(document, { key: "x" });
-    screen.getByRole("dialog").querySelectorAll("button, input").forEach((control) => control.setAttribute("disabled", ""));
+    screen.getByRole("dialog").querySelectorAll("button, input, textarea").forEach((control) => control.setAttribute("disabled", ""));
     fireEvent.keyDown(document, { key: "Tab" });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
@@ -125,13 +126,15 @@ describe("TimesheetEditDialog extra behavior", () => {
     fireEvent.change(screen.getByLabelText("End time"), { target: { value: "2026-07-22T11:00" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("failure")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Draft" } });
     rerender(
       <I18nextProvider i18n={i18n}>
-        <TimesheetEditDialog entry={{ ...entry, id: 43, beginIso: "2026-07-23T08:00:00", endIso: "2026-07-23T09:00:00" }} onSave={vi.fn()} onClose={vi.fn()} />
+        <TimesheetEditDialog entry={{ ...entry, id: 43, description: "Next entry", beginIso: "2026-07-23T08:00:00", endIso: "2026-07-23T09:00:00" }} onSave={vi.fn()} onClose={vi.fn()} />
       </I18nextProvider>,
     );
     expect((screen.getByLabelText("Start time") as HTMLInputElement).value).toContain("2026-07-23T08:00");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByText("1h 00m")).toBeTruthy();
+    expect((screen.getByLabelText("Description") as HTMLTextAreaElement).value).toBe("Next entry");
   });
 });

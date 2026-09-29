@@ -83,6 +83,16 @@ describe("useEditTimesheet", () => {
     expect(invalidate).toHaveBeenCalledOnce();
   });
 
+  it("patches and refreshes a stopped entry's description, including clearing it", async () => {
+    const patch = vi.fn().mockResolvedValue(response());
+    const { result, invalidate } = setup(patch);
+    await act(async () => { await result.current.editTimesheet(42, { description: "Finished task" }); });
+    expect(patch).toHaveBeenLastCalledWith("/api/timesheets/42", { description: "Finished task" });
+    await act(async () => { await result.current.editTimesheet(42, { description: "" }); });
+    expect(patch).toHaveBeenLastCalledWith("/api/timesheets/42", { description: "" });
+    expect(invalidate).toHaveBeenCalledTimes(2);
+  });
+
   it("updates changed custom fields, including clearing a value", async () => {
     const patch = vi.fn().mockResolvedValue(response());
     const { result } = setup(patch);

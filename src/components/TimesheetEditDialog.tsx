@@ -60,12 +60,14 @@ export default function TimesheetEditDialog({
   const titleId = useId();
   const beginId = useId();
   const endId = useId();
+  const descriptionId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const isSavingRef = useRef(false);
   const initial = useMemo(() => initialTimesheetTimeDraft(entry), [entry]);
   const [begin, setBegin] = useState(initial.begin);
   const [end, setEnd] = useState(initial.end);
+  const [description, setDescription] = useState(entry.description);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const initialMetadata = useMemo(
@@ -81,10 +83,11 @@ export default function TimesheetEditDialog({
   useEffect(() => {
     setBegin(initial.begin);
     setEnd(initial.end);
+    setDescription(entry.description);
     setError(null);
     setIsSaving(false);
     setMetadata(initialMetadata);
-  }, [entry.id, initial.begin, initial.end, initialMetadata]);
+  }, [entry.id, entry.description, initial.begin, initial.end, initialMetadata]);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -99,7 +102,7 @@ export default function TimesheetEditDialog({
       if (event.key !== "Tab") return;
       const focusable = Array.from(
         dialogRef.current?.querySelectorAll<HTMLElement>(
-          "button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex='-1'])",
+          "button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])",
         ) ?? [],
       );
       if (focusable.length === 0) return;
@@ -133,6 +136,7 @@ export default function TimesheetEditDialog({
   const changed =
     begin !== initial.begin ||
     end !== initial.end ||
+    description !== entry.description ||
     Object.keys(changedMetadata).length > 0;
   const beginDate = new Date(begin);
   const endDate = new Date(end);
@@ -164,6 +168,7 @@ export default function TimesheetEditDialog({
     try {
       await onSave(entry.id, {
         ...result.payload,
+        ...(description !== entry.description ? { description } : {}),
         ...(Object.keys(changedMetadata).length > 0
           ? { metadata: changedMetadata }
           : {}),
@@ -183,9 +188,9 @@ export default function TimesheetEditDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-[330px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-[#202020]"
+        className="flex max-h-full w-full max-w-[330px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-[#202020]"
       >
-        <header className="flex items-start gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+        <header className="flex shrink-0 items-start gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <div className="min-w-0 flex-1">
             <h2
               id={titleId}
@@ -210,7 +215,7 @@ export default function TimesheetEditDialog({
           </button>
         </header>
 
-        <div className="space-y-3 px-4 py-3">
+        <div className="min-h-0 space-y-3 overflow-y-auto px-4 py-3">
           <div>
             <label
               htmlFor={beginId}
@@ -287,6 +292,27 @@ export default function TimesheetEditDialog({
             </span>
           </div>
 
+          <div>
+            <label
+              htmlFor={descriptionId}
+              className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500"
+            >
+              {t("newTask.description")}
+            </label>
+            <textarea
+              id={descriptionId}
+              value={description}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                setError(null);
+              }}
+              disabled={isSaving}
+              placeholder={t("newTask.optionalNote")}
+              rows={3}
+              className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-[12px] leading-snug text-gray-700 focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] dark:border-white/20 dark:bg-white/[0.08] dark:text-gray-300"
+            />
+          </div>
+
           <p className="text-[10px] leading-4 text-gray-400 dark:text-gray-500">
             {t("today.editRestrictionsHint")}
           </p>
@@ -301,7 +327,7 @@ export default function TimesheetEditDialog({
           )}
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+        <footer className="flex shrink-0 justify-end gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
           <button
             ref={cancelRef}
             type="button"

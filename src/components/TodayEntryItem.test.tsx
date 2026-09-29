@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import i18n, { initPromise } from "../shared/i18n";
 import type { TodayEntry } from "../types";
 import TodayEntryItem from "./TodayEntryItem";
+
+const mocks = vi.hoisted(() => ({ showContextMenu: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./contextMenu", () => ({
+  showContextMenu: mocks.showContextMenu,
+  separator: () => ({ kind: "separator" }),
+}));
 
 beforeAll(async () => {
   await initPromise;
@@ -58,6 +64,16 @@ describe("TodayEntryItem editing", () => {
     await userEvent.click(timeButton);
 
     expect(onEdit).toHaveBeenCalledWith(entry);
+  });
+
+  it("opens the completed-entry editor from the right-click menu", () => {
+    const onEdit = renderEntry({ ...entry, description: "Completed task note" });
+    fireEvent.contextMenu(screen.getByText("Forest"));
+    const menu = mocks.showContextMenu.mock.lastCall![1];
+    const edit = menu.find((item: { text?: string }) => item.text === "Edit time entry");
+    expect(edit).toBeTruthy();
+    edit.action();
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 42, description: "Completed task note" }));
   });
 
   it("does not offer the completed-entry editor for a running timer", () => {

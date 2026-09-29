@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { KimaiApiError } from "../api/kimaiClient";
 import i18n, { initPromise } from "../shared/i18n";
+import type { EditTimesheetPayload } from "../hooks/useEditTimesheet";
 import type { TodayEntry } from "../types";
 import TimesheetEditDialog from "./TimesheetEditDialog";
 
@@ -36,7 +37,7 @@ const entry: TodayEntry = {
 };
 
 function renderDialog(
-  onSave: (id: number, payload: { begin?: string; end?: string }) => Promise<unknown>,
+  onSave: (id: number, payload: EditTimesheetPayload) => Promise<unknown>,
 ) {
   const onClose = vi.fn();
   render(
@@ -72,6 +73,51 @@ describe("TimesheetEditDialog", () => {
       }),
     );
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("saves a description without changing times", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { onClose } = renderDialog(onSave);
+    expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Finished the report\nReviewed results" } });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(42, {
+      description: "Finished the report\nReviewed results",
+    }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("loads and clears the existing description", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<I18nextProvider i18n={i18n}>
+      <TimesheetEditDialog entry={{ ...entry, description: "Original note" }} onSave={onSave} onClose={vi.fn()} />
+    </I18nextProvider>);
+    const input = screen.getByLabelText("Description");
+    expect((input as HTMLTextAreaElement).value).toBe("Original note");
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(42, { description: "" }));
+  });
+
+  it("saves description and time changes together", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderDialog(onSave);
+    await changeEndHour("11");
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Updated note" } });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(42, {
+      end: "2026-07-22T11:00:00", description: "Updated note",
+    }));
+  });
+
+  it("retains a description draft after a permission failure", async () => {
+    const onSave = vi.fn().mockRejectedValue(new KimaiApiError(403, "Forbidden", null, "forbidden"));
+    const { onClose } = renderDialog(onSave);
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Keep my note" } });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect((screen.getByLabelText("Description") as HTMLTextAreaElement).value).toBe("Keep my note");
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("stays open and explains a Kimai permission failure", async () => {
