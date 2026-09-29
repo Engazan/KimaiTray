@@ -122,7 +122,9 @@ export default function CategoryModePanel({
   const projectsQ = useQuery({
     queryKey: ["projects", client.cacheScope],
     queryFn: () => getProjects(client),
-    enabled: view === "project",
+    enabled: view === "project" || config.categories.some((category) =>
+      category.children.some((leaf) => leaf.requiresProject && leaf.autoSelectProject && leaf.autoProjectId != null),
+    ),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -180,6 +182,13 @@ export default function CategoryModePanel({
 
   const handleLeafClick = (leaf: CategoryLeaf) => {
     if (leaf.requiresProject) {
+      const autoProject = leaf.autoSelectProject && leaf.autoProjectId != null
+        ? projectsQ.data?.find((project) => project.id === leaf.autoProjectId && project.visible !== false)
+        : undefined;
+      if (autoProject && mapping.resolve(leaf.activityName, autoProject.id) != null) {
+        void startLeaf(leaf, autoProject.id);
+        return;
+      }
       setPendingLeaf(leaf);
       setProjectFilter("");
       setView("project");
@@ -297,7 +306,10 @@ export default function CategoryModePanel({
                   label={leaf.label}
                   sublabel={sublabel}
                   onClick={() => handleLeafClick(leaf)}
-                  disabled={disabled || warning || mapping.isLoading}
+                  disabled={disabled || warning || mapping.isLoading || (
+                    leaf.requiresProject && leaf.autoSelectProject === true &&
+                    leaf.autoProjectId != null && projectsQ.isLoading
+                  )}
                   warning={warning}
                   isStarting={startingKey === leaf.id}
                 />

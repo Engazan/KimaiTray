@@ -94,6 +94,18 @@ describe("category configuration normalization", () => {
     });
   });
 
+  it("preserves automatic project settings from imports and rejects invalid project ids", () => {
+    const [category] = normalizeCategories([{ children: [
+      { requiresProject: true, autoSelectProject: true, autoProjectId: 11 },
+      { autoSelectProject: "yes", autoProjectId: "11" },
+      { autoProjectId: -1 },
+      { autoProjectId: 1.5 },
+    ] }]);
+    expect(category.children[0]).toMatchObject({ autoSelectProject: true, autoProjectId: 11 });
+    expect(category.children[1].autoSelectProject).toBeUndefined();
+    for (const leaf of category.children.slice(1)) expect(leaf.autoProjectId).toBeUndefined();
+  });
+
   it("generates distinct ids for missing identities", () => {
     const normalized = normalizeCategories([
       { children: [{}, {}] },

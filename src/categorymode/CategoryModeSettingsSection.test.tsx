@@ -108,6 +108,32 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("CategoryModeSettingsSection", () => {
+  it("reveals the automatic project toggle and selector only when enabled", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<CategoryModeSettingsSection connectionId="conn" url="https://kimai.test" />);
+    expect(screen.queryByText("categoryMode.autoSelectProject")).toBeNull();
+    mocks.config.categories[0].children[0].requiresProject = true;
+    rerender(<CategoryModeSettingsSection connectionId="conn" url="https://kimai.test" />);
+    expect(screen.getByText("categoryMode.autoSelectProject")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "categoryMode.selectAutoProject" })).toBeNull();
+    await user.click(screen.getByText("categoryMode.autoSelectProject"));
+    expect(mocks.updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({
+      categories: expect.arrayContaining([expect.objectContaining({
+        children: expect.arrayContaining([expect.objectContaining({ autoSelectProject: true })]),
+      })]),
+    }));
+    mocks.config = mocks.updateConfig.mock.lastCall![0];
+    rerender(<CategoryModeSettingsSection connectionId="conn" url="https://kimai.test" />);
+    const select = screen.getByRole("combobox", { name: "categoryMode.selectAutoProject" });
+    expect(select.textContent).not.toContain("Hidden");
+    await user.selectOptions(select, "10");
+    expect(mocks.updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({
+      categories: expect.arrayContaining([expect.objectContaining({
+        children: expect.arrayContaining([expect.objectContaining({ autoProjectId: 10 })]),
+      })]),
+    }));
+  });
+
   it("asks the user to save a connection first", () => {
     render(<CategoryModeSettingsSection connectionId="" url="" />);
     expect(screen.getByText("categoryMode.noConnection")).toBeTruthy();

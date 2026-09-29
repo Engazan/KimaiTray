@@ -665,6 +665,33 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                           onChange={(v) => updateLeaf(ci, li, { requiresProject: v })}
                         />
                     </label>
+                    {leaf.requiresProject && (
+                      <div className="mt-3 space-y-3">
+                        <label className="flex cursor-pointer items-center justify-between gap-3">
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {t("categoryMode.autoSelectProject")}
+                          </span>
+                          <Toggle
+                            checked={leaf.autoSelectProject === true}
+                            onChange={(v) => updateLeaf(ci, li, { autoSelectProject: v })}
+                          />
+                        </label>
+                        {leaf.autoSelectProject && (
+                          <div>
+                            <span className="mb-1.5 block text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                              {t("categoryMode.autoProject")}
+                            </span>
+                            <SearchableSelect
+                              options={projectOptions}
+                              value={leaf.autoProjectId ?? null}
+                              onChange={(v) => updateLeaf(ci, li, { autoProjectId: v })}
+                              placeholder={t("categoryMode.selectAutoProject")}
+                              allowEmpty
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {cat.children.length === 0 && (

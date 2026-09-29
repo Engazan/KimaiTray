@@ -17,6 +17,9 @@ export interface CategoryLeaf {
   /** Customer-facing categories require picking a real client project before
    *  starting. Categories that don't require one use CategoryConfig.defaultProjectId. */
   requiresProject: boolean;
+  /** Use the configured client project without prompting when it is valid. */
+  autoSelectProject?: boolean;
+  autoProjectId?: number | null;
 }
 
 export interface Category {

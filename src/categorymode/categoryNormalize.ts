@@ -24,6 +24,12 @@ export function normalizeCategories(raw: unknown): CategoryConfig["categories"] 
           ? leaf.tags.filter((tg): tg is string => typeof tg === "string")
           : undefined,
         requiresProject: leaf.requiresProject === true,
+        autoSelectProject: leaf.autoSelectProject === true ? true : undefined,
+        autoProjectId:
+          typeof leaf.autoProjectId === "number" &&
+          Number.isSafeInteger(leaf.autoProjectId) && leaf.autoProjectId > 0
+            ? leaf.autoProjectId
+            : undefined,
       });
     }
     out.push({

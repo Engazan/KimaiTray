@@ -128,6 +128,47 @@ describe("CategoryModePanel", () => {
     await waitFor(() => expect(startTask).toHaveBeenCalledWith({ projectId: 11, activityId: 202, tags: undefined, label: "Project task" }, "project"));
   });
 
+  it("starts with an automatic client project and skips the project picker", async () => {
+    const user = userEvent.setup();
+    mocks.config.categories = [{ ...categories[0], children: [{
+      ...categories[0].children[1], autoSelectProject: true, autoProjectId: 11,
+    }] }];
+    const startTask = vi.fn().mockResolvedValue({ id: 1 });
+    render(<CategoryModePanel {...props(startTask)} />);
+    await user.click(screen.getByRole("button", { name: "Work" }));
+    await user.click(screen.getByRole("button", { name: "Project task" }));
+    await waitFor(() => expect(startTask).toHaveBeenCalledWith({
+      projectId: 11, activityId: 202, tags: undefined, label: "Project task",
+    }, "project"));
+    expect(screen.queryByPlaceholderText("categoryMode.searchProject")).toBeNull();
+  });
+
+  it.each([10, 12, 99, null])("falls back to manual selection for unavailable automatic project %s", async (autoProjectId) => {
+    const user = userEvent.setup();
+    mocks.config.categories = [{ ...categories[0], children: [{
+      ...categories[0].children[1], autoSelectProject: true, autoProjectId,
+    }] }];
+    const startTask = vi.fn();
+    render(<CategoryModePanel {...props(startTask)} />);
+    await user.click(screen.getByRole("button", { name: "Work" }));
+    await user.click(screen.getByRole("button", { name: "Project task" }));
+    expect(screen.getByPlaceholderText("categoryMode.searchProject")).toBeTruthy();
+    expect(startTask).not.toHaveBeenCalled();
+  });
+
+  it("keeps manual selection when the automatic toggle is off", async () => {
+    const user = userEvent.setup();
+    mocks.config.categories = [{ ...categories[0], children: [{
+      ...categories[0].children[1], autoSelectProject: false, autoProjectId: 11,
+    }] }];
+    const startTask = vi.fn();
+    render(<CategoryModePanel {...props(startTask)} />);
+    await user.click(screen.getByRole("button", { name: "Work" }));
+    await user.click(screen.getByRole("button", { name: "Project task" }));
+    expect(screen.getByPlaceholderText("categoryMode.searchProject")).toBeTruthy();
+    expect(startTask).not.toHaveBeenCalled();
+  });
+
   it("returns from project and category views with header back buttons", async () => {
     const user = userEvent.setup();
     render(<CategoryModePanel {...props()} />);
