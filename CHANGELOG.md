@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.22.12] - 2026-09-29
+
+### New Features
+
+- **Edit descriptions after stopping a task** ([#41](https://github.com/Engazan/KimaiTray/issues/41)) — edit or clear a completed entry's description from the right-click menu in Today or Recent tasks, without changing its recorded times
+- **Automatic client projects in Category Mode** — optionally choose a project for each subcategory that requires a client project; use it automatically when starting, with manual selection when the configured project is unavailable or incompatible with the activity
+- **Keyboard navigation and quick filtering** — type to filter favorites and recent tasks, navigate with arrow keys, start with Enter or start with changes using Shift+Enter; use Cmd/Ctrl+1–9 for favorites, Space to pause or resume, and Cmd/Ctrl+N for a new task
+- **Today's timeline and untracked gaps** — see a color-coded day timeline and gaps between entries, create a timer from a gap with its start time prefilled when custom start time is enabled, and restart completed entries with a visible start-again control
+
+### Improvements
+
+- **Immediate timer-start feedback** — show a pending timer card while a task is starting and replace it with the active timer as soon as Kimai confirms the new entry
+- **Smoother popup transitions** — animate card heights and list movement after user actions, keep asynchronously loaded content in place, and respect the system's reduced-motion preference
+- **More accessible popup controls** — improve text contrast, keyboard focus indicators, pause/stop targets and accessible labels for sorting, billable entries and error dismissal
+
+### Bug Fixes
+
+- **Reliable deep-link forms** — stabilize popup activation, avoid waiting indefinitely for optional issue enrichment, and preserve issue URLs when integrations are disabled, unavailable or missing a configured custom field
+- **Complete timer cards** — prevent the bottom of active or paused timer cards from being clipped during layout changes or after reopening the popup
+- **Consistent Kimai colors** — use Kimai's effective color-safe values when no explicit entity color is configured, so task dots match the new-timer pickers
+
 ## [0.22.11] - 2026-09-15
 
 ### Bug Fixes
