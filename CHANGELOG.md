@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.13] - 2026-09-30
+
+### Bug Fixes
+
+- **Linux AppImage startup** — make the launcher inside the AppImage executable for all users, fixing the `AppRun.wrapped: Permission denied` error
+
 ## [0.22.12] - 2026-09-29
 
 ### New Features
