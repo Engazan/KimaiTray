@@ -47,6 +47,9 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf
+      - name: Prepare executable AppImage launcher
+        if: runner.os == 'Linux'
+        run: bash scripts/prepare-appimage-apprun.sh
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
@@ -72,6 +75,12 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: N75GT2GWKJ
         run: npm run tauri build -- --target ${{ matrix.target }}
+      - name: Check AppImage launcher permissions
+        if: runner.os == 'Linux'
+        run: |
+          launcher="src-tauri/target/${{ matrix.target }}/release/bundle/appimage/KimaiTray.AppDir/AppRun.wrapped"
+          test -f "$launcher"
+          test -n "$(find "$launcher" -perm -005 -print)"
       - name: Notarize and staple the DMG (macOS only)
         if: runner.os == 'macOS'
         env:
@@ -131,6 +140,9 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf
+      - name: Prepare executable AppImage launcher
+        if: runner.os == 'Linux'
+        run: bash scripts/prepare-appimage-apprun.sh
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
@@ -174,6 +186,12 @@ jobs:
           prerelease: false
           retryAttempts: 3
           args: --target ${{ matrix.target }}
+      - name: Check AppImage launcher permissions
+        if: runner.os == 'Linux'
+        run: |
+          launcher="src-tauri/target/${{ matrix.target }}/release/bundle/appimage/KimaiTray.AppDir/AppRun.wrapped"
+          test -f "$launcher"
+          test -n "$(find "$launcher" -perm -005 -print)"
       - name: Notarize, staple, and re-upload the DMG (macOS only)
         if: runner.os == 'macOS'
         env:
