@@ -1,10 +1,14 @@
 # Changelog
 
-## [0.22.13] - 2026-09-30
+## [0.22.14] - 2026-09-30
 
 ### Bug Fixes
 
 - **Linux AppImage startup** — make the launcher inside the AppImage executable for all users, fixing the `AppRun.wrapped: Permission denied` error
+
+### Security
+
+- **Patched build dependencies** — update `brace-expansion` and `undici` to resolve high-severity advisories reported by `npm audit`
 
 ## [0.22.12] - 2026-09-29
 
