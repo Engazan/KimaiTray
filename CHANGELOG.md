@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.22.15] - 2026-10-02
+
+### New Features
+
+- **Auto-select a single subcategory in Category Mode** — optionally skip the subcategory list when a category has exactly one subcategory, starting its timer directly or opening the project picker when needed. Keep the list visible when the subcategory cannot start, and return from the project picker directly to the category list
+
+### Documentation
+
+- **Updated feature overview** — document popup keyboard navigation and filtering, editing completed entry descriptions, today's untracked gaps and restart controls, and Category Mode's automatic project and subcategory selection
+
 ## [0.22.14] - 2026-09-30
 
 ### Bug Fixes

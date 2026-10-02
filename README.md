@@ -23,18 +23,27 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 - Start, stop and switch Kimai timers directly from the tray popup
 - Pause multiple timers, resume any of them later or discard them
 - Optionally reveal paused-timer descriptions on hover
-- Quick-start tasks from per-connection favorites and recent entries
+- Quick-start tasks from per-connection favorites and recent entries; type to filter both lists
 - Searchable project, activity, customer and Kimai tag pickers with on-demand refresh
 - Create project-local or global activities from the new-timer form, with automatic or custom colors; the activity picker groups local activities before global ones
 - Optional notes, tags, customer filtering and a custom start time for new tasks
 - Per-connection text and URL custom fields, including required fields, for starting, viewing and editing timers; testing a connection discovers supported fields from Kimai's optional Custom Fields API while preserving manual definitions
 - Optional Creative Issue Link plugin for storing an Issue / Ticket URL in timer metadata
 - Edit the active timer's note, tags and start time
-- Edit the start and end time of completed entries when permitted by the Kimai API
+- Edit the start and end time of completed entries when permitted by the Kimai API; edit or clear their descriptions from the right-click menu in Today or Recent tasks
 - Hide recent tasks locally or delete their time entries from Kimai
-- Today's time-entry timeline with sorting, durations, colors and billable status
+- Today's color-coded day timeline and entry list with sorting, durations, billable status and a start-again control for completed entries
+- Fill untracked gaps between today's entries by opening a new timer with the gap's start time prefilled, when custom start time is enabled
 - Optional per-connection daily goals with required/full milestones, remaining time and an estimated finish time
-- Optional Category Mode with a configurable two-level activity tree, icons, colors, import/export and hourly remote synchronization
+
+### Category Mode
+
+- Optional per-connection workflow with a configurable two-level category and activity tree, icons and colors
+- Use a default project for internal activities, and select a client project for subcategories that require one
+- Optionally assign an automatic client project per subcategory, with manual selection when it is unavailable or incompatible with the activity
+- Optionally auto-select the only subcategory in a category, starting directly or opening the project picker; unavailable activities keep their warnings visible
+- Continue the last category activity within a configurable time window after stopping
+- Import/export category configuration as JSON and synchronize categories hourly from a remote URL
 
 ### Issue tracker integrations
 
@@ -44,7 +53,15 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 - Highlight and preselect issues matching the chosen Kimai project
 - Open or copy issue links and optionally insert an issue URL or title into the timer description
 - GitLab spent/estimated-time badges in the issue picker and active timer
-- Sync recorded time back to linked GitLab and Gitea issues when a timer stops
+- Sync recorded time back to linked GitLab and Gitea issues when a timer stops; pending exports survive restarts, retry after reconnection and offer review for uncertain writes
+
+### Popup keyboard controls
+
+- Up/Down arrows move between startable rows; Enter starts the focused task
+- Shift+Enter on a favorite or recent task opens it with changes before starting
+- Cmd/Ctrl+1–9 starts a favorite; Cmd/Ctrl+N opens a new task
+- Space pauses or resumes when no interactive control is focused
+- Typing opens the favorites/recent-task filter when available; shortcuts leave text inputs and dialogs available for normal editing
 
 ### Automation and reminders
 
@@ -68,7 +85,7 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 
 - Four popup layouts: Classic, Focus, Taskbar and Timeline
 - Light, dark and transparent themes, five accent colors and configurable Kimai color indicators
-- UI scaling from 85% to 160%, optional rounded corners, animations and translucency controls
+- UI scaling from 85% to 160%, optional rounded corners, animations and translucency controls; popup transitions respect the system reduced-motion preference
 - Resizable tray-popup and detached-window modes
 - macOS True Tray mode hides the Dock and Cmd+Tab entry
 - Custom tray icon shape, size and colors for running, paused, idle and error states
@@ -253,6 +270,8 @@ src/                    # React frontend
   integrations/         # Issue tracker integrations
   plugins/              # Custom timer inputs and plugin metadata
   providers/            # React context providers (React Query)
+  services/             # Timer operations
+  tray/                 # Popup workflows, keyboard navigation and UI helpers
   settings/             # Settings UI & service
   windows/              # TrayPopup & Settings windows
   shared/i18n/          # Translations (5 languages)
@@ -260,7 +279,8 @@ src/                    # React frontend
 src-tauri/              # Tauri / Rust backend
   src/lib.rs            # App setup, plugin registration
   src/main.rs           # Binary entry point
-  src/tray.rs           # System tray, icon generation
+  src/tray.rs           # System tray entry point
+  src/tray/             # Popup workflows, icons and native platform adapters
   src/shortcuts.rs      # Global keyboard shortcuts
   src/keychain.rs       # API token storage
   src/http.rs           # Bounded native HTTP broker
@@ -309,7 +329,8 @@ See the [Tauri Updater docs](https://tauri.app/plugin/updater/) for details.
 
 GitHub Actions workflow at `.github/workflows/build.yml`:
 
-- Triggers on version tags (`v*`) and manual `workflow_dispatch` runs
+- Build & Release triggers on version tags (`v*`) and manual `workflow_dispatch` runs
+- Verification also runs on pushes to `main` and pull requests via `.github/workflows/verify.yml`
 - Cross-platform matrix: macOS (ARM + Intel), Linux, Windows
 - On version tags (`v*`), creates a draft GitHub Release with all platform artifacts
 
