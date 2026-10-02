@@ -448,6 +448,8 @@
     "noDefaultProject": "Keines",
     "continueWindow": "Fortsetzungsfenster",
     "continueWindowHint": "Zeige die Schaltfläche \"letzte Aktivität fortsetzen\" so viele Minuten nach dem Stoppen an.",
+    "autoSelectSingleSubcategory": "Einzige Unterkategorie automatisch wählen",
+    "autoSelectSingleSubcategoryHint": "Wenn eine Kategorie nur eine Unterkategorie hat, wird sie sofort gewählt, statt die Liste anzuzeigen.",
     "minutes": "Min",
     "sourceTitle": "Kategoriequelle",
     "sourceUrl": "Von URL importieren",

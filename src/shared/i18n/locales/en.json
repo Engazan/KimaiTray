@@ -448,6 +448,8 @@
     "noDefaultProject": "None",
     "continueWindow": "Continue window",
     "continueWindowHint": "Show the \"continue last activity\" button for this many minutes after a timer stops.",
+    "autoSelectSingleSubcategory": "Auto-select single subcategory",
+    "autoSelectSingleSubcategoryHint": "When a category has only one subcategory, select it right away instead of showing the list.",
     "minutes": "min",
     "sourceTitle": "Category source",
     "sourceUrl": "Import from URL",

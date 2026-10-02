@@ -448,6 +448,8 @@
     "noDefaultProject": "Немає",
     "continueWindow": "Вікно продовження",
     "continueWindowHint": "Показувати кнопку «продовжити останню активність» стільки хвилин після зупинки таймера.",
+    "autoSelectSingleSubcategory": "Автоматично вибирати єдину підкатегорію",
+    "autoSelectSingleSubcategoryHint": "Якщо категорія має лише одну підкатегорію, вона вибирається одразу замість показу списку.",
     "minutes": "хв",
     "sourceTitle": "Джерело категорій",
     "sourceUrl": "Імпорт з URL",

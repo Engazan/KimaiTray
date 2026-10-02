@@ -87,6 +87,48 @@ const props = (startTask = vi.fn().mockResolvedValue({ id: 999 })) => ({
 });
 
 describe("CategoryModePanel", () => {
+  it("auto-selects a single subcategory when enabled", async () => {
+    const user = userEvent.setup();
+    const startTask = vi.fn().mockResolvedValue({ id: 999 });
+    mocks.config = {
+      ...mocks.config,
+      autoSelectSingleSubcategory: true,
+      categories: [{ id: "solo", label: "Solo", children: [categories[0].children[0]] }],
+    };
+    render(<CategoryModePanel {...props(startTask)} />);
+    await user.click(screen.getByRole("button", { name: "Solo" }));
+    await waitFor(() => expect(startTask).toHaveBeenCalledWith({
+      projectId: 10, activityId: 101, tags: ["one"], label: "Direct",
+    }, "direct"));
+  });
+
+  it("returns to the main list from the project picker after auto-select", async () => {
+    const user = userEvent.setup();
+    mocks.config = {
+      ...mocks.config,
+      autoSelectSingleSubcategory: true,
+      categories: [{ id: "solo", label: "Solo", children: [categories[0].children[1]] }],
+    };
+    const { container } = render(<CategoryModePanel {...props()} />);
+    await user.click(screen.getByRole("button", { name: "Solo" }));
+    expect(screen.getByText("categoryMode.selectProjectFor")).toBeTruthy();
+    fireEvent.click(container.querySelector("button")!);
+    expect(await screen.findByText("categoryMode.prompt")).toBeTruthy();
+  });
+
+  it("shows the subcategory list for a single subcategory when disabled", async () => {
+    const user = userEvent.setup();
+    const startTask = vi.fn();
+    mocks.config = {
+      ...mocks.config,
+      categories: [{ id: "solo", label: "Solo", children: [categories[0].children[0]] }],
+    };
+    render(<CategoryModePanel {...props(startTask)} />);
+    await user.click(screen.getByRole("button", { name: "Solo" }));
+    expect(screen.getAllByRole("button", { name: "Direct" }).length).toBe(1);
+    expect(startTask).not.toHaveBeenCalled();
+  });
+
   it("drills down and starts a leaf with the configured default project", async () => {
     const user = userEvent.setup();
     const startTask = vi.fn().mockResolvedValue({ id: 999 });

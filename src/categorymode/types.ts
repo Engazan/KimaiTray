@@ -41,6 +41,9 @@ export interface CategoryConfig {
   /** Minutes after a category timer stops during which the "continue last
    *  activity" shortcut stays offered (FR6). */
   continueWindowMinutes: number;
+  /** Skip the subcategory list when a category has exactly one subcategory
+   *  and start (or prompt for a project for) that subcategory directly. */
+  autoSelectSingleSubcategory?: boolean;
   /** Optional URL to fetch the category tree from; refreshed hourly. When set,
    *  `categories` is managed remotely and local edits are overwritten on sync. */
   sourceUrl?: string;

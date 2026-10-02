@@ -90,6 +90,9 @@ export default function CategoryModePanel({
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [pendingLeaf, setPendingLeaf] = useState<CategoryLeaf | null>(null);
   const [projectFilter, setProjectFilter] = useState("");
+  // True when the subcategory list was skipped (single-subcategory auto-select),
+  // so "back" from the project picker returns to the main list.
+  const [skippedSub, setSkippedSub] = useState(false);
   const [last, setLast] = useState<CategoryLastActivity | null>(null);
   const lastRef = useRef<CategoryLastActivity | null>(null);
   lastRef.current = last;
@@ -146,6 +149,7 @@ export default function CategoryModePanel({
     setActiveCategory(null);
     setPendingLeaf(null);
     setProjectFilter("");
+    setSkippedSub(false);
   };
 
   // Record a just-started category activity as the "last" one (running: no stop
@@ -197,6 +201,49 @@ export default function CategoryModePanel({
     void startLeaf(leaf, config.defaultProjectId!);
   };
 
+  const leafStatus = (leaf: CategoryLeaf) => {
+    // No warnings while activities are still loading — avoids flashing
+    // a false "activity missing" on every leaf before the fetch settles.
+    const activityMissing =
+      !mapping.isLoading && !mapping.has(leaf.activityName);
+    const needsDefaultProject =
+      !leaf.requiresProject && config.defaultProjectId == null;
+    // Internal leaf whose activity isn't valid for the default project
+    // (activity exists but is scoped to a different project, not global).
+    const internalUnresolvable =
+      !leaf.requiresProject &&
+      config.defaultProjectId != null &&
+      !mapping.isLoading &&
+      !activityMissing &&
+      mapping.resolve(leaf.activityName, config.defaultProjectId) == null;
+    const warning =
+      activityMissing || needsDefaultProject || internalUnresolvable;
+    const sublabel = needsDefaultProject
+      ? t("categoryMode.defaultProjectMissing")
+      : activityMissing || internalUnresolvable
+        ? t("categoryMode.activityMissing")
+        : undefined;
+    const leafDisabled = disabled || warning || mapping.isLoading || (
+      leaf.requiresProject && leaf.autoSelectProject === true &&
+      leaf.autoProjectId != null && projectsQ.isLoading
+    );
+    return { warning, sublabel, leafDisabled };
+  };
+
+  const handleCategoryClick = (cat: Category) => {
+    setActiveCategory(cat);
+    const only = cat.children.length === 1 ? cat.children[0] : null;
+    // Fall back to the subcategory list when the single leaf can't start, so
+    // its warning stays visible.
+    if (config.autoSelectSingleSubcategory && only && !leafStatus(only).leafDisabled) {
+      setSkippedSub(true);
+      handleLeafClick(only);
+      return;
+    }
+    setSkippedSub(false);
+    setView("sub");
+  };
+
   const continueLast =
     !hasActiveTimer &&
     last != null &&
@@ -230,11 +277,13 @@ export default function CategoryModePanel({
                 <CategoryButton
                   key={cat.id}
                   label={cat.label}
-                  onClick={() => {
-                    setActiveCategory(cat);
-                    setView("sub");
-                  }}
+                  onClick={() => handleCategoryClick(cat)}
                   disabled={disabled}
+                  isStarting={
+                    config.autoSelectSingleSubcategory === true &&
+                    cat.children.length === 1 &&
+                    startingKey === cat.children[0].id
+                  }
                   drilldown
                   icon={cat.icon}
                   color={cat.color}
@@ -279,37 +328,14 @@ export default function CategoryModePanel({
           {view === "sub" && activeCategory && (
             <div className="absolute inset-0 overflow-y-auto overscroll-contain px-1.5 pb-1">
             {activeCategory.children.map((leaf) => {
-              // No warnings while activities are still loading — avoids flashing
-              // a false "activity missing" on every leaf before the fetch settles.
-              const activityMissing =
-                !mapping.isLoading && !mapping.has(leaf.activityName);
-              const needsDefaultProject =
-                !leaf.requiresProject && config.defaultProjectId == null;
-              // Internal leaf whose activity isn't valid for the default project
-              // (activity exists but is scoped to a different project, not global).
-              const internalUnresolvable =
-                !leaf.requiresProject &&
-                config.defaultProjectId != null &&
-                !mapping.isLoading &&
-                !activityMissing &&
-                mapping.resolve(leaf.activityName, config.defaultProjectId) == null;
-              const warning =
-                activityMissing || needsDefaultProject || internalUnresolvable;
-              const sublabel = needsDefaultProject
-                ? t("categoryMode.defaultProjectMissing")
-                : activityMissing || internalUnresolvable
-                  ? t("categoryMode.activityMissing")
-                  : undefined;
+              const { warning, sublabel, leafDisabled } = leafStatus(leaf);
               return (
                 <CategoryButton
                   key={leaf.id}
                   label={leaf.label}
                   sublabel={sublabel}
                   onClick={() => handleLeafClick(leaf)}
-                  disabled={disabled || warning || mapping.isLoading || (
-                    leaf.requiresProject && leaf.autoSelectProject === true &&
-                    leaf.autoProjectId != null && projectsQ.isLoading
-                  )}
+                  disabled={leafDisabled}
                   warning={warning}
                   isStarting={startingKey === leaf.id}
                 />
@@ -325,6 +351,10 @@ export default function CategoryModePanel({
           <Header
             title={t("categoryMode.selectProjectFor", { label: pendingLeaf.label })}
             onBack={() => {
+              if (skippedSub) {
+                resetToMain();
+                return;
+              }
               setPendingLeaf(null);
               setView("sub");
             }}

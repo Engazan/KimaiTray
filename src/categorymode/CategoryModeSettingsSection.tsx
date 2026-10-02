@@ -325,6 +325,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
           typeof parsed.continueWindowMinutes === "number"
             ? parsed.continueWindowMinutes
             : 15,
+        autoSelectSingleSubcategory: parsed.autoSelectSingleSubcategory === true,
       });
       setJsonError(null);
       setJsonOpen(false);
@@ -426,6 +427,18 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
       )}
 
       <SettingsList title={t("categoryMode.behaviorTitle")} allowOverflow>
+        <SettingsRow
+          label={t("categoryMode.autoSelectSingleSubcategory")}
+          description={t("categoryMode.autoSelectSingleSubcategoryHint")}
+        >
+          <Toggle
+            checked={config.autoSelectSingleSubcategory === true}
+            ariaLabel={t("categoryMode.autoSelectSingleSubcategory")}
+            onChange={(on) =>
+              updateConfig({ ...config, autoSelectSingleSubcategory: on })
+            }
+          />
+        </SettingsRow>
         <SettingsRowStacked
           label={t("categoryMode.defaultProject")}
           description={t("categoryMode.defaultProjectHint")}

@@ -448,6 +448,8 @@
     "noDefaultProject": "Žiadny",
     "continueWindow": "Okno pokračovania",
     "continueWindowHint": "Zobraz tlačidlo \"pokračovať v poslednej aktivite\" takto dlho (v minútach) po zastavení timeru.",
+    "autoSelectSingleSubcategory": "Automaticky zvoliť jedinú subkategóriu",
+    "autoSelectSingleSubcategoryHint": "Keď má kategória iba jednu subkategóriu, zvolí sa hneď namiesto zobrazenia zoznamu.",
     "minutes": "min",
     "sourceTitle": "Zdroj kategórií",
     "sourceUrl": "Import z URL",

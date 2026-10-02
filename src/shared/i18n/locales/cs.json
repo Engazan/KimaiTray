@@ -448,6 +448,8 @@
     "noDefaultProject": "Žádný",
     "continueWindow": "Okno pokračování",
     "continueWindowHint": "Zobraz tlačítko \"pokračovat v poslední aktivitě\" takto dlouho (v minutách) po zastavení časovače.",
+    "autoSelectSingleSubcategory": "Automaticky zvolit jedinou podkategorii",
+    "autoSelectSingleSubcategoryHint": "Když má kategorie jen jednu podkategorii, zvolí se hned místo zobrazení seznamu.",
     "minutes": "min",
     "sourceTitle": "Zdroj kategorií",
     "sourceUrl": "Import z URL",

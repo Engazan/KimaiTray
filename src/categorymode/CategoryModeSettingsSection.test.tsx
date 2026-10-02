@@ -153,7 +153,9 @@ describe("CategoryModeSettingsSection", () => {
     const leafName = screen.getByPlaceholderText("categoryMode.leafNamePlaceholder");
     fireEvent.change(leafName, { target: { value: "Implementation" } });
     await user.selectOptions(screen.getByLabelText("categoryMode.selectActivity"), "Meetings");
-    await user.click(screen.getAllByRole("switch")[1]);
+    await user.click(screen.getByRole("switch", { name: "categoryMode.autoSelectSingleSubcategory" }));
+    expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({ autoSelectSingleSubcategory: true }));
+    await user.click(screen.getAllByRole("switch")[2]);
 
     await user.click(screen.getAllByRole("button", { name: "categoryMode.editVisual" })[0]);
     await user.click(screen.getAllByRole("button", { name: "categoryMode.iconOption" })[0]);
@@ -201,12 +203,12 @@ describe("CategoryModeSettingsSection", () => {
     expect(screen.getByText("categoryMode.jsonInvalid")).toBeTruthy();
     fireEvent.change(textarea, { target: { value: JSON.stringify({ categories: [], internalProjectId: 42 }) } });
     await user.click(screen.getByRole("button", { name: "categoryMode.applyJson" }));
-    expect(mocks.updateConfig).toHaveBeenCalledWith({ categories: [], defaultProjectId: 42, continueWindowMinutes: 15 });
+    expect(mocks.updateConfig).toHaveBeenCalledWith({ categories: [], defaultProjectId: 42, continueWindowMinutes: 15, autoSelectSingleSubcategory: false });
 
     await user.click(screen.getByRole("button", { name: "categoryMode.importJson" }));
     fireEvent.change(document.querySelector("textarea")!, { target: { value: JSON.stringify({ categories: [], defaultProjectId: 7, continueWindowMinutes: 22 }) } });
     await user.click(screen.getByRole("button", { name: "categoryMode.applyJson" }));
-    expect(mocks.updateConfig).toHaveBeenCalledWith({ categories: [], defaultProjectId: 7, continueWindowMinutes: 22 });
+    expect(mocks.updateConfig).toHaveBeenCalledWith({ categories: [], defaultProjectId: 7, continueWindowMinutes: 22, autoSelectSingleSubcategory: false });
 
     await user.click(screen.getByRole("button", { name: "categoryMode.resetDefault" }));
     await user.click(screen.getByRole("button", { name: "categoryMode.resetConfirm" }));
@@ -238,7 +240,7 @@ describe("CategoryModeSettingsSection", () => {
     })));
     await user.click(screen.getByRole("button", { name: "categoryMode.syncNow" }));
     expect(await screen.findByText("categoryMode.syncFailed")).toBeTruthy();
-    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getAllByRole("switch")[1]);
     expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({ sourceUrl: undefined, sourceSyncedAt: undefined }));
   });
 
@@ -249,7 +251,7 @@ describe("CategoryModeSettingsSection", () => {
     render(<CategoryModeSettingsSection connectionId="conn" url="https://kimai.test" />);
     expect(screen.getByText("categoryMode.remoteManaged")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "categoryMode.syncNow" })).toBeNull();
-    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getAllByRole("switch")[1]);
     await waitFor(() => expect(mocks.getConnectionToken).toHaveBeenCalled());
   });
 
