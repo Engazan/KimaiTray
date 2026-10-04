@@ -75,7 +75,10 @@
     "filterLabel": "Filtrovať obľúbené a nedávne úlohy",
     "clearFilter": "Zrušiť filter",
     "noFilterResults": "Žiadne zodpovedajúce úlohy",
-    "starting": "Spúšťa sa…"
+    "starting": "Spúšťa sa…",
+    "startRetrying": "Skúšam znova (pokus {{attempt}})…",
+    "startRetryIn": "Spustenie zlyhalo, ďalší pokus o {{seconds}} s (pokus {{attempt}})",
+    "retryNow": "Skúsiť teraz"
   },
   "timer": {
     "startTimer": "Spustiť",

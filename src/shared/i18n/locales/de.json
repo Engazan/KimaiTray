@@ -75,7 +75,10 @@
     "filterLabel": "Favoriten und letzte Aufgaben filtern",
     "clearFilter": "Filter löschen",
     "noFilterResults": "Keine passenden Aufgaben",
-    "starting": "Wird gestartet…"
+    "starting": "Wird gestartet…",
+    "startRetrying": "Neuer Versuch ({{attempt}})…",
+    "startRetryIn": "Start fehlgeschlagen, neuer Versuch in {{seconds}} s (Versuch {{attempt}})",
+    "retryNow": "Jetzt erneut versuchen"
   },
   "timer": {
     "startTimer": "Starten",

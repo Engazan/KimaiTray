@@ -75,7 +75,10 @@
     "filterLabel": "Filtrovat oblíbené a nedávné úlohy",
     "clearFilter": "Zrušit filtr",
     "noFilterResults": "Žádné odpovídající úlohy",
-    "starting": "Spouští se…"
+    "starting": "Spouští se…",
+    "startRetrying": "Zkouším znovu (pokus {{attempt}})…",
+    "startRetryIn": "Spuštění selhalo, další pokus za {{seconds}} s (pokus {{attempt}})",
+    "retryNow": "Zkusit nyní"
   },
   "timer": {
     "startTimer": "Spustit",

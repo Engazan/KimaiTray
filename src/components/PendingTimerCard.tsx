@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ColorMode } from "../types";
-import type { StartPreview } from "../hooks/useStartTask";
+import type { StartPreview, StartRetryState } from "../hooks/useStartTask";
 import ColorDots from "./ColorDots";
 import TagsList from "./TagsList";
 
@@ -12,11 +13,63 @@ interface PendingTimerCardProps {
   /** Reserve the same optional rows as the active card so the swap keeps its height. */
   showNote?: boolean;
   showTags?: boolean;
+  /** Set while a failed start waits in the retry queue. */
+  retry?: StartRetryState | null;
+  onRetryNow?: () => void;
+  onCancelRetry?: () => void;
 }
 
 function Spinner() {
   return (
     <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-400/30 border-t-emerald-500" />
+  );
+}
+
+function useSecondsUntil(at: number | null | undefined): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (at == null) return;
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [at]);
+  return at == null ? null : Math.max(0, Math.ceil((at - now) / 1000));
+}
+
+function RetryStatus({
+  retry,
+  onRetryNow,
+  onCancelRetry,
+}: {
+  retry: StartRetryState;
+  onRetryNow?: () => void;
+  onCancelRetry?: () => void;
+}) {
+  const { t } = useTranslation();
+  const seconds = useSecondsUntil(retry.nextRetryAt);
+  const button =
+    "rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/40";
+  return (
+    <div
+      className="mt-1.5 flex items-center gap-1.5 pl-4 text-[10px] text-amber-700 dark:text-amber-400"
+      title={retry.lastError}
+    >
+      <span className="min-w-0 flex-1 truncate">
+        {seconds === null
+          ? t("tray.startRetrying", { attempt: retry.attempt + 1 })
+          : t("tray.startRetryIn", { seconds, attempt: retry.attempt + 1 })}
+      </span>
+      {seconds !== null && onRetryNow && (
+        <button type="button" className={button} onClick={onRetryNow}>
+          {t("tray.retryNow")}
+        </button>
+      )}
+      {onCancelRetry && (
+        <button type="button" className={button} onClick={onCancelRetry}>
+          {t("common.cancel")}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -31,6 +84,9 @@ export default function PendingTimerCard({
   colorMode = "kimai",
   showNote,
   showTags,
+  retry,
+  onRetryNow,
+  onCancelRetry,
 }: PendingTimerCardProps) {
   const { t } = useTranslation();
   const dots = (
@@ -40,6 +96,9 @@ export default function PendingTimerCard({
       customerColor={preview.customerColor}
       colorMode={colorMode}
     />
+  );
+  const retryStatus = retry && (
+    <RetryStatus retry={retry} onRetryNow={onRetryNow} onCancelRetry={onCancelRetry} />
   );
 
   if (compact) {
@@ -62,6 +121,7 @@ export default function PendingTimerCard({
           </span>
           <Spinner />
         </div>
+        {retryStatus && <div className="px-2.5 pb-1.5 -mt-1">{retryStatus}</div>}
       </div>
     );
   }
@@ -117,6 +177,7 @@ export default function PendingTimerCard({
             <Spinner />
           </span>
         </div>
+        {retryStatus}
       </div>
     </div>
   );

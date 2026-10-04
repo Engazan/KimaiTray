@@ -124,7 +124,7 @@ describe("transactional timer switching", () => {
 
   it("reports safe recovery being blocked without claiming the replacement failed to start", async () => {
     const client = mockClient({
-      post: vi.fn().mockRejectedValue(new KimaiApiError(0, "Network Error", null, "network_error")),
+      post: vi.fn().mockRejectedValue(new KimaiApiError(200, "Parse Error", null, "parse_error")),
       get: vi.fn().mockResolvedValueOnce([timesheet(42)]).mockRejectedValueOnce(new Error("offline")),
     });
     const queryClient = new QueryClient();
@@ -428,5 +428,122 @@ describe("transactional timer switching", () => {
     const { result } = renderHook(() => useStartTask(currentClient), { wrapper });
     await act(async () => expect(await result.current.startTask({ projectId: 1, activityId: 2, label: "Broken" })).toBeNull());
     expect(result.current.switchError).toContain('Failed to start "Broken"');
+  });
+});
+
+describe("start retry queue", () => {
+  const networkError = () => new KimaiApiError(0, "Network Error", null, "network_error");
+  const wrapperFor = (queryClient: QueryClient) =>
+    ({ children }: PropsWithChildren) => createElement(QueryClientProvider, { client: queryClient }, children);
+
+  it("queues a transient failure and retries until the start succeeds", async () => {
+    const post = vi.fn()
+      .mockRejectedValueOnce(networkError())
+      .mockRejectedValueOnce(KimaiApiError.fromResponse(503, "Unavailable", null))
+      .mockResolvedValueOnce(timesheet(99));
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+    });
+    const onStarted = vi.fn();
+    const onFailed = vi.fn();
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useStartTask(client, onStarted, onFailed), { wrapper: wrapperFor(queryClient) });
+    const payload = { projectId: 1, activityId: 2, label: "Flaky" };
+
+    let started!: Promise<KimaiTimesheetEntry | null>;
+    act(() => { started = result.current.startTask(payload); });
+    await waitFor(() => expect(result.current.startRetry).toMatchObject({ attempt: 1, label: "Flaky" }));
+    expect(result.current.isStarting).toBe(true);
+    expect(result.current.switchError).toBeNull();
+
+    act(() => result.current.retryStartNow());
+    await waitFor(() => expect(result.current.startRetry).toMatchObject({ attempt: 2 }));
+    act(() => result.current.retryStartNow());
+
+    await act(async () => expect(await started).toEqual(timesheet(99)));
+    expect(post).toHaveBeenCalledTimes(3);
+    expect(onStarted).toHaveBeenCalledWith(timesheet(99), payload);
+    expect(onFailed).not.toHaveBeenCalled();
+    expect(result.current.startRetry).toBeNull();
+    expect(result.current.isStarting).toBe(false);
+    queryClient.clear();
+  });
+
+  it("retries when the network comes back online", async () => {
+    const post = vi.fn().mockRejectedValueOnce(networkError()).mockResolvedValueOnce(timesheet(99));
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useStartTask(client), { wrapper: wrapperFor(queryClient) });
+
+    let started!: Promise<KimaiTimesheetEntry | null>;
+    act(() => { started = result.current.startTask({ projectId: 1, activityId: 2, label: "Task" }); });
+    await waitFor(() => expect(result.current.startRetry).not.toBeNull());
+    act(() => { window.dispatchEvent(new Event("online")); });
+
+    await act(async () => expect(await started).toEqual(timesheet(99)));
+    queryClient.clear();
+  });
+
+  it("adopts a timer the lost attempt created instead of starting a duplicate", async () => {
+    const created = { ...timesheet(99), begin: new Date().toISOString() };
+    const get = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValue([created]);
+    const post = vi.fn().mockRejectedValueOnce(networkError());
+    const patch = vi.fn(async () => created);
+    const client = mockClient({
+      get: get as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+      patch: patch as unknown as KimaiClient["patch"],
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useStartTask(client), { wrapper: wrapperFor(queryClient) });
+
+    let started!: Promise<KimaiTimesheetEntry | null>;
+    act(() => { started = result.current.startTask({ projectId: 1, activityId: 2, label: "Task" }); });
+    await waitFor(() => expect(result.current.startRetry).not.toBeNull());
+    act(() => result.current.retryStartNow());
+
+    await act(async () => expect(await started).toEqual(created));
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(patch).not.toHaveBeenCalled();
+    queryClient.clear();
+  });
+
+  it("drops a queued start when the user cancels it", async () => {
+    const post = vi.fn().mockRejectedValue(networkError());
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+    });
+    const onFailed = vi.fn();
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useStartTask(client, undefined, onFailed), { wrapper: wrapperFor(queryClient) });
+
+    let started!: Promise<KimaiTimesheetEntry | null>;
+    act(() => { started = result.current.startTask({ projectId: 1, activityId: 2, label: "Task" }); });
+    await waitFor(() => expect(result.current.startRetry).not.toBeNull());
+    act(() => result.current.cancelStartRetry());
+
+    await act(async () => expect(await started).toBeNull());
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(onFailed).toHaveBeenCalled();
+    expect(result.current.switchError).toBeNull();
+    expect(result.current.isStarting).toBe(false);
+    queryClient.clear();
+  });
+
+  it("does not queue an explicit rejection", async () => {
+    const client = mockClient({ get: vi.fn(async () => []) as unknown as KimaiClient["get"] });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useStartTask(client), { wrapper: wrapperFor(queryClient) });
+
+    await act(async () => expect(await result.current.startTask({ projectId: 1, activityId: 2, label: "Bad" })).toBeNull());
+    expect(client.post).toHaveBeenCalledTimes(1);
+    expect(result.current.startRetry).toBeNull();
+    expect(result.current.switchError).toContain('Failed to start "Bad"');
+    queryClient.clear();
   });
 });

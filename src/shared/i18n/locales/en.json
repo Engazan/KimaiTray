@@ -75,7 +75,10 @@
     "filterLabel": "Filter favorites and recent tasks",
     "clearFilter": "Clear filter",
     "noFilterResults": "No matching tasks",
-    "starting": "Starting…"
+    "starting": "Starting…",
+    "startRetrying": "Retrying (attempt {{attempt}})…",
+    "startRetryIn": "Start failed, retrying in {{seconds}} s (attempt {{attempt}})",
+    "retryNow": "Retry now"
   },
   "timer": {
     "startTimer": "Start",

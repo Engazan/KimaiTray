@@ -207,6 +207,7 @@ export default function TrayPopup() {
   }, []);
   const {
     startTask, startingKey, switchError, dismissError, isStarting, pendingPreview, handoffTimerId,
+    startRetry, retryStartNow, cancelStartRetry,
   } = useStartTask(
     client,
     (entry, payload) => {
@@ -216,6 +217,15 @@ export default function TrayPopup() {
     },
     issueLink.onTaskFailed,
   );
+  // A queued retry keeps the submitted values; show its status instead of a
+  // locked form.
+  const startQueued = startRetry !== null;
+  useEffect(() => {
+    if (startQueued) closeNewTask();
+  }, [startQueued, closeNewTask]);
+  const pendingCardPreview = pendingPreview ?? (startRetry && {
+    project: startRetry.label, activity: "", projectColor: "", activityColor: "", customerColor: "",
+  });
   const { rememberSubmission } = issueLink;
   const startWithIssue = useCallback(
     (payload: StartTaskPayload, issue: ExternalIssue | null, trackingKey?: string) => {
@@ -761,16 +771,19 @@ export default function TrayPopup() {
               {(status === "loading" ||
                 status === "unconfigured" ||
                 timer ||
-                pendingPreview ||
+                pendingCardPreview ||
                 !hasPausedTimers) && (
                 <div className="timer-area min-h-0 shrink-0">
                   {status === "loading" ? (
                     <EmptyTimerState variant="loading" compact={compactTimer} onNewTask={openBlankNewTask} />
                   ) : status === "unconfigured" ? (
                     <EmptyTimerState variant="unconfigured" compact={compactTimer} onNewTask={openBlankNewTask} />
-                  ) : pendingPreview ? (
+                  ) : pendingCardPreview ? (
                     <PendingTimerCard
-                      preview={pendingPreview}
+                      preview={pendingCardPreview}
+                      retry={startRetry}
+                      onRetryNow={retryStartNow}
+                      onCancelRetry={cancelStartRetry}
                       compact={compactTimer}
                       focusMode={popupLayout === "focus"}
                       colorMode={colorMode}
