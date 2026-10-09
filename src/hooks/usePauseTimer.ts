@@ -17,6 +17,7 @@ import {
 import type { ActiveTimer } from "../types";
 import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
+import { publishStartedTimesheet } from "./publishStartedTimesheet";
 import {
   pickPluginMetadata,
   type PluginCustomInputDefinition,
@@ -242,14 +243,16 @@ export function usePauseTimer(
       const updated = await removeResumedTimer(target.id);
       return {
         scope,
+        entry,
         timers: updated.filter(
           (t) => t.connectionId === operationConnectionId,
         ),
         metadataError,
       };
     },
-    onSuccess: ({ scope, timers, metadataError }) => {
+    onSuccess: ({ scope, entry, timers, metadataError }) => {
       if (sessionScopeRef.current !== scope) return;
+      publishStartedTimesheet(qc, scope, entry);
       setPausedTimers(timers);
       setPauseError(
         metadataError

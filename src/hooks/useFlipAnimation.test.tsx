@@ -7,7 +7,9 @@ import { useFlipAnimation } from "./useFlipAnimation";
 import { markUserIntent, resetUserIntent } from "../utils/userIntent";
 
 const tops = new Map<string, number>();
+const transforms = new Map<string, string>();
 const animate = vi.fn();
+const cancel = vi.fn();
 
 function List({ keys, mounted = true }: { keys: string[]; mounted?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -23,7 +25,13 @@ function List({ keys, mounted = true }: { keys: string[]; mounted?: boolean }) {
 beforeEach(() => {
   markUserIntent();
   tops.clear();
+  transforms.clear();
   animate.mockClear();
+  cancel.mockClear();
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element) => ({
+    transform: transforms.get((element as HTMLElement).dataset.flipKey ?? "") ?? "none",
+  }) as CSSStyleDeclaration);
+  (HTMLElement.prototype as unknown as { getAnimations: () => unknown[] }).getAnimations = () => [{ cancel }];
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
     return { top: tops.get(this.dataset.flipKey ?? "") ?? 0 } as DOMRect;
   });
@@ -86,5 +94,37 @@ describe("useFlipAnimation", () => {
     rerender(<List keys={["a"]} mounted={false} />);
     rerender(<List keys={["a"]} />);
     expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("ignores a running glide's offset when recording where rows sit", () => {
+    layout({ a: 0, b: 30 });
+    const { rerender } = render(<List keys={["a", "b"]} />);
+
+    // A re-render while b is drawn 20px below its slot: nothing actually moved.
+    layout({ a: 0, b: 50 });
+    transforms.set("b", "matrix(1, 0, 0, 1, 0, 20)");
+    rerender(<List keys={["a", "b"]} />);
+    expect(animate).not.toHaveBeenCalled();
+
+    transforms.clear();
+    layout({ a: 0, b: 30 });
+    rerender(<List keys={["a", "b"]} />);
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("continues an interrupted glide from where the row is drawn", () => {
+    layout({ a: 0, b: 60 });
+    const { rerender } = render(<List keys={["a", "b"]} />);
+
+    // b moves up to 30 while still drawn 12px off by a running 3D transform.
+    layout({ a: 0, b: 42 });
+    transforms.set("b", "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 12, 0, 1)");
+    rerender(<List keys={["a", "b"]} />);
+
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(animate).toHaveBeenCalledWith(
+      [{ transform: "translateY(42px)" }, { transform: "none" }],
+      expect.objectContaining({ duration: 220 }),
+    );
   });
 });

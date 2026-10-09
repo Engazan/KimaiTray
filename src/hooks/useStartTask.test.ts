@@ -293,6 +293,8 @@ describe("transactional timer switching", () => {
     const preview = {
       project: "Alpha", activity: "Work", projectColor: "#111111", activityColor: "", customerColor: "",
     };
+    // Same project and activity as the started timer, which Kimai replaces.
+    queryClient.setQueryData(["recent-timesheets", "scope-a"], [timesheet(5)]);
     const { result } = renderHook(() => useStartTask(client), { wrapper });
 
     let startPromise!: ReturnType<typeof result.current.startTask>;
@@ -309,6 +311,7 @@ describe("transactional timer switching", () => {
     expect(result.current.pendingPreview).toBeNull();
     expect(result.current.handoffTimerId).toBe(99);
     expect(queryClient.getQueryData(["active-timesheets", "scope-a"])).toEqual([timesheet(99)]);
+    expect(queryClient.getQueryData(["recent-timesheets", "scope-a"])).toEqual([timesheet(99)]);
 
     post.mockImplementationOnce(async () => timesheet(100));
     await act(async () => {

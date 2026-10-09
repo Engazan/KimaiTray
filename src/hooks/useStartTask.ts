@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
 import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
+import { publishStartedTimesheet } from "./publishStartedTimesheet";
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 import { parseKimaiDate } from "../utils/time";
 import {
@@ -124,13 +125,15 @@ export function useStartTask(
       const control: RetryControl = { cancelled: false, wake: null };
       controlRef.current = control;
 
-      // Publish the created entry right away so the active card does not wait
-      // for the follow-up refetch; the invalidation still reconciles it.
+      // Publish the created entry right away so the active card, Recent and
+      // Today change together instead of each on its own refetch; the
+      // invalidation still reconciles them.
       const publishActive = (entry: KimaiTimesheetEntry) => {
         qc.setQueryData<KimaiTimesheetEntry[]>(
           ["active-timesheets", client.cacheScope],
           (previous) => withStartedEntry(previous, entry, activeLimitRef.current),
         );
+        publishStartedTimesheet(qc, client.cacheScope, entry);
         if (previewShownRef.current) setHandoffTimerId(entry.id);
         previewShownRef.current = false;
         setPendingPreview(null);
