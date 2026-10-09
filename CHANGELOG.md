@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.22.16] - 2026-10-10
+
+### New Features
+
+- **Multiple running timers** ([#42](https://github.com/Engazan/KimaiTray/issues/42)) — when your Kimai instance allows more than one active entry, starting a task keeps your other timers running and stops only the oldest ones beyond the limit. Extra timers appear as compact cards with their own pause and stop actions; screen lock, screensaver and idle actions stop all of them. Instances that allow a single timer behave as before
+- **Automatic retry for failed starts** — when a timer cannot start because of a network or server problem, the start is queued and retried with increasing delays, immediately when the connection returns. The pending card shows the retry status with Retry now and Cancel, and a timer created by a lost attempt is reused instead of starting a duplicate
+
+### Bug Fixes
+
+- **Clearer redirect errors** — a server that redirects to another address, such as from `http://` to `https://`, is no longer reported as unreachable; the connection test now suggests the address to use. The API token is still never sent to the redirected address
+- **No more jumping rows after starting a timer** — Recent and Today rows no longer bounce back and forth for a second after a timer starts; they move once, together with the timer card
+
+### Security
+
+- **Patched build dependency** — update `source-map-js` to resolve a high-severity advisory reported by `npm audit`
+
 ## [0.22.15] - 2026-10-02
 
 ### New Features
