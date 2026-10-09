@@ -21,6 +21,8 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 ### Time tracking
 
 - Start, stop and switch Kimai timers directly from the tray popup
+- Run several timers at once when your Kimai instance allows more than one active entry; each running timer gets its own card with pause and stop, and starting a task stops only the oldest timers beyond the limit
+- Failed starts caused by network or server problems are queued and retried automatically with Retry now and Cancel controls, without creating duplicate timers
 - Pause multiple timers, resume any of them later or discard them
 - Optionally reveal paused-timer descriptions on hover
 - Quick-start tasks from per-connection favorites and recent entries; type to filter both lists
@@ -66,10 +68,10 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 ### Automation and reminders
 
 - Configurable global shortcuts for the popup, new task, stop, pause/resume, continue last task, edit note, open Kimai and Settings
-- Idle detection with configurable threshold and actions: ask, stop at idle start, stop now or keep running
+- Idle detection with configurable threshold and actions: ask, stop at idle start, stop now or keep running; stop actions apply to every running timer
 - Automatic local idle statistics with period history, total duration and a daily chart in idle detection settings; retained for 30 days by default (configurable from 1 to 365 days). Recording runs while the app and idle detection are enabled, even without a running timer.
 - Full-screen idle prompt and optional desktop notification
-- Independently configurable options to stop the active timer when the macOS screen saver starts or the Mac is locked, both disabled by default
+- Independently configurable options to stop all running timers when the macOS screen saver starts or the Mac is locked, both disabled by default
 - Configurable full-screen reminder when no timer has been running
 - Launch at login, configurable server refresh interval and one-click opening of Kimai
 - Automatic updates, manual update checks and a localized What's New screen after updates
@@ -104,9 +106,10 @@ The optional no-timer and idle reminders can take over the screen so they are di
 ## Deep-link automation
 
 An installed KimaiTray can be opened from a browser or another application
-through the `kimaitray://` protocol. The `start` action starts immediately and
-stops the currently running Kimai timesheet, matching the normal in-app switch
-behavior. The `new` action only opens a prefilled new-timer form and always
+through the `kimaitray://` protocol. The `start` action starts immediately,
+matching the normal in-app switch behavior: it stops the running Kimai
+timesheet, or only the oldest ones beyond the limit when the instance allows
+several active entries. The `new` action only opens a prefilled new-timer form and always
 requires manual confirmation.
 
 ```html
@@ -357,6 +360,9 @@ chmod +x KimaiTray_*.AppImage
 
 **Windows: WebView2 missing**
 The NSIS installer bundles a WebView2 bootstrapper. If you built manually, install [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
+**Connection test says the server redirects to another address**
+KimaiTray does not follow redirects to a different address, so your API token is never sent anywhere else. Use the address the message suggests, typically `https://` instead of `http://`.
 
 **Connection fails with 401**
 Your API token may have expired or lack permissions. Generate a new one in Kimai -> Profile -> API Access.
