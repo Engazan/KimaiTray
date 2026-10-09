@@ -4,6 +4,7 @@ import type { KimaiClient } from "../api/kimaiClient";
 import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
+import { parseKimaiDate } from "../utils/time";
 import {
   switchTask,
   TaskSwitchError,
@@ -17,6 +18,19 @@ export {
   TaskMetadataError,
   type StartTaskPayload,
 } from "../services/timerService";
+
+/** The running entries after `started` joined `previous` under `limit`: the
+ * newest `limit` entries, as Kimai stops the oldest beyond its hard limit. */
+export function withStartedEntry(
+  previous: KimaiTimesheetEntry[] | undefined,
+  started: KimaiTimesheetEntry,
+  limit: number,
+): KimaiTimesheetEntry[] {
+  if (limit <= 1) return [started];
+  return [...(previous ?? []).filter((entry) => entry.id !== started.id), started]
+    .sort((a, b) => parseKimaiDate(a.begin).getTime() - parseKimaiDate(b.begin).getTime())
+    .slice(-limit);
+}
 
 /** What the popup shows while a start request is still in flight. */
 export interface StartPreview {
@@ -69,6 +83,7 @@ export function useStartTask(
     payload: StartTaskPayload,
   ) => void,
   onTaskFailed?: (error: Error, payload: StartTaskPayload) => void,
+  activeLimit = 1,
 ) {
   const qc = useQueryClient();
   const [startingKey, setStartingKey] = useState<string | null>(null);
@@ -83,8 +98,10 @@ export function useStartTask(
   const [handoffTimerId, setHandoffTimerId] = useState<number | null>(null);
   // A queued start can outlive the render that issued it; use the latest callbacks.
   const callbacksRef = useRef({ onTaskStarted, onTaskFailed });
+  const activeLimitRef = useRef(activeLimit);
   useEffect(() => {
     callbacksRef.current = { onTaskStarted, onTaskFailed };
+    activeLimitRef.current = activeLimit;
   });
 
   // A queued start belongs to the connection it was made for.
@@ -110,7 +127,10 @@ export function useStartTask(
       // Publish the created entry right away so the active card does not wait
       // for the follow-up refetch; the invalidation still reconciles it.
       const publishActive = (entry: KimaiTimesheetEntry) => {
-        qc.setQueryData(["active-timesheets", client.cacheScope], [entry]);
+        qc.setQueryData<KimaiTimesheetEntry[]>(
+          ["active-timesheets", client.cacheScope],
+          (previous) => withStartedEntry(previous, entry, activeLimitRef.current),
+        );
         if (previewShownRef.current) setHandoffTimerId(entry.id);
         previewShownRef.current = false;
         setPendingPreview(null);
@@ -159,7 +179,10 @@ export function useStartTask(
             const entry = await switchTask(
               client,
               payload,
-              attempt > 0 ? { adoptSince: firstAttemptAt } : undefined,
+              {
+                adoptSince: attempt > 0 ? firstAttemptAt : undefined,
+                activeLimit: activeLimitRef.current,
+              },
             );
             setStartingKey(null);
             publishActive(entry);

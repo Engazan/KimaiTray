@@ -28,7 +28,8 @@ function formatRelativeDate(iso: string): string {
 export function useRecentTasks(
   client: KimaiClient | null,
   isConfigured: boolean,
-  activeKey?: string | null,
+  /** Running task key(s), left out of the list. */
+  activeKey?: string | readonly string[] | null,
 ) {
   const enabled = !!client && isConfigured;
 
@@ -66,7 +67,7 @@ export function useRecentTasks(
       const activityId = extractId(entry.activity);
       const key = taskKeyOf(projectId, activityId, entry.description ?? "");
       if (seen.has(key)) continue;
-      if (activeKey && key === activeKey) continue;
+      if (activeKey && (typeof activeKey === "string" ? key === activeKey : activeKey.includes(key))) continue;
       seen.add(key);
 
       const proj = projects.find((p) => p.id === projectId);

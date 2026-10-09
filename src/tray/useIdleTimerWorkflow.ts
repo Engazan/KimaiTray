@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -20,7 +20,10 @@ import { logger } from "../utils/logger";
 
 interface Options {
   client: KimaiClient | null;
+  /** The newest running timer, named in the idle reminder. */
   timer: ActiveTimer | null;
+  /** Every running timer; idle stop actions apply to all of them. */
+  timers?: readonly ActiveTimer[];
   idleSettings: Pick<AppSettings, "enableIdleDetection" | "idleThresholdMinutes" | "idleAction" | "showIdleNotification">;
   openNewTask: () => void;
   timerActionsDisabled: boolean;
@@ -28,10 +31,15 @@ interface Options {
 export function useIdleTimerWorkflow({
   client,
   timer,
+  timers,
   idleSettings,
   openNewTask,
   timerActionsDisabled,
 }: Options) {
+  const timerIds = useMemo(
+    () => (timers ?? (timer ? [timer] : [])).map((running) => running.id),
+    [timers, timer],
+  );
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [idleProcessing, setIdleProcessing] = useState(false);
@@ -84,15 +92,19 @@ export function useIdleTimerWorkflow({
         if (idleSettings.idleAction === "continue") {
           // Do nothing, just dismiss
         } else if (idleSettings.idleAction === "stop") {
-          await stopTimesheet(client, timer.id);
+          for (const id of timerIds) await stopTimesheet(client, id);
           invalidateTimesheets(qc);
         } else if (idleSettings.idleAction === "discard" && idleStartedAt) {
-          await stopTimerAtIdleBoundary(client, timer.id, idleStartedAt);
+          for (const id of timerIds) {
+            await stopTimerAtIdleBoundary(client, id, idleStartedAt);
+          }
           invalidateTimesheets(qc);
         }
         succeeded = true;
       } catch {
         setIdleActionError(t("errors.failedToStopTimer"));
+        // Earlier timers may already be stopped.
+        invalidateTimesheets(qc);
       } finally {
         release();
         setIdleProcessing(false);
@@ -106,6 +118,7 @@ export function useIdleTimerWorkflow({
     timerActionsDisabled,
     client,
     timer,
+    timerIds,
     idleStartedAt,
     dismissIdle,
     qc,
@@ -128,10 +141,13 @@ export function useIdleTimerWorkflow({
     setIdleProcessing(true);
     setIdleActionError(null);
     try {
-      await stopTimerAtIdleBoundary(client, timer.id, idleStartedAt, true);
+      for (const id of timerIds) {
+        await stopTimerAtIdleBoundary(client, id, idleStartedAt, true);
+      }
       invalidateTimesheets(qc);
     } catch {
       setIdleActionError(t("errors.failedToStopTimer"));
+      invalidateTimesheets(qc);
       return false;
     } finally {
       release();
@@ -139,7 +155,7 @@ export function useIdleTimerWorkflow({
     }
     dismissIdle();
     return true;
-  }, [client, timer, idleStartedAt, dismissIdle, qc, t]);
+  }, [client, timer, timerIds, idleStartedAt, dismissIdle, qc, t]);
 
   const handleIdleStopAtStart = useCallback(async () => {
     await stopAtIdleStart();
@@ -153,17 +169,18 @@ export function useIdleTimerWorkflow({
     setIdleActionError(null);
     let succeeded = false;
     try {
-      await stopTimesheet(client, timer.id);
+      for (const id of timerIds) await stopTimesheet(client, id);
       invalidateTimesheets(qc);
       succeeded = true;
     } catch {
       setIdleActionError(t("errors.failedToStopTimer"));
+      invalidateTimesheets(qc);
     } finally {
       release();
       setIdleProcessing(false);
     }
     if (succeeded) dismissIdle();
-  }, [client, timer, dismissIdle, qc, t]);
+  }, [client, timer, timerIds, dismissIdle, qc, t]);
 
   const handleIdleStopAndNew = useCallback(async () => {
     if (await stopAtIdleStart()) openNewTask();

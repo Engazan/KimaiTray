@@ -37,6 +37,7 @@ export {
 
 export {
   getActiveTimesheets,
+  getActiveEntriesLimit,
   getRecentTimesheets,
   getTimesheets,
   getTimesheet,

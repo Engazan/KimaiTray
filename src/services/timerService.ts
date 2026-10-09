@@ -48,6 +48,22 @@ export interface SwitchTaskOptions {
    * activity that began after this moment is adopted instead of creating a
    * duplicate. */
   adoptSince?: Date;
+  /** How many timers the instance lets run at once. Only the oldest running
+   * entries beyond `activeLimit - 1` are stopped before the new one starts. */
+  activeLimit?: number;
+}
+
+/** Running entries to stop so that, with one more started, at most `limit`
+ * remain. The oldest go first, matching how Kimai enforces its hard limit. */
+export function entriesToStop(
+  active: KimaiTimesheetEntry[],
+  limit: number,
+): KimaiTimesheetEntry[] {
+  const excess = active.length - Math.max(1, limit) + 1;
+  if (excess <= 0) return [];
+  return [...active]
+    .sort((a, b) => parseKimaiDate(a.begin).getTime() - parseKimaiDate(b.begin).getTime())
+    .slice(0, excess);
 }
 
 // Tolerates clock skew between this machine and the Kimai server.
@@ -84,14 +100,22 @@ export async function switchTask(
   let stoppedExisting = false;
   let startAttempted = false;
   const stoppedIds: number[] = [];
+  // Running entries this switch deliberately leaves alone.
+  const keptIds = new Set<number>();
   let entry: KimaiTimesheetEntry;
   try {
     const active = await getActiveTimesheets(client);
     const adopted = options.adoptSince
       ? findAdoptable(active, payload, options.adoptSince)
       : undefined;
-    for (const entry of active) {
-      if (entry === adopted) continue;
+    // An adopted entry is the timer being started, so it never counts against
+    // the limit and is never stopped.
+    const others = active.filter((entry) => entry !== adopted);
+    const toStop = entriesToStop(others, options.activeLimit ?? 1);
+    for (const entry of others) {
+      if (!toStop.includes(entry)) keptIds.add(entry.id);
+    }
+    for (const entry of toStop) {
       await stopTimesheet(client, entry.id);
       stoppedExisting = true;
       stoppedIds.push(entry.id);
@@ -121,7 +145,9 @@ export async function switchTask(
         // Even an empty snapshot cannot rule out an in-flight create committing
         // later. Never restart automatically after an ambiguous create result.
         // Do not infer ownership of a running entry from matching task fields.
-        if (!rejected || active === null || active.length > 0) {
+        // Timers kept running alongside the new one are expected.
+        const unexpected = active?.some((entry) => !keptIds.has(entry.id));
+        if (!rejected || active === null || unexpected) {
           throw new TaskSwitchError(err, stoppedExisting, true);
         }
       }

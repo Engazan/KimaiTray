@@ -14,6 +14,7 @@ import {
 } from "./projectApi";
 import {
   deleteTimesheet,
+  getActiveEntriesLimit,
   getActiveTimesheets,
   getRecentTimesheets,
   getTimesheet,
@@ -181,6 +182,20 @@ describe("Kimai entity API adapters", () => {
 
     await expect(deleteTimesheet(client, 7)).resolves.toBeUndefined();
     expect(client.del).toHaveBeenCalledWith("/api/timesheets/7");
+  });
+
+  it.each([
+    [{ activeEntriesHardLimit: 3 }, 3],
+    [{ activeEntriesHardLimit: 1 }, 1],
+    [{ activeEntriesHardLimit: 0 }, 1],
+    [{ activeEntriesHardLimit: "3" }, 1],
+    [{ activeEntriesHardLimit: 2.5 }, 1],
+    [{}, 1],
+  ])("reads the active entries limit from %j", async (config, limit) => {
+    vi.mocked(client.get).mockResolvedValue(config);
+
+    await expect(getActiveEntriesLimit(client)).resolves.toBe(limit);
+    expect(client.get).toHaveBeenCalledWith("/api/config/timesheet");
   });
 
   it("rejects malformed timesheet entities at every boundary", async () => {

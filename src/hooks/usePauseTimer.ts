@@ -28,11 +28,17 @@ const STOP_EXIT_ANIMATION_MS = 240;
 interface UsePauseTimerResult {
   pausedTimers: PausedTimerData[];
   hasPausedTimers: boolean;
-  pauseTimer: () => void;
+  /** Pause `target`, or the newest running timer when omitted. */
+  pauseTimer: (target?: ActiveTimer) => void;
   resumeTimer: (id: string) => void;
   discardPausedTimer: (id: string) => void;
-  stopActiveTimer: () => void;
+  /** Stop `target`, or the newest running timer when omitted. */
+  stopActiveTimer: (target?: ActiveTimer) => void;
+  /** Stop every running timer, e.g. when the screen locks. */
+  stopAllActiveTimers: () => void;
   isPausing: boolean;
+  pausingTimerId: number | null;
+  stoppingTimerIds: readonly number[];
   resumingId: string | null;
   discardingId: string | null;
   isStoppingActive: boolean;
@@ -45,6 +51,8 @@ export function usePauseTimer(
   timer: ActiveTimer | null,
   connectionId: string,
   pluginCustomInputs: readonly PluginCustomInputDefinition[] = [],
+  runningTimers: readonly ActiveTimer[] = timer ? [timer] : [],
+  activeLimit = 1,
 ): UsePauseTimerResult {
   const qc = useQueryClient();
   const [pausedTimers, setPausedTimers] = useState<PausedTimerData[]>([]);
@@ -52,8 +60,11 @@ export function usePauseTimer(
   const [resumingId, setResumingId] = useState<string | null>(null);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [stoppingExitScope, setStoppingExitScope] = useState<string | null>(null);
-  const timerRef = useRef(timer);
-  timerRef.current = timer;
+  const [stoppingTimerIds, setStoppingTimerIds] = useState<readonly number[]>([]);
+  const runningTimersRef = useRef(runningTimers);
+  runningTimersRef.current = runningTimers;
+  const activeLimitRef = useRef(activeLimit);
+  activeLimitRef.current = activeLimit;
   const stopActiveInFlightRef = useRef<string | null>(null);
   const stopExitReleaseRef = useRef<(() => void) | null>(null);
   const stopExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,20 +168,21 @@ export function usePauseTimer(
   const resumeMut = useMutation({
     mutationFn: async ({
       target,
-      currentTimer,
+      toPause,
       operationClient,
       operationConnectionId,
       scope,
     }: {
       target: PausedTimerData;
-      currentTimer: ActiveTimer | null;
+      /** Running timers to pause first so the resumed one fits the limit. */
+      toPause: readonly ActiveTimer[];
       operationClient: KimaiClient;
       operationConnectionId: string;
       scope: string;
       release: () => void;
     }) => {
-      // Auto-pause the running timer first (swap)
-      if (currentTimer) {
+      // Auto-pause running timers first (swap)
+      for (const currentTimer of toPause) {
         const swapData: PausedTimerData = {
           id: crypto.randomUUID(),
           connectionId: operationConnectionId,
@@ -247,10 +259,16 @@ export function usePauseTimer(
       setResumingId(null);
       return invalidate();
     },
-    onError: (err: Error, { scope }) => {
+    onError: (err: Error, { scope, operationConnectionId }) => {
       if (sessionScopeRef.current !== scope) return;
       setPauseError(err.message);
       setResumingId(null);
+      // Some running timers may have been paused before the failure.
+      void loadPausedTimers().then((all) => {
+        if (sessionScopeRef.current !== scope) return;
+        setPausedTimers(all.filter((t) => t.connectionId === operationConnectionId));
+      });
+      return invalidate();
     },
     onSettled: (_data, _error, { release }) => release(),
   });
@@ -293,19 +311,21 @@ export function usePauseTimer(
   // Stop only the active timer — does not touch paused timers
   const stopActiveMut = useMutation({
     mutationFn: async ({
-      timerId,
+      timerIds,
       operationClient,
       scope,
     }: {
-      timerId: number;
+      timerIds: readonly number[];
       operationClient: KimaiClient;
       scope: string;
       release: () => void;
     }) => {
-      await stopTimesheet(operationClient, timerId);
-      return { scope, timerId };
+      for (const timerId of timerIds) {
+        await stopTimesheet(operationClient, timerId);
+      }
+      return { scope, timerIds };
     },
-    onSuccess: ({ scope, timerId }, { release }) => {
+    onSuccess: ({ scope, timerIds }, { release }) => {
       if (sessionScopeRef.current !== scope) {
         release();
         if (stopActiveInFlightRef.current === scope) {
@@ -326,12 +346,13 @@ export function usePauseTimer(
           {
             predicate: (query) => query.queryKey[0] === "active-timesheets",
           },
-          (entries) => entries?.filter((entry) => entry.id !== timerId),
+          (entries) => entries?.filter((entry) => !timerIds.includes(entry.id)),
         );
         if (stopActiveInFlightRef.current === scope) {
           stopActiveInFlightRef.current = null;
         }
         setStoppingExitScope(null);
+        setStoppingTimerIds([]);
         void invalidate();
         release();
         stopExitReleaseRef.current = null;
@@ -343,8 +364,11 @@ export function usePauseTimer(
         stopActiveInFlightRef.current = null;
       }
       setStoppingExitScope(null);
+      setStoppingTimerIds([]);
       if (sessionScopeRef.current !== scope) return;
       setPauseError(err.message);
+      // Earlier timers in a multi-stop may already have stopped.
+      return invalidate();
     },
   });
 
@@ -358,13 +382,14 @@ export function usePauseTimer(
     (stopActiveMut.isPending && stopActiveMut.variables?.scope === sessionScope) ||
     stoppingExitScope === sessionScope;
 
-  const pauseTimer = useCallback(() => {
-    if (!client || !timer || isPausingCurrentSession) return;
+  const pauseTimer = useCallback((target?: ActiveTimer) => {
+    const activeTimer = target ?? timer;
+    if (!client || !activeTimer || isPausingCurrentSession) return;
     const release = acquireTimerOperation(qc, sessionScope);
     if (!release) return;
     setPauseError(null);
     pauseMut.mutate({
-      activeTimer: timer,
+      activeTimer,
       operationClient: client,
       operationConnectionId: connectionId,
       scope: sessionScope,
@@ -381,9 +406,12 @@ export function usePauseTimer(
       if (!release) return;
       setPauseError(null);
       setResumingId(target.id);
+      // Oldest first, keeping room for the resumed timer under the limit.
+      const running = runningTimersRef.current;
+      const excess = running.length - Math.max(1, activeLimitRef.current) + 1;
       resumeMut.mutate({
         target,
-        currentTimer: timerRef.current,
+        toPause: excess > 0 ? [...running].reverse().slice(0, excess) : [],
         operationClient: client,
         operationConnectionId: connectionId,
         scope: sessionScope,
@@ -418,9 +446,9 @@ export function usePauseTimer(
     [discardMut, isDiscardingCurrentSession, connectionId, sessionScope, qc],
   );
 
-  const stopActiveTimer = useCallback(() => {
+  const stopTimers = useCallback((timerIds: readonly number[]) => {
     if (
-      !timer ||
+      timerIds.length === 0 ||
       isStoppingCurrentSession ||
       stopActiveInFlightRef.current === sessionScope
     ) return;
@@ -429,14 +457,24 @@ export function usePauseTimer(
     if (!release) return;
     setPauseError(null);
     setStoppingExitScope(sessionScope);
+    setStoppingTimerIds(timerIds);
     stopActiveInFlightRef.current = sessionScope;
     stopActiveMut.mutate({
-      timerId: timer.id,
+      timerIds,
       operationClient: client,
       scope: sessionScope,
       release,
     });
-  }, [client, timer, isStoppingCurrentSession, stopActiveMut, sessionScope, qc]);
+  }, [client, isStoppingCurrentSession, stopActiveMut, sessionScope, qc]);
+
+  const stopActiveTimer = useCallback((target?: ActiveTimer) => {
+    const activeTimer = target ?? timer;
+    if (activeTimer) stopTimers([activeTimer.id]);
+  }, [timer, stopTimers]);
+
+  const stopAllActiveTimers = useCallback(() => {
+    stopTimers(runningTimersRef.current.map((running) => running.id));
+  }, [stopTimers]);
 
   const dismissPauseError = useCallback(() => setPauseError(null), []);
 
@@ -447,7 +485,12 @@ export function usePauseTimer(
     resumeTimer,
     discardPausedTimer,
     stopActiveTimer,
+    stopAllActiveTimers,
     isPausing: isPausingCurrentSession,
+    pausingTimerId: isPausingCurrentSession
+      ? pauseMut.variables?.activeTimer.id ?? null
+      : null,
+    stoppingTimerIds: isStoppingCurrentSession ? stoppingTimerIds : [],
     resumingId,
     discardingId,
     isStoppingActive: isStoppingCurrentSession,

@@ -12,6 +12,8 @@ interface Options {
   stopTimerOnScreensaver: boolean;
   stopTimerOnScreenLock: boolean;
   stopTimer: () => void;
+  /** Stops every running timer when the screen locks; defaults to stopTimer. */
+  stopAllTimers?: () => void;
   pauseResume: () => void;
   continueLastTask: () => void;
   editNote: () => void;
@@ -25,6 +27,7 @@ export function useTraySystemEvents(options: Options) {
 
   useEffect(() => {
     const win = getCurrentWindow();
+    const stopAll = () => (latest.current.stopAllTimers ?? latest.current.stopTimer)();
     const listeners = [
       win.listen("kimai://refresh", () => latest.current.refresh()),
       win.listen("kimai://new-task", () => latest.current.newTask()),
@@ -33,10 +36,10 @@ export function useTraySystemEvents(options: Options) {
       win.listen("kimai://continue-last-task", () => latest.current.continueLastTask()),
       win.listen("kimai://edit-active-note", () => latest.current.editNote()),
       win.listen("kimai://screensaver-started", () => {
-        if (latest.current.stopTimerOnScreensaver) latest.current.stopTimer();
+        if (latest.current.stopTimerOnScreensaver) stopAll();
       }),
       win.listen("kimai://screen-locked", () => {
-        if (latest.current.stopTimerOnScreenLock) latest.current.stopTimer();
+        if (latest.current.stopTimerOnScreenLock) stopAll();
       }),
     ];
     return () => {

@@ -11,6 +11,7 @@ import {
   TaskMetadataError,
   TaskSwitchError,
   useStartTask,
+  withStartedEntry,
 } from "./useStartTask";
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 
@@ -545,5 +546,20 @@ describe("start retry queue", () => {
     expect(result.current.startRetry).toBeNull();
     expect(result.current.switchError).toContain('Failed to start "Bad"');
     queryClient.clear();
+  });
+});
+
+describe("running entries after a start", () => {
+  const at = (id: number, begin: string) => ({ ...timesheet(id), begin });
+
+  it("replaces the list without a limit and keeps the newest entries under one", () => {
+    const first = at(1, "2026-07-11T08:00:00+0200");
+    const second = at(2, "2026-07-11T09:00:00+0200");
+    const started = at(3, "2026-07-11T10:00:00+0200");
+
+    expect(withStartedEntry([first, second], started, 1)).toEqual([started]);
+    expect(withStartedEntry([second, first], started, 2)).toEqual([second, started]);
+    expect(withStartedEntry(undefined, started, 3)).toEqual([started]);
+    expect(withStartedEntry([started], started, 3)).toEqual([started]);
   });
 });

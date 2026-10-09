@@ -657,3 +657,58 @@ describe("paused timer session isolation", () => {
     expect(timesheetMocks.stopTimesheet).not.toHaveBeenCalled();
   });
 });
+
+describe("pausing and stopping with several running timers", () => {
+  const older: ActiveTimer = { ...activeTimer(), id: 41, beginSeconds: 1_699_999_000 };
+  const newer: ActiveTimer = { ...activeTimer(), id: 42 };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([]);
+    pauseStoreMocks.addPausedTimer.mockResolvedValue([]);
+    pauseStoreMocks.removePausedTimer.mockResolvedValue([]);
+    pauseStoreMocks.removeResumedTimer.mockResolvedValue([]);
+    timesheetMocks.startTimesheet.mockResolvedValue({ id: 99 });
+    timesheetMocks.stopTimesheet.mockResolvedValue(undefined);
+  });
+
+  function renderMulti(limit: number) {
+    return renderHook(
+      () => usePauseTimer(client("connection-a"), newer, "connection-a", [], [newer, older], limit),
+      { wrapper: wrapper() },
+    );
+  }
+
+  it("pauses and stops the requested timer instead of the newest", async () => {
+    const { result } = renderMulti(3);
+    act(() => result.current.pauseTimer(older));
+    await waitFor(() => expect(timesheetMocks.stopTimesheet).toHaveBeenCalledWith(expect.anything(), older.id));
+    await waitFor(() => expect(result.current.isPausing).toBe(false));
+
+    act(() => result.current.stopActiveTimer(older));
+    expect(result.current.stoppingTimerIds).toEqual([older.id]);
+    await waitFor(() => expect(timesheetMocks.stopTimesheet).toHaveBeenCalledTimes(2));
+    expect(timesheetMocks.stopTimesheet).not.toHaveBeenCalledWith(expect.anything(), newer.id);
+  });
+
+  it("stops every running timer at once", async () => {
+    const { result } = renderMulti(3);
+    act(() => result.current.stopAllActiveTimers());
+    await waitFor(() => expect(timesheetMocks.stopTimesheet).toHaveBeenCalledTimes(2));
+    expect(timesheetMocks.stopTimesheet).toHaveBeenCalledWith(expect.anything(), newer.id);
+    expect(timesheetMocks.stopTimesheet).toHaveBeenCalledWith(expect.anything(), older.id);
+  });
+
+  it.each([
+    [3, []],
+    [2, [41]],
+    [1, [41, 42]],
+  ])("resumes under limit %i by pausing only timers that no longer fit", async (limit, pausedIds) => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([paused("connection-a")]);
+    const { result } = renderMulti(limit);
+    await waitFor(() => expect(result.current.pausedTimers).toHaveLength(1));
+    act(() => result.current.resumeTimer("paused-connection-a"));
+    await waitFor(() => expect(timesheetMocks.startTimesheet).toHaveBeenCalledOnce());
+    expect(timesheetMocks.stopTimesheet.mock.calls.map(([, id]) => id)).toEqual(pausedIds);
+  });
+});

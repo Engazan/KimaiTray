@@ -22,7 +22,10 @@ export type ConnectionStatus =
   | "unconfigured";
 
 interface UseActiveTimerResult {
+  /** The most recently started running timer. */
   timer: ActiveTimer | null;
+  /** Every running timer, newest first. */
+  timers: ActiveTimer[];
   multipleActive: boolean;
   status: ConnectionStatus;
   errorMessage: string;
@@ -62,9 +65,7 @@ export function useActiveTimer(
     neededIds.activityIds,
   );
 
-  const timer = useMemo<ActiveTimer | null>(() => {
-    if (entries.length === 0) return null;
-    const entry = entries.reduce((a, b) => (a.begin > b.begin ? a : b));
+  const timers = useMemo<ActiveTimer[]>(() => entries.map((entry) => {
     const projectId = extractId(entry.project);
     const activityId = extractId(entry.activity);
     const proj = projects.find((p) => p.id === projectId);
@@ -85,7 +86,9 @@ export function useActiveTimer(
       beginSeconds: Math.floor(parseKimaiDate(entry.begin).getTime() / 1000),
       beginIso: entry.begin,
     };
-  }, [entries, projects, activities, customers]);
+  }).sort((a, b) => b.beginSeconds - a.beginSeconds || b.id - a.id),
+  [entries, projects, activities, customers]);
+  const timer = timers[0] ?? null;
 
   const stopMut = useMutation({
     mutationFn: ({ id, operationClient }: { id: number; operationClient: KimaiClient; release: () => void }) => stopTimesheet(operationClient, id),
@@ -135,6 +138,7 @@ export function useActiveTimer(
 
   return {
     timer,
+    timers,
     multipleActive: entries.length > 1,
     status,
     errorMessage,

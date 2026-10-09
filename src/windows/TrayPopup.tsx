@@ -30,6 +30,7 @@ import TimesheetEditDialog from "../components/TimesheetEditDialog";
 import DetachedTitleBar from "../components/DetachedTitleBar";
 import { useKimaiClient } from "../hooks/useKimaiClient";
 import { useActiveTimer } from "../hooks/useActiveTimer";
+import { useActiveEntriesLimit } from "../hooks/useActiveEntriesLimit";
 import { useRecentTasks } from "../hooks/useRecentTasks";
 import { useTodayTimesheets } from "../hooks/useTodayTimesheets";
 import { useStartTask } from "../hooks/useStartTask";
@@ -49,7 +50,7 @@ import { useLanguageSync } from "../hooks/useLanguageSync";
 import { useUpdater } from "../hooks/useUpdater";
 import { getTimesheet } from "../api/timesheetApi";
 import { logger } from "../utils/logger";
-import type { RecentTask, FavoriteTask, TodayEntry } from "../types";
+import type { ActiveTimer, RecentTask, FavoriteTask, TodayEntry } from "../types";
 import type { ExternalIssue } from "../integrations/issues/types";
 import { taskKeyOf } from "../integrations/issues/linkedIssueStore";
 import { getStringTimesheetMetadata } from "../api/timesheetMeta";
@@ -130,10 +131,13 @@ export default function TrayPopup() {
 
   const {
     timer,
-    multipleActive,
+    timers,
     status,
     errorMessage,
   } = useActiveTimer(client, isConfigured, refreshInterval, settingsReady);
+  const activeLimit = useActiveEntriesLimit(client);
+  // More running timers than the instance allows (e.g. started elsewhere).
+  const multipleActive = timers.length > activeLimit;
 
   useNoTimerReminder({
     enabled: timerReminderSettings.enabled,
@@ -156,7 +160,10 @@ export default function TrayPopup() {
     resumeTimer,
     discardPausedTimer,
     stopActiveTimer,
+    stopAllActiveTimers,
     isPausing,
+    pausingTimerId,
+    stoppingTimerIds,
     resumingId,
     discardingId,
     isStoppingActive,
@@ -167,15 +174,19 @@ export default function TrayPopup() {
     timer,
     activeConnectionId,
     pluginCustomInputs,
+    timers,
+    activeLimit,
   );
 
-  const activeKey = timer
-    ? taskKeyOf(timer.projectId, timer.activityId, timer.description)
-    : null;
+  const activeKeys = useMemo(
+    () => timers.map((running) =>
+      taskKeyOf(running.projectId, running.activityId, running.description)),
+    [timers],
+  );
   const { tasks, isLoading: tasksLoading } = useRecentTasks(
     client,
     isConfigured,
-    activeKey,
+    activeKeys,
   );
 
   const today = useTodayTimesheets(client, isConfigured, refreshInterval);
@@ -216,6 +227,7 @@ export default function TrayPopup() {
       issueLink.onTaskStarted(entry, payload);
     },
     issueLink.onTaskFailed,
+    activeLimit,
   );
   // A queued retry keeps the submitted values; show its status instead of a
   // locked form.
@@ -237,7 +249,7 @@ export default function TrayPopup() {
   const timerMutationBusy = isStarting || isPausing || isStoppingActive ||
     resumingId !== null || discardingId !== null;
   const { idleProcessing } = useIdleTimerWorkflow({
-    client, timer, idleSettings, openNewTask: openTaskAfterIdle,
+    client, timer, timers, idleSettings, openNewTask: openTaskAfterIdle,
     timerActionsDisabled: timerMutationBusy,
   });
   const { deepLinkProcessing, deepLinkError, dismissDeepLinkError } = useTrayDeepLinks({
@@ -262,7 +274,8 @@ export default function TrayPopup() {
     shortcutSettings,
     stopTimerOnScreensaver: idleSettings.stopTimerOnScreensaver,
     stopTimerOnScreenLock: idleSettings.stopTimerOnScreenLock,
-    stopTimer: stopActiveTimer,
+    stopTimer: () => stopActiveTimer(),
+    stopAllTimers: stopAllActiveTimers,
     refresh: () => { void invalidateTimesheets(qc); },
     newTask: openTaskFromShortcut,
     pauseResume: pauseOrResume,
@@ -297,8 +310,8 @@ export default function TrayPopup() {
 
 
   const visibleFavorites = useMemo(
-    () => (activeKey ? favorites.filter((f) => f.key !== activeKey) : favorites),
-    [favorites, activeKey],
+    () => favorites.filter((f) => !activeKeys.includes(f.key)),
+    [favorites, activeKeys],
   );
 
   const visibleTasks = useMemo(
@@ -421,6 +434,15 @@ export default function TrayPopup() {
   };
 
   const compactTimer = popupLayout === "taskbar" || popupLayout === "timeline";
+
+  // Other running timers sit below the main card. While a start is pending,
+  // timers that will keep running alongside it stay visible too.
+  const secondaryTimers: ActiveTimer[] =
+    status === "loading" || status === "unconfigured"
+      ? []
+      : pendingCardPreview
+        ? timers.slice(0, Math.max(0, activeLimit - 1))
+        : timers.slice(1);
 
   // Render paused timers as a compact single-row list whenever there is more
   // than one (or an active timer / a compact layout is in play), so several are
@@ -559,17 +581,23 @@ export default function TrayPopup() {
   );
 
   const runningEntryContextMenu = useCallback(
-    (event: ReactMouseEvent<HTMLElement>) => {
+    (event: ReactMouseEvent<HTMLElement>, entry?: TodayEntry) => {
+      const target = timers.find((running) => running.id === entry?.id) ?? timer;
+      const isPrimary = !!target && target.id === timer?.id;
       const entries: ContextMenuEntry[] = [
-        ...(timer
+        ...(target
           ? [
-              { text: t("pause.pause"), enabled: !timerActionsDisabled, action: pauseTimer },
-              { text: t("timer.stopTimer"), enabled: !timerActionsDisabled, action: stopActiveTimer },
-              separator(),
-              { text: t("contextMenu.editNote"), action: () => setEditNoteRequest((request) => request + 1) },
+              { text: t("pause.pause"), enabled: !timerActionsDisabled, action: () => pauseTimer(target) },
+              { text: t("timer.stopTimer"), enabled: !timerActionsDisabled, action: () => stopActiveTimer(target) },
+              ...(isPrimary
+                ? [
+                    separator(),
+                    { text: t("contextMenu.editNote"), action: () => setEditNoteRequest((request) => request + 1) },
+                  ] satisfies ContextMenuEntry[]
+                : []),
             ] satisfies ContextMenuEntry[]
           : []),
-        ...(timerIssueUrl
+        ...(isPrimary && timerIssueUrl
           ? [
               separator(),
               {
@@ -587,7 +615,7 @@ export default function TrayPopup() {
       ];
       void showContextMenu(event, entries);
     },
-    [timerActionsDisabled, pauseTimer, stopActiveTimer, t, timer, timerIssueUrl],
+    [timerActionsDisabled, pauseTimer, stopActiveTimer, t, timer, timers, timerIssueUrl],
   );
 
   const todayHeaderContextMenu = useCallback(
@@ -741,7 +769,8 @@ export default function TrayPopup() {
         <NewTaskForm
           key={`${client.connectionId}:${newTaskShortcutRequest}`}
           client={client}
-          hasActiveTimer={!!timer}
+          // "Switch" only when starting will stop a running timer.
+          hasActiveTimer={timers.length >= activeLimit}
           onSubmit={handleNewTaskSubmit}
           onCancel={() => {
             setShowNewTask(false);
@@ -793,10 +822,10 @@ export default function TrayPopup() {
                   ) : timer ? (
                     <ActiveTimerCard
                       timer={timer}
-                      onStop={stopActiveTimer}
-                      onPause={pauseTimer}
-                      isStopping={isStoppingActive}
-                      isPausing={isPausing}
+                      onStop={() => stopActiveTimer(timer)}
+                      onPause={() => pauseTimer(timer)}
+                      isStopping={stoppingTimerIds.includes(timer.id)}
+                      isPausing={pausingTimerId === timer.id}
                       actionsDisabled={timerActionsDisabled}
                       multipleActive={multipleActive}
                       onEdit={editTimer}
@@ -821,6 +850,29 @@ export default function TrayPopup() {
                   ) : (
                     <EmptyTimerState compact={compactTimer} onNewTask={openBlankNewTask} />
                   )}
+                </div>
+              )}
+              {secondaryTimers.length > 0 && (
+                <div className="min-h-0 shrink-0">
+                  {secondaryTimers.map((running) => (
+                    <ActiveTimerCard
+                      key={running.id}
+                      timer={running}
+                      onStop={() => stopActiveTimer(running)}
+                      onPause={() => pauseTimer(running)}
+                      isStopping={stoppingTimerIds.includes(running.id)}
+                      isPausing={pausingTimerId === running.id}
+                      actionsDisabled={timerActionsDisabled}
+                      onEdit={editTimer}
+                      compact
+                      showNote={featureFlags.featureNote}
+                      showTags={featureFlags.featureTags}
+                      pluginCustomInputs={pluginCustomInputs}
+                      tagSuggestions={tagSuggestions}
+                      colorMode={colorMode}
+                      animateIn={hasRecentUserIntent()}
+                    />
+                  ))}
                 </div>
               )}
               {/* Paused timers live in their own scroll area so they are not

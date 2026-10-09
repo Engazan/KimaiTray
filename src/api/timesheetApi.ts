@@ -23,6 +23,19 @@ export async function getActiveTimesheets(
   );
 }
 
+/** How many timers a user may run at once on this instance (Kimai's
+ * `timesheet.active_entries.hard_limit`). Falls back to 1 when the response
+ * carries no usable value. */
+export async function getActiveEntriesLimit(client: KimaiClient): Promise<number> {
+  const path = "/api/config/timesheet";
+  const config = expectObjectResponse<{ activeEntriesHardLimit?: unknown }>(
+    await client.get<unknown>(path),
+    path,
+  );
+  const limit = config.activeEntriesHardLimit;
+  return typeof limit === "number" && Number.isInteger(limit) && limit > 1 ? limit : 1;
+}
+
 export async function getRecentTimesheets(
   client: KimaiClient,
   size = 10,

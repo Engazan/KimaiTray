@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   syncJobs: [] as import("../integrations/issues/issueTimeSyncQueue").TimeSyncJob[],
   kimai: {} as any,
   active: {} as any,
+  activeLimit: 1,
   pause: {} as any,
   recent: {} as any,
   today: {} as any,
@@ -74,7 +75,10 @@ vi.mock("@tauri-apps/api/window", () => ({
 vi.mock("@tauri-apps/plugin-notification", () => ({ sendNotification: mocks.notification }));
 
 vi.mock("../hooks/useKimaiClient", () => ({ useKimaiClient: () => mocks.kimai }));
-vi.mock("../hooks/useActiveTimer", () => ({ useActiveTimer: () => mocks.active }));
+vi.mock("../hooks/useActiveTimer", () => ({
+  useActiveTimer: () => ({ timers: mocks.active.timer ? [mocks.active.timer] : [], ...mocks.active }),
+}));
+vi.mock("../hooks/useActiveEntriesLimit", () => ({ useActiveEntriesLimit: () => mocks.activeLimit }));
 vi.mock("../hooks/usePauseTimer", () => ({ usePauseTimer: () => mocks.pause }));
 vi.mock("../hooks/useRecentTasks", () => ({ useRecentTasks: () => mocks.recent }));
 vi.mock("../hooks/useTodayTimesheets", () => ({ useTodayTimesheets: () => mocks.today }));
@@ -194,7 +198,8 @@ beforeEach(() => {
     dismissSwitchError: vi.fn(), dismissDeleteError: vi.fn(),
   };
   mocks.active = { timer: null, multipleActive: false, status: "connected", errorMessage: null };
-  mocks.pause = { pausedTimers: [], hasPausedTimers: false, pauseTimer: vi.fn(), resumeTimer: vi.fn(), discardPausedTimer: vi.fn(), stopActiveTimer: vi.fn(), isPausing: false, resumingId: null, discardingId: null, isStoppingActive: false, pauseError: null, dismissPauseError: vi.fn() };
+  mocks.activeLimit = 1;
+  mocks.pause = { pausedTimers: [], hasPausedTimers: false, pauseTimer: vi.fn(), resumeTimer: vi.fn(), discardPausedTimer: vi.fn(), stopActiveTimer: vi.fn(), stopAllActiveTimers: vi.fn(), isPausing: false, pausingTimerId: null, stoppingTimerIds: [], resumingId: null, discardingId: null, isStoppingActive: false, pauseError: null, dismissPauseError: vi.fn() };
   mocks.recent = { tasks: [task], isLoading: false };
   mocks.today = { entries: [{ id: 1 }], totalCount: 1, totalDuration: 3660, hasMore: false, expanded: false, setExpanded: vi.fn(), sortAsc: false, setSortAsc: vi.fn(), isLoading: false, isError: false, refetch: vi.fn() };
   mocks.hidden = { hiddenKeys: new Set<string>(), hideTask: vi.fn(), clearAll: vi.fn() };
@@ -373,18 +378,35 @@ describe("TrayPopup", () => {
     expect(mocks.tray.tickerStart).toHaveBeenCalled();
   });
 
+  it("lists other running timers and acts on each one individually", async () => {
+    const user = userEvent.setup();
+    const other = { ...timer, id: 8, project: "Other", beginSeconds: 50 };
+    mocks.active.timer = timer;
+    mocks.active.timers = [timer, other];
+    mocks.activeLimit = 2;
+    render(<TrayPopup />);
+
+    const stops = screen.getAllByRole("button", { name: "active-stop" });
+    const pauses = screen.getAllByRole("button", { name: "active-pause" });
+    expect(stops).toHaveLength(2);
+    await user.click(stops[1]);
+    await user.click(pauses[1]);
+    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledWith(other);
+    expect(mocks.pause.pauseTimer).toHaveBeenCalledWith(other);
+  });
+
   it("stops the active timer on a screen saver event only when enabled", () => {
     mocks.active.timer = timer;
     mocks.kimai.idleSettings.stopTimerOnScreensaver = true;
     const { rerender } = render(<TrayPopup />);
 
     act(() => mocks.events.get("kimai://screensaver-started")?.());
-    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
+    expect(mocks.pause.stopAllActiveTimers).toHaveBeenCalledTimes(1);
 
     mocks.kimai.idleSettings.stopTimerOnScreensaver = false;
     rerender(<TrayPopup />);
     act(() => mocks.events.get("kimai://screensaver-started")?.());
-    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
+    expect(mocks.pause.stopAllActiveTimers).toHaveBeenCalledTimes(1);
   });
 
   it("stops the active timer on a screen lock event only when enabled", () => {
@@ -393,12 +415,12 @@ describe("TrayPopup", () => {
     const { rerender } = render(<TrayPopup />);
 
     act(() => mocks.events.get("kimai://screen-locked")?.());
-    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
+    expect(mocks.pause.stopAllActiveTimers).toHaveBeenCalledTimes(1);
 
     mocks.kimai.idleSettings.stopTimerOnScreenLock = false;
     rerender(<TrayPopup />);
     act(() => mocks.events.get("kimai://screen-locked")?.());
-    expect(mocks.pause.stopActiveTimer).toHaveBeenCalledTimes(1);
+    expect(mocks.pause.stopAllActiveTimers).toHaveBeenCalledTimes(1);
   });
 
   it("resumes the newest paused timer and reports the paused tray state", () => {
