@@ -711,4 +711,23 @@ describe("pausing and stopping with several running timers", () => {
     await waitFor(() => expect(timesheetMocks.startTimesheet).toHaveBeenCalledOnce());
     expect(timesheetMocks.stopTimesheet.mock.calls.map(([, id]) => id)).toEqual(pausedIds);
   });
+
+  it("does not reload paused timers into another connection after a failed resume", async () => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValueOnce([paused("connection-a")]);
+    const reload = deferred<PausedTimerData[]>();
+    timesheetMocks.startTimesheet.mockRejectedValueOnce(new Error("start failed"));
+    const { result, rerender } = renderHook(
+      ({ id }) => usePauseTimer(client(id), null, id),
+      { initialProps: { id: "connection-a" }, wrapper: wrapper() },
+    );
+    await waitFor(() => expect(result.current.pausedTimers).toHaveLength(1));
+    pauseStoreMocks.loadPausedTimers.mockReturnValueOnce(reload.promise);
+    act(() => result.current.resumeTimer("paused-connection-a"));
+    await waitFor(() => expect(result.current.pauseError).toBe("start failed"));
+
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([]);
+    rerender({ id: "connection-b" });
+    await act(async () => reload.resolve([paused("connection-a")]));
+    expect(result.current.pausedTimers).toEqual([]);
+  });
 });

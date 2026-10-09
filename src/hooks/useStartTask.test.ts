@@ -529,6 +529,8 @@ describe("start retry queue", () => {
     act(() => result.current.cancelStartRetry());
 
     await act(async () => expect(await started).toBeNull());
+    // Nothing is queued any more; cancelling again is a no-op.
+    act(() => result.current.cancelStartRetry());
     expect(post).toHaveBeenCalledTimes(1);
     expect(onFailed).toHaveBeenCalled();
     expect(result.current.switchError).toBeNull();
