@@ -1,4 +1,4 @@
-import { safeHttpFetch } from "./safeHttp";
+import { CrossOriginRedirectError, safeHttpFetch } from "./safeHttp";
 
 // ── Error types ────────────────────────────────────────────────
 
@@ -9,6 +9,7 @@ export type KimaiErrorCode =
   | "validation_error"
   | "server_error"
   | "network_error"
+  | "redirect"
   | "parse_error"
   | "unknown";
 
@@ -26,6 +27,7 @@ const DEFAULT_MESSAGES: Record<KimaiErrorCode, string> = {
   validation_error: "Invalid request data",
   server_error: "Kimai server error",
   network_error: "Could not reach the Kimai server",
+  redirect: "The server redirects to a different address",
   parse_error: "Failed to parse server response",
   unknown: "Unexpected error",
 };
@@ -174,7 +176,14 @@ async function request<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof CrossOriginRedirectError) {
+      // The server answered, so this is a wrong base URL rather than an
+      // unreachable host. Keep the target so callers can suggest it.
+      throw withEndpoint(
+        new KimaiApiError(0, "Redirect", { location: error.location }, "redirect"),
+      );
+    }
     throw withEndpoint(
       new KimaiApiError(0, "Network Error", null, "network_error"),
     );

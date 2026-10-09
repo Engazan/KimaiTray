@@ -5,7 +5,7 @@ const core = vi.hoisted(() => ({ invoke: vi.fn() }));
 
 vi.mock("@tauri-apps/api/core", () => core);
 
-import { resolveSafeRedirect, safeHttpFetch } from "./safeHttp";
+import { CrossOriginRedirectError, resolveSafeRedirect, safeHttpFetch } from "./safeHttp";
 
 describe("safe HTTP redirects", () => {
   const origin = "https://kimai.example.test";
@@ -39,6 +39,12 @@ describe("safe HTTP redirects", () => {
         origin,
       ),
     ).toThrow(/Cross-origin/);
+    expect(() =>
+      resolveSafeRedirect(`${origin}/api/version`, "https://kimai.example.test:8443/api/version", origin),
+    ).toThrow(expect.objectContaining({
+      name: "CrossOriginRedirectError",
+      location: "https://kimai.example.test:8443/api/version",
+    }) as CrossOriginRedirectError);
     expect(() =>
       resolveSafeRedirect(
         `${origin}/api/timesheets`,

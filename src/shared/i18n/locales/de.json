@@ -118,6 +118,8 @@
     "urlRequired": "Kimai-URL ist erforderlich",
     "tokenRequired": "API-Token ist erforderlich",
     "unexpectedError": "Unerwarteter Fehler beim Verbindungstest",
+    "redirectToHttps": "Der Server leitet auf HTTPS um. Verwende {{url}} als Kimai-URL.",
+    "redirectTo": "Der Server leitet auf {{url}} um. Verwende diese Adresse als Kimai-URL.",
     "connectionFailed": "Verbindung fehlgeschlagen"
   },
   "plugins": {

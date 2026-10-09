@@ -118,6 +118,8 @@
     "urlRequired": "URL-адреса Kimai обов'язкова",
     "tokenRequired": "API-токен обов'язковий",
     "unexpectedError": "Неочікувана помилка під час перевірки підключення",
+    "redirectToHttps": "Сервер перенаправляє на HTTPS. Використайте {{url}} як URL Kimai.",
+    "redirectTo": "Сервер перенаправляє на {{url}}. Використайте цю адресу як URL Kimai.",
     "connectionFailed": "Підключення не вдалося"
   },
   "plugins": {

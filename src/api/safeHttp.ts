@@ -66,6 +66,15 @@ async function nativeFetch(
   });
 }
 
+/** The server redirected to another origin, e.g. from http:// to https://. */
+export class CrossOriginRedirectError extends Error {
+  readonly name = "CrossOriginRedirectError";
+
+  constructor(readonly location: string) {
+    super("Cross-origin HTTP redirect blocked");
+  }
+}
+
 export function resolveSafeRedirect(
   currentUrl: string,
   location: string,
@@ -73,7 +82,7 @@ export function resolveSafeRedirect(
 ): string {
   const next = new URL(location, currentUrl);
   if (next.origin !== allowedOrigin) {
-    throw new Error("Cross-origin HTTP redirect blocked");
+    throw new CrossOriginRedirectError(next.toString());
   }
   return next.toString();
 }

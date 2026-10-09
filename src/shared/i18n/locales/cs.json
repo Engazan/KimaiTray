@@ -118,6 +118,8 @@
     "urlRequired": "URL adresa Kimai je povinná",
     "tokenRequired": "API token je povinný",
     "unexpectedError": "Neočekávaná chyba při testu připojení",
+    "redirectToHttps": "Server přesměrovává na HTTPS. Jako Kimai URL použijte {{url}}.",
+    "redirectTo": "Server přesměrovává na {{url}}. Jako Kimai URL použijte tuto adresu.",
     "connectionFailed": "Připojení selhalo"
   },
   "plugins": {

@@ -3,7 +3,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ safeHttpFetch: vi.fn() }));
-vi.mock("./safeHttp", () => ({ safeHttpFetch: mocks.safeHttpFetch }));
+vi.mock("./safeHttp", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./safeHttp")>()),
+  safeHttpFetch: mocks.safeHttpFetch,
+}));
+import { CrossOriginRedirectError } from "./safeHttp";
 import {
   buildApiUrl,
   createKimaiClient,
@@ -159,5 +163,11 @@ describe("Kimai URL helpers", () => {
 
     mocks.safeHttpFetch.mockRejectedValueOnce(new Error("offline"));
     await expect(client.del("/network")).rejects.toMatchObject({ code: "network_error", endpoint: "DELETE /network" });
+    mocks.safeHttpFetch.mockRejectedValueOnce(new CrossOriginRedirectError("https://kimai.test/api/version"));
+    await expect(client.get("/api/version")).rejects.toMatchObject({
+      code: "redirect",
+      message: "The server redirects to a different address",
+      body: { location: "https://kimai.test/api/version" },
+    });
   });
 });

@@ -7,7 +7,10 @@ const mocks = vi.hoisted(() => ({
   translate: vi.fn((key: string) => `translated:${key}`),
 }));
 
-vi.mock("./safeHttp", () => ({ safeHttpFetch: mocks.safeHttpFetch }));
+vi.mock("./safeHttp", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./safeHttp")>()),
+  safeHttpFetch: mocks.safeHttpFetch,
+}));
 vi.mock("../shared/i18n", () => ({
   default: { t: mocks.translate },
 }));
@@ -19,6 +22,7 @@ import {
   testConnection,
 } from "./connectionService";
 import type { KimaiClient } from "./kimaiClient";
+import { CrossOriginRedirectError } from "./safeHttp";
 
 const user = { id: 1, username: "tester", alias: null };
 const version = { version: "2.30.0" };
@@ -184,6 +188,19 @@ describe("Kimai connection verification", () => {
       errorCode: "network_error",
       insecure: false,
     });
+  });
+
+  it.each([
+    ["http://kimai.test", "https://kimai.test/api/users/me", "connection.redirectToHttps", "https://kimai.test"],
+    ["http://kimai.test/kimai/", "https://kimai.test/kimai/api/users/me", "connection.redirectToHttps", "https://kimai.test/kimai"],
+    ["https://kimai.test", "https://www.kimai.test/api/users/me", "connection.redirectTo", "https://www.kimai.test"],
+  ])("suggests the redirect target of %s instead of reporting it unreachable", async (baseUrl, location, key, url) => {
+    mocks.safeHttpFetch.mockRejectedValue(new CrossOriginRedirectError(location));
+
+    const result = await testConnection(baseUrl, "secret");
+
+    expect(result).toMatchObject({ success: false, error: `translated:${key}`, errorCode: "redirect" });
+    expect(mocks.translate).toHaveBeenCalledWith(key, { url });
   });
 
   it("returns generic validation failures without classifying them as API errors", async () => {

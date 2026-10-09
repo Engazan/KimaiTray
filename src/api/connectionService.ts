@@ -92,6 +92,21 @@ export async function getVersion(
   );
 }
 
+/** Explains a redirect to another origin and suggests the base URL to use
+ * instead; the app does not follow such redirects with the API token. */
+function redirectHint(baseUrl: string, err: KimaiApiError): string | null {
+  const location = (err.body as { location?: unknown } | null)?.location;
+  if (err.code !== "redirect" || typeof location !== "string") return null;
+  // Both URLs already parsed: the request ran against baseUrl and the
+  // redirect target was resolved before it was blocked.
+  const from = new URL(baseUrl);
+  const to = new URL(location);
+  const url = `${to.origin}${from.pathname.replace(/\/+$/, "")}`;
+  const httpsUpgrade =
+    from.protocol === "http:" && to.protocol === "https:" && from.hostname === to.hostname;
+  return i18n.t(httpsUpgrade ? "connection.redirectToHttps" : "connection.redirectTo", { url });
+}
+
 export async function testConnection(
   baseUrl: string,
   token: string,
@@ -123,7 +138,7 @@ export async function testConnection(
     if (err instanceof KimaiApiError) {
       return {
         success: false,
-        error: err.message,
+        error: redirectHint(baseUrl, err) ?? err.message,
         errorCode: err.code,
         insecure,
       };
