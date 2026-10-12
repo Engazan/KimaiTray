@@ -54,24 +54,30 @@ pub(super) fn position_popup(
     let tray = (tray_pos.x, tray_pos.y, tray_size.width, tray_size.height);
     let win = (win_size.width as i32, win_size.height as i32);
 
-    // Keep the popup inside the work area (screen minus taskbar) of the
-    // monitor that holds the tray icon, so icons near a screen edge do not
-    // push the popup off-screen.
-    let center_x = tray.0 + tray.2 / 2;
-    let center_y = tray.1 + tray.3 / 2;
-    let work_area = window
-        .monitor_from_point(center_x as f64, center_y as f64)
-        .ok()
-        .flatten()
-        .map(|m| {
-            let area = m.work_area();
-            (
-                area.position.x,
-                area.position.y,
-                area.size.width as i32,
-                area.size.height as i32,
-            )
-        });
+    // On Windows, keep the popup inside the work area (screen minus taskbar)
+    // of the monitor that holds the tray icon, so icons near a screen edge do
+    // not push the popup off-screen. Linux keeps the unclamped position until
+    // clamping has been verified with X11 top panels.
+    #[cfg(target_os = "windows")]
+    let work_area = {
+        let center_x = tray.0 + tray.2 / 2;
+        let center_y = tray.1 + tray.3 / 2;
+        window
+            .monitor_from_point(center_x as f64, center_y as f64)
+            .ok()
+            .flatten()
+            .map(|m| {
+                let area = m.work_area();
+                (
+                    area.position.x,
+                    area.position.y,
+                    area.size.width as i32,
+                    area.size.height as i32,
+                )
+            })
+    };
+    #[cfg(not(target_os = "windows"))]
+    let work_area = None;
 
     let (x, y) = popup_position_near_tray(tray, win, work_area);
     window.set_position(PhysicalPosition::new(x, y))
