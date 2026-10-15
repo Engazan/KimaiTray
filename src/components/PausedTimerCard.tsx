@@ -6,6 +6,8 @@ import type { ColorMode } from "../types";
 import TagsList from "./TagsList";
 import ColorDots from "./ColorDots";
 import { separator, showContextMenu, type ContextMenuEntry } from "./contextMenu";
+import { RetryStatus } from "./PendingTimerCard";
+import type { StartRetryState } from "../hooks/startRetry";
 
 interface PausedTimerCardProps {
   paused: PausedTimerData;
@@ -21,6 +23,10 @@ interface PausedTimerCardProps {
   showDescriptionOnHover?: boolean;
   /** Whether the card plays its entry animation; read once when it mounts. */
   animateIn?: boolean;
+  /** Set while a failed resume of this timer waits in the retry queue. */
+  retry?: StartRetryState | null;
+  onRetryNow?: () => void;
+  onCancelRetry?: () => void;
 }
 
 function formatPausedAt(iso: string): string {
@@ -43,11 +49,15 @@ export default function PausedTimerCard({
   colorMode = "kimai",
   showDescriptionOnHover = false,
   animateIn = true,
+  retry,
+  onRetryNow,
+  onCancelRetry,
 }: PausedTimerCardProps) {
   const { t } = useTranslation();
   const [playEntryAnimation] = useState(animateIn);
   const busy = !!isResuming || !!isStopping;
-  const cardAnim = busy ? "animate-card-out" : playEntryAnimation ? "animate-timer-in" : "";
+  // A queued resume keeps the card in place until it finally starts.
+  const cardAnim = busy && !retry ? "animate-card-out" : playEntryAnimation ? "animate-timer-in" : "";
   const description = paused.description.trim();
   const hasDescription = showDescriptionOnHover && description.length > 0;
   /* v8 ignore start -- callbacks execute from a native OS context menu */
@@ -136,6 +146,11 @@ export default function PausedTimerCard({
             </button>
           </div>
         </div>
+        {retry && (
+          <div className="px-2.5 pb-1.5 -mt-1">
+            <RetryStatus retry={retry} onRetryNow={onRetryNow} onCancelRetry={onCancelRetry} />
+          </div>
+        )}
       </div>
     );
   }
@@ -225,8 +240,12 @@ export default function PausedTimerCard({
           </div>
         </div>
 
+        {retry && (
+          <RetryStatus retry={retry} onRetryNow={onRetryNow} onCancelRetry={onCancelRetry} />
+        )}
+
         {/* Error */}
-        {error && (
+        {error && !retry && (
           <div className="pl-4 mt-1.5 flex items-center gap-1.5">
             <span className="text-[10px] text-red-500 dark:text-red-400 truncate flex-1">
               {error}

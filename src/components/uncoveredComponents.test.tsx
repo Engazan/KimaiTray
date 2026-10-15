@@ -389,6 +389,33 @@ describe("previously uncovered tray components", () => {
     ).toBe(true);
   });
 
+  it.each([false, true])("keeps a paused card with a queued resume in place (compact=%s)", (compact) => {
+    const onRetryNow = vi.fn();
+    const onCancelRetry = vi.fn();
+    const retry = { label: "Paused Project", attempt: 1, nextRetryAt: Date.now() + 5_000, lastError: "Validation Failed" };
+    const { container } = render(
+      <PausedTimerCard
+        paused={paused}
+        onResume={vi.fn()}
+        onStop={vi.fn()}
+        compact={compact}
+        isResuming
+        error="Validation Failed"
+        retry={retry}
+        onRetryNow={onRetryNow}
+        onCancelRetry={onCancelRetry}
+      />,
+    );
+    expect(container.querySelector(".animate-card-out")).toBeNull();
+    expect(screen.getByTitle("Validation Failed").textContent).toContain("tray.startRetryIn");
+    // The queue replaces the inline error until it gives up.
+    expect(screen.queryByText("Validation Failed")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "tray.retryNow" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    expect(onRetryNow).toHaveBeenCalledOnce();
+    expect(onCancelRetry).toHaveBeenCalledOnce();
+  });
+
   it("renders paused timer spinner and empty-description variants", () => {
     const emptyPaused = { ...paused, description: " ", tags: [], activityColor: "", customerColor: "" };
     const { rerender } = render(<PausedTimerCard paused={emptyPaused} onResume={vi.fn()} onStop={vi.fn()} compact showDescriptionOnHover />);

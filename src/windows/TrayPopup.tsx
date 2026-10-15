@@ -165,6 +165,9 @@ export default function TrayPopup() {
     pausingTimerId,
     stoppingTimerIds,
     resumingId,
+    resumeRetry,
+    retryResumeNow,
+    cancelResumeRetry,
     discardingId,
     isStoppingActive,
     pauseError,
@@ -911,6 +914,9 @@ export default function TrayPopup() {
                         featureFlags.featurePausedTimerDescriptionHover
                       }
                       animateIn={hasRecentUserIntent()}
+                      retry={resumingId === pt.id ? resumeRetry : null}
+                      onRetryNow={retryResumeNow}
+                      onCancelRetry={cancelResumeRetry}
                     />
                   ))}
                 </div>

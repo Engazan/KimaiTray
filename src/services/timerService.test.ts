@@ -121,6 +121,21 @@ describe("switching under an active entries limit", () => {
     expect(restartTimesheet).toHaveBeenCalledWith(client, oldest.id);
   });
 
+  it("keeps the stopped timer and queues a start rejected by a time rule", async () => {
+    vi.mocked(getActiveTimesheets)
+      .mockResolvedValueOnce([oldest])
+      .mockResolvedValueOnce([]);
+    vi.mocked(startTimesheet).mockRejectedValue(
+      KimaiApiError.fromResponse(400, "Bad Request", { message: "Validation Failed" }),
+    );
+
+    const error = await switchTask(client, payload).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(TaskSwitchError);
+    expect(error).toMatchObject({ retryable: true, stoppedExisting: true, recoveryBlocked: false });
+    expect(restartTimesheet).not.toHaveBeenCalled();
+  });
+
   it("blocks the rollback when an unknown timer appeared after a rejected start", async () => {
     vi.mocked(getActiveTimesheets)
       .mockResolvedValueOnce([newest, oldest])

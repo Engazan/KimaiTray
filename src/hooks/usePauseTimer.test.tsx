@@ -4,7 +4,7 @@ import type { PropsWithChildren } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { KimaiClient } from "../api/kimaiClient";
+import { KimaiApiError, type KimaiClient } from "../api/kimaiClient";
 import type { PausedTimerData } from "../api/pauseStore";
 import type { ActiveTimer } from "../types";
 import { getEnabledPluginCustomInputs } from "../plugins/customInputs";
@@ -668,6 +668,7 @@ describe("pausing and stopping with several running timers", () => {
     pauseStoreMocks.addPausedTimer.mockResolvedValue([]);
     pauseStoreMocks.removePausedTimer.mockResolvedValue([]);
     pauseStoreMocks.removeResumedTimer.mockResolvedValue([]);
+    timesheetMocks.getActiveTimesheets.mockResolvedValue([]);
     timesheetMocks.startTimesheet.mockResolvedValue({ id: 99 });
     timesheetMocks.stopTimesheet.mockResolvedValue(undefined);
   });
@@ -710,6 +711,63 @@ describe("pausing and stopping with several running timers", () => {
     act(() => result.current.resumeTimer("paused-connection-a"));
     await waitFor(() => expect(timesheetMocks.startTimesheet).toHaveBeenCalledOnce());
     expect(timesheetMocks.stopTimesheet.mock.calls.map(([, id]) => id)).toEqual(pausedIds);
+  });
+
+  it("queues a resume that a Kimai time rule rejects and retries it", async () => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([paused("connection-a")]);
+    timesheetMocks.startTimesheet
+      .mockRejectedValueOnce(KimaiApiError.fromResponse(400, "Bad Request", { message: "Validation Failed" }))
+      .mockResolvedValueOnce({ id: 99 });
+    const { result } = renderMulti(1);
+    await waitFor(() => expect(result.current.pausedTimers).toHaveLength(1));
+    act(() => result.current.resumeTimer("paused-connection-a"));
+    await waitFor(() => expect(result.current.resumeRetry).toMatchObject({ attempt: 1, label: "Project" }));
+    expect(result.current.pauseError).toBeNull();
+
+    act(() => result.current.retryResumeNow());
+    await waitFor(() => expect(result.current.resumeRetry).toBeNull());
+    expect(timesheetMocks.startTimesheet).toHaveBeenCalledTimes(2);
+    expect(pauseStoreMocks.removeResumedTimer).toHaveBeenCalledWith("paused-connection-a");
+    expect(result.current.pauseError).toBeNull();
+  });
+
+  it("drops a queued resume without an error when cancelled", async () => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([paused("connection-a")]);
+    timesheetMocks.startTimesheet.mockRejectedValue(
+      KimaiApiError.fromResponse(400, "Bad Request", { message: "Validation Failed" }),
+    );
+    const { result } = renderMulti(1);
+    await waitFor(() => expect(result.current.pausedTimers).toHaveLength(1));
+    act(() => result.current.resumeTimer("paused-connection-a"));
+    await waitFor(() => expect(result.current.resumeRetry).not.toBeNull());
+
+    act(() => result.current.cancelResumeRetry());
+    await waitFor(() => expect(result.current.resumingId).toBeNull());
+    expect(result.current.resumeRetry).toBeNull();
+    expect(result.current.pauseError).toBeNull();
+    expect(pauseStoreMocks.removeResumedTimer).not.toHaveBeenCalled();
+  });
+
+  it("does not reload paused timers into another connection while a resume is queued", async () => {
+    pauseStoreMocks.loadPausedTimers.mockResolvedValueOnce([paused("connection-a")]);
+    const reload = deferred<PausedTimerData[]>();
+    timesheetMocks.startTimesheet.mockRejectedValue(
+      KimaiApiError.fromResponse(400, "Bad Request", { message: "Validation Failed" }),
+    );
+    const { result, rerender } = renderHook(
+      ({ id }) => usePauseTimer(client(id), null, id),
+      { initialProps: { id: "connection-a" }, wrapper: wrapper() },
+    );
+    await waitFor(() => expect(result.current.pausedTimers).toHaveLength(1));
+    pauseStoreMocks.loadPausedTimers.mockReturnValueOnce(reload.promise);
+    act(() => result.current.resumeTimer("paused-connection-a"));
+    await waitFor(() => expect(result.current.resumeRetry).not.toBeNull());
+
+    pauseStoreMocks.loadPausedTimers.mockResolvedValue([]);
+    rerender({ id: "connection-b" });
+    await act(async () => reload.resolve([paused("connection-a")]));
+    expect(result.current.pausedTimers).toEqual([]);
+    expect(result.current.resumeRetry).toBeNull();
   });
 
   it("does not reload paused timers into another connection after a failed resume", async () => {

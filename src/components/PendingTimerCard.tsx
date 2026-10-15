@@ -36,7 +36,8 @@ function useSecondsUntil(at: number | null | undefined): number | null {
   return at == null ? null : Math.max(0, Math.ceil((at - now) / 1000));
 }
 
-function RetryStatus({
+/** Retry countdown with Retry now and Cancel for a queued start. */
+export function RetryStatus({
   retry,
   onRetryNow,
   onCancelRetry,

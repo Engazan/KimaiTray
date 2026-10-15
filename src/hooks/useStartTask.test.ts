@@ -541,6 +541,27 @@ describe("start retry queue", () => {
     queryClient.clear();
   });
 
+  it("queues a start that a Kimai time rule rejects", async () => {
+    const post = vi.fn()
+      .mockRejectedValueOnce(KimaiApiError.fromResponse(400, "Bad Request", { message: "Validation Failed" }))
+      .mockResolvedValueOnce(timesheet(99));
+    const client = mockClient({
+      get: vi.fn(async () => []) as unknown as KimaiClient["get"],
+      post: post as unknown as KimaiClient["post"],
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useStartTask(client), { wrapper: wrapperFor(queryClient) });
+
+    let started!: Promise<KimaiTimesheetEntry | null>;
+    act(() => { started = result.current.startTask({ projectId: 1, activityId: 2, label: "Locked" }); });
+    await waitFor(() => expect(result.current.startRetry).toMatchObject({ attempt: 1, lastError: "Validation Failed" }));
+    act(() => result.current.retryStartNow());
+
+    await act(async () => expect(await started).toEqual(timesheet(99)));
+    expect(result.current.switchError).toBeNull();
+    queryClient.clear();
+  });
+
   it("does not queue an explicit rejection", async () => {
     const client = mockClient({ get: vi.fn(async () => []) as unknown as KimaiClient["get"] });
     const queryClient = new QueryClient();

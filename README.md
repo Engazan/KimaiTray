@@ -22,7 +22,7 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 
 - Start, stop and switch Kimai timers directly from the tray popup
 - Run several timers at once when your Kimai instance allows more than one active entry; each running timer gets its own card with pause and stop, and starting a task stops only the oldest timers beyond the limit
-- Failed starts caused by network or server problems are queued and retried automatically with Retry now and Cancel controls, without creating duplicate timers
+- Failed starts and resumes caused by network or server problems, or by Kimai rejecting the current time for your account ("Validation Failed"), are queued and retried automatically with Retry now and Cancel controls, without creating duplicate timers
 - Pause multiple timers, resume any of them later or discard them
 - Optionally reveal paused-timer descriptions on hover
 - Quick-start tasks from per-connection favorites and recent entries; type to filter both lists

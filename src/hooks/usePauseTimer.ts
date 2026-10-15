@@ -1,12 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { KimaiClient } from "../api/kimaiClient";
-import {
-  stopTimesheet,
-  startTimesheet,
-  updateTimesheetMeta,
-} from "../api/timesheetApi";
-import { serializeKimaiTags } from "../api/tagUtils";
+import { stopTimesheet } from "../api/timesheetApi";
 import {
   loadPausedTimers,
   addPausedTimer,
@@ -18,6 +13,8 @@ import type { ActiveTimer } from "../types";
 import { acquireTimerOperation } from "./timerOperationLock";
 import { invalidateTimesheets } from "./invalidateTimesheets";
 import { publishStartedTimesheet } from "./publishStartedTimesheet";
+import { cancelRetry, retryStart, type RetryControl, type StartRetryState } from "./startRetry";
+import { switchTask, TaskMetadataError } from "../services/timerService";
 import {
   pickPluginMetadata,
   type PluginCustomInputDefinition,
@@ -25,6 +22,29 @@ import {
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 
 const STOP_EXIT_ANIMATION_MS = 240;
+
+function toPausedData(
+  timer: ActiveTimer,
+  connectionId: string,
+  pluginCustomInputs: readonly PluginCustomInputDefinition[],
+): PausedTimerData {
+  return {
+    id: crypto.randomUUID(),
+    connectionId,
+    lastTimesheetId: timer.id,
+    projectId: timer.projectId,
+    activityId: timer.activityId,
+    project: timer.project,
+    projectColor: timer.projectColor,
+    activityColor: timer.activityColor,
+    customerColor: timer.customerColor,
+    activity: timer.activity,
+    description: timer.description,
+    tags: timer.tags,
+    metadata: pickPluginMetadata(timer.metadata, pluginCustomInputs),
+    pausedAt: new Date().toISOString(),
+  };
+}
 
 interface UsePauseTimerResult {
   pausedTimers: PausedTimerData[];
@@ -41,6 +61,10 @@ interface UsePauseTimerResult {
   pausingTimerId: number | null;
   stoppingTimerIds: readonly number[];
   resumingId: string | null;
+  /** Set while a failed resume waits in the retry queue. */
+  resumeRetry: StartRetryState | null;
+  retryResumeNow: () => void;
+  cancelResumeRetry: () => void;
   discardingId: string | null;
   isStoppingActive: boolean;
   pauseError: string | null;
@@ -59,6 +83,8 @@ export function usePauseTimer(
   const [pausedTimers, setPausedTimers] = useState<PausedTimerData[]>([]);
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [resumingId, setResumingId] = useState<string | null>(null);
+  const [resumeRetry, setResumeRetry] = useState<StartRetryState | null>(null);
+  const resumeControlRef = useRef<RetryControl | null>(null);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [stoppingExitScope, setStoppingExitScope] = useState<string | null>(null);
   const [stoppingTimerIds, setStoppingTimerIds] = useState<readonly number[]>([]);
@@ -76,6 +102,8 @@ export function usePauseTimer(
   useEffect(() => {
     setStoppingExitScope(null);
     return () => {
+      // A queued resume belongs to the connection it was made for.
+      cancelRetry(resumeControlRef.current);
       if (stopExitTimerRef.current) {
         clearTimeout(stopExitTimerRef.current);
         stopExitTimerRef.current = null;
@@ -90,6 +118,7 @@ export function usePauseTimer(
     setPausedTimers([]);
     setPauseError(null);
     setResumingId(null);
+    setResumeRetry(null);
     setDiscardingId(null);
     loadPausedTimers().then((all) => {
       if (sessionScopeRef.current !== scope) return;
@@ -116,25 +145,7 @@ export function usePauseTimer(
       scope: string;
       release: () => void;
     }) => {
-      const data: PausedTimerData = {
-        id: crypto.randomUUID(),
-        connectionId: operationConnectionId,
-        lastTimesheetId: activeTimer.id,
-        projectId: activeTimer.projectId,
-        activityId: activeTimer.activityId,
-        project: activeTimer.project,
-        projectColor: activeTimer.projectColor,
-        activityColor: activeTimer.activityColor,
-        customerColor: activeTimer.customerColor,
-        activity: activeTimer.activity,
-        description: activeTimer.description,
-        tags: activeTimer.tags,
-        metadata: pickPluginMetadata(
-          activeTimer.metadata,
-          pluginCustomInputs,
-        ),
-        pausedAt: new Date().toISOString(),
-      };
+      const data = toPausedData(activeTimer, operationConnectionId, pluginCustomInputs);
       // Persist recovery data before mutating Kimai. If the store write fails,
       // the active timer remains untouched.
       await addPausedTimer(data);
@@ -173,6 +184,7 @@ export function usePauseTimer(
       operationClient,
       operationConnectionId,
       scope,
+      control,
     }: {
       target: PausedTimerData;
       /** Running timers to pause first so the resumed one fits the limit. */
@@ -180,29 +192,12 @@ export function usePauseTimer(
       operationClient: KimaiClient;
       operationConnectionId: string;
       scope: string;
+      control: RetryControl;
       release: () => void;
     }) => {
       // Auto-pause running timers first (swap)
       for (const currentTimer of toPause) {
-        const swapData: PausedTimerData = {
-          id: crypto.randomUUID(),
-          connectionId: operationConnectionId,
-          lastTimesheetId: currentTimer.id,
-          projectId: currentTimer.projectId,
-          activityId: currentTimer.activityId,
-          project: currentTimer.project,
-          projectColor: currentTimer.projectColor,
-          activityColor: currentTimer.activityColor,
-          customerColor: currentTimer.customerColor,
-          activity: currentTimer.activity,
-          description: currentTimer.description,
-          tags: currentTimer.tags,
-          metadata: pickPluginMetadata(
-            currentTimer.metadata,
-            pluginCustomInputs,
-          ),
-          pausedAt: new Date().toISOString(),
-        };
+        const swapData = toPausedData(currentTimer, operationConnectionId, pluginCustomInputs);
         await addPausedTimer(swapData);
         try {
           await stopTimesheet(operationClient, currentTimer.id);
@@ -212,30 +207,42 @@ export function usePauseTimer(
         }
       }
 
-      // Start the target paused timer
-      const entry = await startTimesheet(operationClient, {
-        project: target.projectId,
-        activity: target.activityId,
-        description: target.description || undefined,
-        tags:
-          target.tags.length > 0 ? serializeKimaiTags(target.tags) : undefined,
-      });
-
+      // Start the target paused timer. Swapped timers are already paused, so
+      // nothing else is stopped; a failed start is queued like a new one.
+      const firstAttemptAt = new Date();
+      let entry: KimaiTimesheetEntry;
       let metadataError: Error | null = null;
       try {
-        const metadata = pickPluginMetadata(
-          target.metadata,
-          pluginCustomInputs,
+        entry = await retryStart(
+          (attempt) => switchTask(operationClient, {
+            projectId: target.projectId,
+            activityId: target.activityId,
+            description: target.description || undefined,
+            tags: target.tags,
+            metadata: pickPluginMetadata(target.metadata, pluginCustomInputs),
+            label: target.project,
+          }, {
+            adoptSince: attempt > 0 ? firstAttemptAt : undefined,
+            activeLimit: Infinity,
+          }),
+          control,
+          target.project,
+          // Switching connections cancels the queue, so this stays in scope.
+          (state) => {
+            setResumeRetry(state);
+            if (state.nextRetryAt === null) return;
+            // Swapped timers already show up as paused while the resume waits.
+            void loadPausedTimers().then((all) => {
+              if (sessionScopeRef.current !== scope) return;
+              setPausedTimers(all.filter((t) => t.connectionId === operationConnectionId));
+            });
+            void invalidate();
+          },
         );
-        for (const [name, value] of Object.entries(metadata ?? {})) {
-          await updateTimesheetMeta(operationClient, entry.id, {
-            name,
-            value,
-          });
-        }
       } catch (error) {
-        metadataError =
-          error instanceof Error ? error : new Error(String(error));
+        if (!(error instanceof TaskMetadataError)) throw error;
+        entry = error.entry;
+        metadataError = error;
       }
 
       // Server success is authoritative. Hide the resumed item immediately and
@@ -262,9 +269,10 @@ export function usePauseTimer(
       setResumingId(null);
       return invalidate();
     },
-    onError: (err: Error, { scope, operationConnectionId }) => {
+    onError: (err: Error, { scope, operationConnectionId, control }) => {
       if (sessionScopeRef.current !== scope) return;
-      setPauseError(err.message);
+      // A resume the user withdrew from the queue has nothing to report.
+      if (!control.cancelled) setPauseError(err.message);
       setResumingId(null);
       // Some running timers may have been paused before the failure.
       void loadPausedTimers().then((all) => {
@@ -273,7 +281,12 @@ export function usePauseTimer(
       });
       return invalidate();
     },
-    onSettled: (_data, _error, { release }) => release(),
+    // The shared lock keeps a second resume from queueing until this settles.
+    onSettled: (_data, _error, { release }) => {
+      resumeControlRef.current = null;
+      setResumeRetry(null);
+      release();
+    },
   });
 
   // Discard a specific paused timer without resuming
@@ -412,12 +425,15 @@ export function usePauseTimer(
       // Oldest first, keeping room for the resumed timer under the limit.
       const running = runningTimersRef.current;
       const excess = running.length - Math.max(1, activeLimitRef.current) + 1;
+      const control: RetryControl = { cancelled: false, wake: null };
+      resumeControlRef.current = control;
       resumeMut.mutate({
         target,
         toPause: excess > 0 ? [...running].reverse().slice(0, excess) : [],
         operationClient: client,
         operationConnectionId: connectionId,
         scope: sessionScope,
+        control,
         release,
       });
     },
@@ -480,6 +496,8 @@ export function usePauseTimer(
   }, [stopTimers]);
 
   const dismissPauseError = useCallback(() => setPauseError(null), []);
+  const retryResumeNow = useCallback(() => resumeControlRef.current?.wake?.(), []);
+  const cancelResumeRetry = useCallback(() => cancelRetry(resumeControlRef.current), []);
 
   return {
     pausedTimers,
@@ -495,6 +513,9 @@ export function usePauseTimer(
       : null,
     stoppingTimerIds: isStoppingCurrentSession ? stoppingTimerIds : [],
     resumingId,
+    resumeRetry,
+    retryResumeNow,
+    cancelResumeRetry,
     discardingId,
     isStoppingActive: isStoppingCurrentSession,
     pauseError,

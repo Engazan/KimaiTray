@@ -6,6 +6,7 @@ import { invalidateTimesheets } from "./invalidateTimesheets";
 import { publishStartedTimesheet } from "./publishStartedTimesheet";
 import type { KimaiTimesheetEntry } from "../api/kimaiTypes";
 import { parseKimaiDate } from "../utils/time";
+import { cancelRetry, retryStart, type RetryControl, type StartRetryState } from "./startRetry";
 import {
   switchTask,
   TaskSwitchError,
@@ -13,6 +14,7 @@ import {
   type StartTaskPayload,
 } from "../services/timerService";
 
+export { START_RETRY_DELAYS_MS, type StartRetryState } from "./startRetry";
 export {
   switchTask,
   TaskSwitchError,
@@ -44,39 +46,6 @@ export interface StartPreview {
   tags?: string[];
 }
 
-/** A start that failed transiently and is queued for another attempt. */
-export interface StartRetryState {
-  label: string;
-  /** Failed attempts so far. */
-  attempt: number;
-  /** When the next attempt fires; null while it is in flight. */
-  nextRetryAt: number | null;
-  lastError: string;
-}
-
-/** Backoff between attempts; the last delay repeats until the start succeeds. */
-export const START_RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 20_000, 30_000, 60_000];
-
-interface RetryControl {
-  cancelled: boolean;
-  wake: (() => void) | null;
-}
-
-/** Resolve after `ms`, when the network comes back, or when woken early. */
-function waitForRetry(ms: number, control: RetryControl): Promise<void> {
-  return new Promise((resolve) => {
-    const done = () => {
-      window.clearTimeout(timeout);
-      window.removeEventListener("online", done);
-      control.wake = null;
-      resolve();
-    };
-    const timeout = window.setTimeout(done, ms);
-    window.addEventListener("online", done);
-    control.wake = done;
-  });
-}
-
 export function useStartTask(
   client: KimaiClient | null,
   onTaskStarted?: (
@@ -106,12 +75,7 @@ export function useStartTask(
   });
 
   // A queued start belongs to the connection it was made for.
-  useEffect(() => () => {
-    const control = controlRef.current;
-    if (!control) return;
-    control.cancelled = true;
-    control.wake?.();
-  }, [client]);
+  useEffect(() => () => cancelRetry(controlRef.current), [client]);
 
   const startTask = useCallback(
     async (
@@ -177,51 +141,29 @@ export function useStartTask(
       setPendingPreview(preview ?? null);
       const firstAttemptAt = new Date();
       try {
-        for (let attempt = 0; ; attempt++) {
-          try {
-            const entry = await switchTask(
-              client,
-              payload,
-              {
-                adoptSince: attempt > 0 ? firstAttemptAt : undefined,
-                activeLimit: activeLimitRef.current,
-              },
-            );
-            setStartingKey(null);
-            publishActive(entry);
-            const refresh = invalidateTimesheets(qc);
-            callbacksRef.current.onTaskStarted?.(entry, payload);
-            await refresh;
-            return entry;
-          } catch (caught) {
-            const err = caught instanceof Error ? caught : new Error(String(caught));
-            if (
-              control.cancelled ||
-              !(err instanceof TaskSwitchError && err.retryable)
-            ) {
-              setStartingKey(null);
-              await fail(err);
-              return null;
-            }
-            const delay =
-              START_RETRY_DELAYS_MS[Math.min(attempt, START_RETRY_DELAYS_MS.length - 1)];
-            setStartRetry({
-              label: payload.label,
-              attempt: attempt + 1,
-              nextRetryAt: Date.now() + delay,
-              lastError: err.message,
-            });
+        const entry = await retryStart(
+          (attempt) => switchTask(client, payload, {
+            adoptSince: attempt > 0 ? firstAttemptAt : undefined,
+            activeLimit: activeLimitRef.current,
+          }),
+          control,
+          payload.label,
+          (state) => {
+            setStartRetry(state);
             // The failed attempt may have stopped the previous timer.
-            void invalidateTimesheets(qc);
-            await waitForRetry(delay, control);
-            if (control.cancelled) {
-              setStartingKey(null);
-              await fail(err);
-              return null;
-            }
-            setStartRetry((current) => current && { ...current, nextRetryAt: null });
-          }
-        }
+            if (state.nextRetryAt !== null) void invalidateTimesheets(qc);
+          },
+        );
+        setStartingKey(null);
+        publishActive(entry);
+        const refresh = invalidateTimesheets(qc);
+        callbacksRef.current.onTaskStarted?.(entry, payload);
+        await refresh;
+        return entry;
+      } catch (caught) {
+        setStartingKey(null);
+        await fail(caught instanceof Error ? caught : new Error(String(caught)));
+        return null;
       } finally {
         controlRef.current = null;
         previewShownRef.current = false;
@@ -236,12 +178,7 @@ export function useStartTask(
 
   const retryStartNow = useCallback(() => controlRef.current?.wake?.(), []);
 
-  const cancelStartRetry = useCallback(() => {
-    const control = controlRef.current;
-    if (!control) return;
-    control.cancelled = true;
-    control.wake?.();
-  }, []);
+  const cancelStartRetry = useCallback(() => cancelRetry(controlRef.current), []);
 
   const dismissError = useCallback(() => setSwitchError(null), []);
 

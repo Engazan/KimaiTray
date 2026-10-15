@@ -32,6 +32,21 @@ const DEFAULT_MESSAGES: Record<KimaiErrorCode, string> = {
   unknown: "Unexpected error",
 };
 
+/** Messages from a Kimai form error tree:
+ * `{ errors: [...], children: { begin: { errors: [...] } } }`. */
+function formErrors(node: unknown): string[] {
+  if (!node || typeof node !== "object") return [];
+  const { errors, children } = node as { errors?: unknown; children?: unknown };
+  const own = Array.isArray(errors)
+    ? errors.filter((error): error is string => typeof error === "string")
+    : [];
+  const nested =
+    children && typeof children === "object"
+      ? Object.values(children).flatMap(formErrors)
+      : [];
+  return [...new Set([...own, ...nested])];
+}
+
 export class KimaiApiError extends Error {
   readonly name = "KimaiApiError";
   method?: string;
@@ -76,7 +91,9 @@ export class KimaiApiError extends Error {
       "message" in body &&
       typeof (body as Record<string, unknown>).message === "string"
     ) {
-      return (body as { message: string }).message;
+      const message = (body as { message: string }).message;
+      const reasons = formErrors((body as { errors?: unknown }).errors);
+      return reasons.length > 0 ? `${message}: ${reasons.join(" ")}` : message;
     }
     const base = DEFAULT_MESSAGES[code];
     return code === "unknown" ? `${base} (HTTP ${status})` : base;

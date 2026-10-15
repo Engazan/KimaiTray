@@ -21,24 +21,34 @@ export interface StartTaskPayload {
   label: string;
 }
 
+/** Kimai answers a rejected timesheet form with HTTP 400 "Validation Failed".
+ * The begin time comes from the server clock, so this mostly means a time rule
+ * for the user (lockdown period, rounding, overlap) forbids starting right
+ * now; the same start can pass a little later. */
+export function isTimeRuleRejection(err: unknown): boolean {
+  return err instanceof KimaiApiError && err.status === 400;
+}
+
 export class TaskSwitchError extends Error {
   stoppedExisting: boolean;
-  /** The failure looks transient (offline, timeout, server error), so the
-   * whole switch may be attempted again. */
+  /** The failure looks transient (offline, timeout, server error, a time rule
+   * rejecting the server's current time), so the whole switch may be attempted
+   * again. */
   readonly retryable: boolean;
   constructor(
     cause: unknown,
     stoppedExisting: boolean,
     readonly recoveryBlocked: boolean = false,
   ) {
-    super(cause instanceof KimaiApiError ? cause.message : String(cause));
+    super(cause instanceof Error ? cause.message : String(cause));
     this.stoppedExisting = stoppedExisting;
     this.retryable =
-      cause instanceof KimaiApiError &&
-      (cause.code === "network_error" ||
-        cause.code === "server_error" ||
-        cause.status === 408 ||
-        cause.status === 429);
+      isTimeRuleRejection(cause) ||
+      (cause instanceof KimaiApiError &&
+        (cause.code === "network_error" ||
+          cause.code === "server_error" ||
+          cause.status === 408 ||
+          cause.status === 429));
   }
 }
 
@@ -151,6 +161,11 @@ export async function switchTask(
           throw new TaskSwitchError(err, stoppedExisting, true);
         }
       }
+    }
+    if (startAttempted && isTimeRuleRejection(err)) {
+      // Restarting the stopped timers would hit the same time rule, and the
+      // queued retry would only stop them again.
+      throw new TaskSwitchError(err, stoppedExisting);
     }
     let rolledBack = stoppedIds.length > 0;
     for (const id of [...stoppedIds].reverse()) {

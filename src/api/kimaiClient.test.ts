@@ -117,6 +117,18 @@ describe("Kimai URL helpers", () => {
     expect(KimaiApiError.fromResponse(418, "Teapot", null).message).toContain("HTTP 418");
   });
 
+  it("appends the field reasons of a Kimai form error", () => {
+    const error = KimaiApiError.fromResponse(400, "Bad Request", {
+      code: 400,
+      message: "Validation Failed",
+      errors: {
+        errors: ["Locked period."],
+        children: { begin: { errors: ["Locked period.", "Overlapping."] }, end: {} },
+      },
+    });
+    expect(error.message).toBe("Validation Failed: Locked period. Overlapping.");
+  });
+
   it("executes every HTTP method and handles empty success responses", async () => {
     mocks.safeHttpFetch
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => '{"ok":true}' })
