@@ -688,7 +688,7 @@
     "connectionSuccess": "Connected — {{count}} issues found",
     "connectionFailed": "Connection failed",
     "issuePicker": "Issue",
-    "issuePickerPlaceholder": "Search issues…",
+    "issuePickerPlaceholder": "Search issues or #number…",
     "issuePickerNoResults": "No matching issues",
     "issuePickerLoading": "Loading issues…",
     "issueSuggestedForProject": "Matches the selected project",

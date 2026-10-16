@@ -688,7 +688,7 @@
     "connectionSuccess": "Pripojené — {{count}} úloh nájdených",
     "connectionFailed": "Pripojenie zlyhalo",
     "issuePicker": "Úloha",
-    "issuePickerPlaceholder": "Hľadať úlohy…",
+    "issuePickerPlaceholder": "Hľadať úlohy alebo #číslo…",
     "issuePickerNoResults": "Žiadne zodpovedajúce úlohy",
     "issuePickerLoading": "Načítavam úlohy…",
     "issueSuggestedForProject": "Zodpovedá zvolenému projektu",

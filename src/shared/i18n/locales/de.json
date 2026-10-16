@@ -688,7 +688,7 @@
     "connectionSuccess": "Verbunden — {{count}} Issues gefunden",
     "connectionFailed": "Verbindung fehlgeschlagen",
     "issuePicker": "Issue",
-    "issuePickerPlaceholder": "Issues suchen…",
+    "issuePickerPlaceholder": "Issues oder #Nummer suchen…",
     "issuePickerNoResults": "Keine passenden Issues",
     "issuePickerLoading": "Issues werden geladen…",
     "issueSuggestedForProject": "Passt zum ausgewählten Projekt",

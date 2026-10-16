@@ -4,6 +4,7 @@ import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIn
 import { logger } from "../../utils/logger";
 import { normalizeSearchText } from "../../utils/searchText";
 import { expectArrayOf, expectObject, isRecord, isStringArray } from "./responseValidation";
+import { parseIssueNumberQuery, prependExactIssue } from "./issueNumberQuery";
 
 interface GitLabIssue {
   iid: number;
@@ -118,6 +119,14 @@ export function createGitLabProvider(
     return res.json() as Promise<unknown>;
   }
 
+  async function fetchExactIssue(path: string, iid: number): Promise<GitLabIssue | null> {
+    try {
+      return expectObject(await request(`${path}/${iid}`), isGitLabIssue, "GitLab issue");
+    } catch {
+      return null;
+    }
+  }
+
   return {
     async testConnection() {
       try {
@@ -159,8 +168,10 @@ export function createGitLabProvider(
 
       const path = `/projects/${encodedPath}/issues`;
       const trimmed = query.trim();
+      const issueNumber = parseIssueNumberQuery(trimmed);
+      const textQuery = issueNumber != null ? String(issueNumber) : trimmed;
 
-      if (trimmed.length < 2) {
+      if (trimmed.length < 2 && issueNumber == null) {
         const issues = expectArrayOf(
           await request(path, baseParams),
           isGitLabIssue,
@@ -173,8 +184,11 @@ export function createGitLabProvider(
       // like "sik" won't match "siklienka". We fetch a wider recent window and
       // filter client-side for substring matches (diacritic-insensitive), while
       // still running the server search to catch matches outside that window.
-      const [serverPayload, recentPayload] = await Promise.all([
-        request(path, { ...baseParams, search: trimmed }),
+      // A numeric query ("42" / "#42") also loads that issue directly, so it is
+      // found even outside the recent window or the configured filters.
+      const [exact, serverPayload, recentPayload] = await Promise.all([
+        issueNumber != null ? fetchExactIssue(path, issueNumber) : null,
+        request(path, { ...baseParams, search: textQuery }),
         request(path, { ...baseParams, per_page: "100" }),
       ]);
       const serverMatched = expectArrayOf(
@@ -188,9 +202,11 @@ export function createGitLabProvider(
         "GitLab issues",
       );
 
-      const needle = normalizeSearchText(trimmed);
-      const localMatched = recent.filter((issue) =>
-        normalizeSearchText(issue.title).includes(needle),
+      const needle = normalizeSearchText(textQuery);
+      const localMatched = recent.filter(
+        (issue) =>
+          normalizeSearchText(issue.title).includes(needle) ||
+          (issueNumber != null && String(issue.iid).startsWith(textQuery)),
       );
 
       const seen = new Set<number>();
@@ -202,7 +218,7 @@ export function createGitLabProvider(
         }
       }
 
-      return merged.slice(0, 20).map(normalize);
+      return prependExactIssue(exact, merged, (issue) => issue.iid, 20).map(normalize);
     },
 
     getIssueUrl(issue: ExternalIssue) {

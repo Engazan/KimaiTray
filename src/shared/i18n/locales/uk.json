@@ -688,7 +688,7 @@
     "connectionSuccess": "Підключено — {{count}} задач знайдено",
     "connectionFailed": "З'єднання не вдалося",
     "issuePicker": "Задача",
-    "issuePickerPlaceholder": "Шукати задачі…",
+    "issuePickerPlaceholder": "Шукати задачі або #номер…",
     "issuePickerNoResults": "Немає відповідних задач",
     "issuePickerLoading": "Завантаження задач…",
     "issueSuggestedForProject": "Відповідає обраному проєкту",

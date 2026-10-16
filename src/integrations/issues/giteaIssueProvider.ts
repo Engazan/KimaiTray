@@ -3,6 +3,7 @@ import { safeHttpFetch as fetch } from "../../api/safeHttp";
 import type { ExternalIssue, ExternalLabel, ExternalRepo, IssueProvider, IssueIntegrationSettings } from "./types";
 import { logger } from "../../utils/logger";
 import { expectArrayOf, expectObject, isRecord } from "./responseValidation";
+import { parseIssueNumberQuery, prependExactIssue } from "./issueNumberQuery";
 
 interface GiteaIssue {
   number: number;
@@ -11,6 +12,7 @@ interface GiteaIssue {
   html_url: string;
   labels: Array<{ name: string; color: string }>;
   user: { login: string } | null;
+  pull_request?: unknown;
 }
 
 interface GiteaLabel {
@@ -115,6 +117,19 @@ export function createGiteaProvider(
     return cachedUsername;
   }
 
+  async function fetchExactIssue(issueNumber: number): Promise<ExternalIssue | null> {
+    try {
+      const issue = expectObject(
+        await request(`/repos/${config.projectPathOrRepo}/issues/${issueNumber}`),
+        isGiteaIssue,
+        "Gitea issue",
+      );
+      return issue.pull_request ? null : normalize(issue);
+    } catch {
+      return null;
+    }
+  }
+
   return {
     async testConnection() {
       try {
@@ -137,13 +152,18 @@ export function createGiteaProvider(
     },
 
     async searchIssues(query: string) {
+      // A numeric query ("42" / "#42") also loads that issue directly, so it is
+      // found even when the text search or the configured filters miss it.
+      const issueNumber = parseIssueNumberQuery(query);
+      const exactPromise = issueNumber != null ? fetchExactIssue(issueNumber) : Promise.resolve(null);
+      const textQuery = issueNumber != null ? String(issueNumber) : query;
       const params: Record<string, string> = {
         limit: "20",
         type: "issues",
         state: config.defaultState === "all" ? "all" : "open",
       };
-      if (query.length >= 2) {
-        params.q = query;
+      if (textQuery.length >= 2) {
+        params.q = textQuery;
       }
       if (config.assigneeOnly) {
         params.assigned_by = await getUsername();
@@ -160,13 +180,12 @@ export function createGiteaProvider(
         "Gitea issues",
       );
 
+      let filtered = issues;
       if (isExclude && config.filterLabels?.length) {
         const excluded = new Set(config.filterLabels);
-        return issues
-          .filter((i) => !i.labels?.some((l) => excluded.has(l.name)))
-          .map(normalize);
+        filtered = issues.filter((i) => !i.labels?.some((l) => excluded.has(l.name)));
       }
-      return issues.map(normalize);
+      return prependExactIssue(await exactPromise, filtered.map(normalize), (i) => i.id, 20);
     },
 
     getIssueUrl(issue: ExternalIssue) {
