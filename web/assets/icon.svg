@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a3170"/>
+      <stop offset=".55" stop-color="#151a3d"/>
+      <stop offset="1" stop-color="#0b1020"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".3" cy=".2" r=".8">
+      <stop offset="0" stop-color="#7c8cff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#7c8cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9fb0ff"/>
+      <stop offset=".55" stop-color="#b28bff"/>
+      <stop offset="1" stop-color="#f0a6ff"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <clipPath id="sq"><rect x="100" y="100" width="824" height="824" rx="190"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#sq)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#bg)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow)"/>
+  </g>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="188.5" fill="none" stroke="url(#shine)" stroke-width="3"/>
+
+  <!-- track -->
+  <circle cx="512" cy="512" r="250" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="64"/>
+  <!-- progress glow + ring -->
+  <circle cx="512" cy="512" r="250" fill="none" stroke="url(#ring)" stroke-width="64" stroke-linecap="round"
+          pathLength="100" stroke-dasharray="78 100" transform="rotate(-90 512 512)" filter="url(#soft)" opacity=".6"/>
+  <circle cx="512" cy="512" r="250" fill="none" stroke="url(#ring)" stroke-width="64" stroke-linecap="round"
+          pathLength="100" stroke-dasharray="78 100" transform="rotate(-90 512 512)"/>
+
+  <!-- clock hands -->
+  <g stroke="#fff" stroke-linecap="round">
+    <line x1="512" y1="512" x2="512" y2="370" stroke-width="44"/>
+    <line x1="512" y1="512" x2="610" y2="566" stroke-width="44"/>
+  </g>
+  <circle cx="512" cy="512" r="34" fill="#fff"/>
+  <circle cx="512" cy="512" r="13" fill="#151a3d"/>
+
+  <!-- live dot at the end of the progress arc -->
+  <circle cx="266" cy="465" r="58" fill="#34d399" opacity=".35" filter="url(#soft)"/>
+  <circle cx="266" cy="465" r="40" fill="#34d399" stroke="#0f1430" stroke-width="14"/>
+</svg>

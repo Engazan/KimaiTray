@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KimaiTray — Kimai time tracking from your tray</title>
+  <meta name="description" content="KimaiTray is a free, open-source system tray companion for Kimai. Start, stop, pause and switch timers on macOS, Windows and Linux.">
+  <meta name="theme-color" content="#0b1020">
+  <meta property="og:title" content="KimaiTray — Kimai time tracking from your tray">
+  <meta property="og:description" content="Start, stop, pause and switch Kimai timers without leaving your desktop. macOS · Windows · Linux.">
+  <meta property="og:image" content="assets/popup.png">
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top"><img src="assets/icon.svg" alt="" width="32" height="32"> KimaiTray</a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#integrations">Integrations</a>
+        <a href="#download">Download</a>
+      </nav>
+      <a class="btn btn-ghost btn-sm" href="https://github.com/Engazan/KimaiTray" target="_blank" rel="noopener">
+        <svg class="i" viewBox="0 0 24 24"><use href="#i-github"/></svg> <span class="hide-sm">GitHub</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <a class="pill" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">
+          <span class="dot"></span> <span data-version>Latest release</span> is out <span class="arrow">→</span>
+        </a>
+        <h1>Your <span class="grad">Kimai timer</span>,<br>one click away.</h1>
+        <p class="lead">KimaiTray lives in your menu bar or system tray. Start, pause, switch and stop
+          <a href="https://www.kimai.org/" target="_blank" rel="noopener">Kimai</a> timers without ever opening a browser tab.</p>
+
+        <div class="cta">
+          <a class="btn btn-primary btn-lg" id="hero-download" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">
+            <svg class="i" viewBox="0 0 24 24"><use href="#i-download"/></svg>
+            <span id="hero-download-label">Download for free</span>
+          </a>
+          <a class="btn btn-ghost btn-lg" href="#download">All platforms</a>
+        </div>
+
+        <ul class="os-row" aria-label="Supported platforms">
+          <li><svg viewBox="0 0 24 24"><use href="#i-apple"/></svg> macOS</li>
+          <li><svg viewBox="0 0 24 24"><use href="#i-windows"/></svg> Windows</li>
+          <li><svg viewBox="0 0 24 24"><use href="#i-linux"/></svg> Linux</li>
+        </ul>
+      </div>
+
+      <div class="hero-visual">
+        <div class="ticker" aria-hidden="true">
+          <span class="live"></span><span id="ticker">00:00:00</span>
+        </div>
+        <img class="shot" src="assets/popup.png" alt="KimaiTray tray popup with a running and a paused timer" width="495" height="798">
+        <div class="float-card fc-1"><b>Idle detected</b><small>Stop at idle start?</small></div>
+        <div class="float-card fc-2"><b>8h goal</b><small>Finish ≈ 17:24</small></div>
+      </div>
+    </section>
+
+    <!-- Strip -->
+    <section class="strip wrap">
+      <div><b>3</b><span>desktop platforms</span></div>
+      <div><b>4</b><span>popup layouts</span></div>
+      <div><b>5</b><span>languages</span></div>
+      <div><b>MIT</b><span>free &amp; open source</span></div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="wrap section">
+      <div class="section-head">
+        <p class="eyebrow">Features</p>
+        <h2>Everything Kimai does,<br>without the context switch.</h2>
+      </div>
+
+      <div class="bento">
+        <article class="card span-2 card-hl">
+          <div class="ic">⏱</div>
+          <h3>Timers at your fingertips</h3>
+          <p>Start, stop, pause and switch from the tray. Run several timers at once when your Kimai allows it. Quick-start from favorites and recent tasks with a keystroke.</p>
+          <div class="kbd-row"><kbd>⌘</kbd><kbd>1–9</kbd><span>start favorite</span><kbd>Space</kbd><span>pause</span><kbd>⌘</kbd><kbd>N</kbd><span>new task</span></div>
+        </article>
+        <article class="card">
+          <div class="ic">💤</div>
+          <h3>Idle detection</h3>
+          <p>Walked away? Choose to stop at idle start, stop now or keep running. Idle stats included.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🎯</div>
+          <h3>Daily goals</h3>
+          <p>Per-connection goals with remaining time and an estimated finish time.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔁</div>
+          <h3>Offline-safe queue</h3>
+          <p>Network hiccup? Starts and resumes are queued and retried — no duplicate timers.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🗂</div>
+          <h3>Category Mode</h3>
+          <p>A two-level category &amp; activity tree with icons and colors, synced from a URL.</p>
+        </article>
+        <article class="card span-2">
+          <div class="ic">🎨</div>
+          <h3>Make it yours</h3>
+          <p>Classic, Focus, Taskbar and Timeline layouts. Light, dark and transparent themes, five accents, UI scaling up to 160%, custom tray icon colors and a configurable macOS menu-bar label.</p>
+          <div class="swatches"><i style="--c:#7c8cff"></i><i style="--c:#a78bfa"></i><i style="--c:#34d399"></i><i style="--c:#f59e0b"></i><i style="--c:#f472b6"></i></div>
+        </article>
+        <article class="card">
+          <div class="ic">🔐</div>
+          <h3>Secure by default</h3>
+          <p>Credentials stay in your OS keychain. Requests go through a native, origin-validated HTTP broker.</p>
+        </article>
+        <article class="card">
+          <div class="ic">👥</div>
+          <h3>Multiple connections</h3>
+          <p>Isolated accounts and servers, each with its own favorites, settings and integrations.</p>
+        </article>
+        <article class="card span-2">
+          <div class="ic">🔗</div>
+          <h3>Deep links</h3>
+          <p>Start timers from anywhere with <code>kimaitray://start</code> — perfect for browser scripts.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Integrations -->
+    <section id="integrations" class="wrap section split">
+      <div>
+        <p class="eyebrow">Integrations</p>
+        <h2>Link issues.<br>Sync time back.</h2>
+        <p class="lead">Connect GitLab, GitHub or Gitea per Kimai connection. Pick an issue when you start a timer,
+          see spent and estimated time, and push recorded time back to GitLab and Gitea when you stop.</p>
+        <ul class="checks">
+          <li>Search issues by title or number, filter by state, assignee and labels</li>
+          <li>Issues matching your Kimai project are highlighted and preselected</li>
+          <li>Pending exports survive restarts and retry after reconnecting</li>
+        </ul>
+      </div>
+      <div class="logos">
+        <div class="logo-tile"><svg viewBox="0 0 24 24"><use href="#i-gitlab"/></svg><span>GitLab</span></div>
+        <div class="logo-tile"><svg viewBox="0 0 24 24"><use href="#i-github"/></svg><span>GitHub</span></div>
+        <div class="logo-tile"><svg viewBox="0 0 24 24"><use href="#i-gitea"/></svg><span>Gitea</span></div>
+        <div class="logo-tile tile-kimai"><img src="assets/icon.svg" alt=""><span>Kimai</span></div>
+      </div>
+    </section>
+
+    <!-- Reminder -->
+    <section class="wrap section">
+      <div class="section-head">
+        <p class="eyebrow">Reminders</p>
+        <h2>Forgot to start a timer?<br>Not anymore.</h2>
+        <p class="lead center">Optional full-screen reminders for idle time and for when nothing is being tracked — hard to miss, easy to act on.</p>
+      </div>
+      <figure class="wide-shot">
+        <img src="assets/reminder.png" alt="KimaiTray full-screen reminder when no timer is running" width="1800" height="1170" loading="lazy">
+      </figure>
+    </section>
+
+    <!-- Download -->
+    <section id="download" class="wrap section">
+      <div class="section-head">
+        <p class="eyebrow">Download</p>
+        <h2>Free for every desktop.</h2>
+        <p class="lead center"><span data-version>The latest version</span> · automatic updates built in</p>
+      </div>
+
+      <div class="dl-grid">
+        <article class="dl-card" data-os="mac">
+          <div class="dl-ic"><svg viewBox="0 0 24 24"><use href="#i-apple"/></svg></div>
+          <h3>macOS</h3>
+          <p class="muted">macOS 10.15 or newer · signed &amp; notarized</p>
+          <div class="dl-links">
+            <a class="btn btn-primary" data-asset="dmg" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">Download .dmg</a>
+          </div>
+        </article>
+        <article class="dl-card" data-os="win">
+          <div class="dl-ic"><svg viewBox="0 0 24 24"><use href="#i-windows"/></svg></div>
+          <h3>Windows</h3>
+          <p class="muted">Windows 10 / 11 · 64-bit</p>
+          <div class="dl-links">
+            <a class="btn btn-primary" data-asset="exe" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">Installer .exe</a>
+            <a class="btn btn-ghost" data-asset="msi" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">.msi</a>
+          </div>
+        </article>
+        <article class="dl-card" data-os="linux">
+          <div class="dl-ic"><svg viewBox="0 0 24 24"><use href="#i-linux"/></svg></div>
+          <h3>Linux</h3>
+          <p class="muted">X11 &amp; supported Wayland desktops · x86_64</p>
+          <div class="dl-links">
+            <a class="btn btn-primary" data-asset="appimage" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">AppImage</a>
+            <a class="btn btn-ghost" data-asset="deb" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">.deb</a>
+            <a class="btn btn-ghost" data-asset="rpm" href="https://github.com/Engazan/KimaiTray/releases/latest" target="_blank" rel="noopener">.rpm</a>
+          </div>
+        </article>
+      </div>
+      <p class="dl-more"><a href="https://github.com/Engazan/KimaiTray/releases" target="_blank" rel="noopener">All releases &amp; changelog on GitHub →</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div class="brand"><img src="assets/icon.svg" alt="" width="28" height="28"> KimaiTray</div>
+      <p class="muted">MIT licensed · Built with Tauri, React &amp; Rust · Not affiliated with the Kimai project.</p>
+      <a href="https://github.com/Engazan/KimaiTray" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </footer>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-download" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></symbol>
+    <symbol id="i-apple" viewBox="0 0 24 24"><path fill="currentColor" d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.76 2.27-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.66zM14.1 5.84c.63-.77 1.06-1.83.94-2.89-.91.04-2.01.61-2.66 1.37-.58.67-1.1 1.76-.96 2.8 1.01.08 2.05-.52 2.68-1.28z"/></symbol>
+    <symbol id="i-windows" viewBox="0 0 24 24"><path fill="currentColor" d="M3 5.5 10.5 4.5v7H3zm8.5-1.15L21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zm8.5 0H21V21l-9.5-1.35z"/></symbol>
+    <symbol id="i-linux" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c-2.2 0-3.6 1.8-3.6 4.4 0 1.2.2 2.1-.5 3.3-.8 1.4-2.6 3.4-3 5.9-.2 1.2.2 1.9.7 2.2-.4.6-.7 1.3-.2 2 .6.8 2 .5 3.3 1 1.1.4 2 .9 2.8.4.4-.3.6-.7.6-1.1h3.8c0 .4.2.8.6 1.1.8.5 1.7 0 2.8-.4 1.3-.5 2.7-.2 3.3-1 .5-.7.2-1.4-.2-2 .5-.3.9-1 .7-2.2-.4-2.5-2.2-4.5-3-5.9-.7-1.2-.5-2.1-.5-3.3C15.6 3.8 14.2 2 12 2zm-1.6 4.2c.4 0 .7.5.7 1.1s-.3 1.1-.7 1.1-.7-.5-.7-1.1.3-1.1.7-1.1zm3.2 0c.4 0 .7.5.7 1.1s-.3 1.1-.7 1.1-.7-.5-.7-1.1.3-1.1.7-1.1zM12 9.3c.9 0 2.1.6 2.1 1s-1.2 1.2-2.1 1.2-2.1-.8-2.1-1.2 1.2-1 2.1-1zm-2.6 3.1c.7.6 1.6 1 2.6 1s1.9-.4 2.6-1c.9 1.3 1.6 3 1.6 4.6H7.8c0-1.6.7-3.3 1.6-4.6z"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></symbol>
+    <symbol id="i-gitlab" viewBox="0 0 24 24"><path fill="currentColor" d="m22.65 13.39-1.1-3.4-2.2-6.75a.38.38 0 0 0-.72 0l-2.2 6.75H7.57L5.37 3.24a.38.38 0 0 0-.72 0l-2.2 6.75-1.1 3.4a.75.75 0 0 0 .27.84L12 21.73l10.38-7.5a.75.75 0 0 0 .27-.84z"/></symbol>
+    <symbol id="i-gitea" viewBox="0 0 24 24"><path fill="currentColor" d="M3.5 6.5c-1 0-2.3.7-2.2 2.4.1 2.7 2.7 3 3.7 3h.3c.6 2.6 1.8 5 4.4 5.1h6.1c2.7 0 4.2-3.4 5-10.6l.1-.6-17.4.7zm1.8 3.9c-1 0-2.1-.5-2.2-1.6 0-.9.5-1.1 1.2-1.1h.1c.2 1 .5 1.9.9 2.7zm9.3 2.2-1.9.9a.7.7 0 0 1-.9-.3l-1-2a.7.7 0 0 1 .3-.9l1.9-.9a.7.7 0 0 1 .9.3l1 2a.7.7 0 0 1-.3.9z"/></symbol>
+  </svg>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
