@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.22.17] - 2026-10-22
+
+### New Features
+
+- **Search issues by number** — enter `42` or `#42` to load an issue directly in GitHub, GitLab and Gitea, alongside regular text search results. GitLab also matches recent issues by number prefix
+- **Retry starts and resumes after validation errors** — queue timer starts and resumes rejected by Kimai validation, with retry status, Retry now and Cancel controls
+
+### Improvements
+
+- **New app icon** — refresh the application icon across desktop platforms
+
+### Bug Fixes
+
+- **Windows tray popup positioning** ([#45](https://github.com/Engazan/KimaiTray/pull/45)) — keep the popup inside the monitor work area near screen edges, without changing positioning on other platforms
+
+### Security
+
+- **Patched Rust dependencies** — update `quinn-proto` and `rustls` to resolve RustSec advisories
+
+### Documentation
+
+- **New landing page** — add a project website with feature highlights and application screenshots
+- **Updated timer and connection documentation** — clarify multiple running timers, automatic start retries and redirect errors
+
 ## [0.22.16] - 2026-10-10
 
 ### New Features
