@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.18] - 2026-10-23
+
+### Security
+
+- **Patched frontend build tooling** — update `vite` to 8.3.5 and `vitest` to 5.0.5 to resolve npm audit advisories
+- **Patched Rust dependencies** — update `rustls-webpki` and `webpki-root-certs` to resolve RustSec advisories about distrusted certificate intermediates
+- **Removed unused ZIP extraction from the updater** — the auto-updater no longer bundles the vulnerable `zip` crate, which was never used by KimaiTray's update packages
+
 ## [0.22.17] - 2026-10-22
 
 ### New Features
