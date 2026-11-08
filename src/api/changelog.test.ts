@@ -121,7 +121,24 @@ describe("update changelog", () => {
   ])("rejects invalid changelog entries %#", (entry) => {
     expect(queueChangelogWindow(entry as never)).toBe(false);
     rememberPendingChangelog(entry as never);
+    rememberShownChangelog(entry as never);
     expect(localStorage).toHaveLength(0);
+  });
+
+  it("still delivers notes when reading the displayed-version receipt fails", () => {
+    const entry = { version: "2.1.0", body: "Changes" };
+    const storage = localStorage;
+    rememberPendingChangelog(entry);
+    queueChangelogWindow(entry);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => {
+        if (key.startsWith("kimai:shownChangelog:")) throw new Error("read failed");
+        return storage.getItem(key);
+      },
+      removeItem: (key: string) => storage.removeItem(key),
+    });
+    expect(claimInstalledChangelog(entry.version)).toEqual(entry);
+    expect(readQueuedChangelogWindow()).toEqual(entry);
   });
 
   it("handles unavailable and failing storage without throwing", () => {
