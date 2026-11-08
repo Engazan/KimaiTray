@@ -2394,6 +2394,7 @@ dependencies = [
  "objc",
  "objc2-app-kit",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "tauri",

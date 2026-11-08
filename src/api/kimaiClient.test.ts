@@ -183,3 +183,24 @@ describe("Kimai URL helpers", () => {
     });
   });
 });
+
+
+describe("transport diagnostics", () => {
+  it.each([
+    ["HTTP certificate validation failed", "TLS certificate could not be verified"],
+    ["HTTP TLS handshake failed", "secure connection"],
+    ["HTTP target could not be resolved", "hostname could not be resolved"],
+    ["HTTP request timed out", "did not respond in time"],
+    ["HTTP request queue timed out", "waited too long"],
+    ["https://private.example/?token=secret", "Could not reach the Kimai server"],
+  ])("explains %s without exposing raw errors", async (reason, expected) => {
+    mocks.safeHttpFetch.mockRejectedValueOnce(reason);
+    const client = createKimaiClient("https://kimai.example.test", "token");
+    await expect(client.get("/api/version")).rejects.toMatchObject({
+      code: "network_error",
+      message: expect.stringContaining(expected),
+      method: "GET",
+      path: "/api/version",
+    });
+  });
+});

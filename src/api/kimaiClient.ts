@@ -201,8 +201,19 @@ async function request<T>(
         new KimaiApiError(0, "Redirect", { location: error.location }, "redirect"),
       );
     }
+    const diagnostics: Record<string, string> = {
+      "HTTP certificate validation failed": "The Kimai server's TLS certificate could not be verified. Check the certificate's validity, hostname and certificate chain. For an internal CA, ensure its certificate is trusted by your operating system.",
+      "HTTP TLS handshake failed": "A secure connection to the Kimai server could not be established. Check the server's TLS configuration.",
+      "HTTP target could not be resolved": "The Kimai server hostname could not be resolved. Check the server URL, DNS and VPN connection.",
+      "HTTP request timed out": "The Kimai server did not respond in time. Check your connection and try again.",
+      "HTTP request queue timed out": "The request waited too long to start. Try again.",
+    };
+    const reason = controller.signal.aborted
+      ? "HTTP request timed out"
+      : typeof error === "string" ? error : error instanceof Error ? error.message : "";
+    const message = Object.prototype.hasOwnProperty.call(diagnostics, reason) ? diagnostics[reason] : undefined;
     throw withEndpoint(
-      new KimaiApiError(0, "Network Error", null, "network_error"),
+      new KimaiApiError(0, "Network Error", message ? { message } : null, "network_error"),
     );
   } finally {
     window.clearTimeout(timeout);

@@ -343,6 +343,34 @@ fn validate_headers(values: Vec<(String, String)>) -> Result<HeaderMap, String> 
     Ok(headers)
 }
 
+// Return only stable, non-sensitive diagnostics across the IPC boundary.
+fn tls_failure(error: &(dyn std::error::Error + 'static)) -> Option<&'static str> {
+    if let Some(tls) = error.downcast_ref::<rustls::Error>() {
+        return Some(match tls {
+            rustls::Error::InvalidCertificate(_) => "HTTP certificate validation failed",
+            _ => "HTTP TLS handshake failed",
+        });
+    }
+    // TLS errors can be wrapped inside an io::Error.
+    if let Some(inner) = error
+        .downcast_ref::<std::io::Error>()
+        .and_then(|e| e.get_ref())
+    {
+        if let Some(message) = tls_failure(inner) {
+            return Some(message);
+        }
+    }
+    error.source().and_then(tls_failure)
+}
+
+fn request_failure(error: reqwest::Error) -> String {
+    if error.is_timeout() {
+        "HTTP request timed out".into()
+    } else {
+        tls_failure(&error).unwrap_or("HTTP request failed").into()
+    }
+}
+
 async fn client_for_target(url: &Url) -> Result<reqwest::Client, String> {
     let host = url.host_str().ok_or("HTTP URL must include a host")?;
     let lookup_host = host
@@ -432,7 +460,7 @@ pub async fn http_request(
         builder = builder.body(body);
     }
     let mut response = tokio::select! {
-        result = builder.send() => result.map_err(|_| "HTTP request failed".to_string())?,
+        result = builder.send() => result.map_err(request_failure)?,
         _ = cancellation.notify.notified() => return Err("HTTP request cancelled".into()),
     };
 
@@ -462,7 +490,7 @@ pub async fn http_request(
     let mut body = Vec::new();
     loop {
         let chunk = tokio::select! {
-            result = response.chunk() => result.map_err(|_| "Failed to read HTTP response".to_string())?,
+            result = response.chunk() => result.map_err(request_failure)?,
             _ = cancellation.notify.notified() => return Err("HTTP request cancelled".into()),
         };
         let Some(chunk) = chunk else { break };
@@ -702,5 +730,26 @@ mod tests {
                 .unwrap_err(),
             "HTTP request queue timed out"
         );
+    }
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn classifies_wrapped_tls_errors_without_exposing_details() {
+        let certificate = std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            rustls::Error::InvalidCertificate(rustls::CertificateError::UnknownIssuer),
+        );
+        assert_eq!(
+            tls_failure(&certificate),
+            Some("HTTP certificate validation failed")
+        );
+        let handshake = rustls::Error::General("private server details".into());
+        assert_eq!(tls_failure(&handshake), Some("HTTP TLS handshake failed"));
+        let network = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "private address");
+        assert_eq!(tls_failure(&network), None);
     }
 }
