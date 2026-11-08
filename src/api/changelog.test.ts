@@ -9,6 +9,7 @@ import {
   queueChangelogWindow,
   readQueuedChangelogWindow,
   rememberPendingChangelog,
+  rememberShownChangelog,
 } from "./changelog";
 
 describe("update changelog", () => {
@@ -22,6 +23,40 @@ describe("update changelog", () => {
     expect(claimInstalledChangelog("2.0.0")).toBeNull();
     expect(claimInstalledChangelog("2.1.0")).toEqual(entry);
     expect(claimInstalledChangelog("2.1.0")).toBeNull();
+  });
+
+  it("persists opened versions across restarts and suppresses stale pending and queued notes", async () => {
+    const entry = { version: "2.1.0", body: "Changes" };
+    rememberPendingChangelog(entry);
+    queueChangelogWindow(entry);
+    rememberShownChangelog(entry);
+    expect(claimInstalledChangelog(entry.version)).toBeNull();
+    expect(readQueuedChangelogWindow()).toBeNull();
+
+    // Simulate another webview restoring stale notes, then a fresh JS runtime.
+    rememberPendingChangelog({ ...entry, body: "Changed release notes" });
+    queueChangelogWindow(entry);
+    vi.resetModules();
+    const restarted = await import("./changelog");
+    expect(restarted.claimInstalledChangelog(entry.version)).toBeNull();
+    expect(restarted.readQueuedChangelogWindow()).toBeNull();
+
+    const next = { version: "2.2.0", body: "New release" };
+    restarted.rememberPendingChangelog(next);
+    expect(restarted.claimInstalledChangelog(next.version)).toEqual(next);
+    restarted.queueChangelogWindow(next);
+    expect(restarted.readQueuedChangelogWindow()).toEqual(next);
+    restarted.rememberShownChangelog(next);
+    expect(restarted.readQueuedChangelogWindow()).toBeNull();
+  });
+
+  it("preserves newer queued and pending releases when an older window opens", () => {
+    const next = { version: "2.2.0", body: "Next" };
+    rememberPendingChangelog(next);
+    queueChangelogWindow(next);
+    rememberShownChangelog({ version: "2.1.0", body: "Old" });
+    expect(readQueuedChangelogWindow()).toEqual(next);
+    expect(claimInstalledChangelog(next.version)).toEqual(next);
   });
 
   it("forgets notes when installation of their version fails", () => {
@@ -97,6 +132,7 @@ describe("update changelog", () => {
     expect(readQueuedChangelogWindow()).toBeNull();
     rememberPendingChangelog({ version: "1", body: "x" });
     forgetPendingChangelog("1");
+    rememberShownChangelog({ version: "1", body: "x" });
 
     const failing = {
       getItem: vi.fn(() => { throw new Error("read"); }),
@@ -109,6 +145,7 @@ describe("update changelog", () => {
     expect(readQueuedChangelogWindow()).toBeNull();
     rememberPendingChangelog({ version: "1", body: "x" });
     forgetPendingChangelog("1");
+    rememberShownChangelog({ version: "1", body: "x" });
     forgetQueuedChangelogWindow({ version: "1", body: "x" });
     expect(failing.removeItem).toHaveBeenCalled();
     vi.stubGlobal("localStorage", original);

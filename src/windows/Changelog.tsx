@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { AppSettings } from "../types";
 import ChangelogDialog from "../components/ChangelogDialog";
 import {
-  forgetQueuedChangelogWindow,
+  rememberShownChangelog,
   readQueuedChangelogWindow,
   type ChangelogEntry,
 } from "../api/changelog";
@@ -78,8 +78,8 @@ export default function Changelog() {
     const frame = window.requestAnimationFrame(() => {
       void (async () => {
         await win.show();
+        rememberShownChangelog(content);
         await win.setFocus();
-        forgetQueuedChangelogWindow(content);
       })().catch((error) => {
         logger.error(`Failed to show changelog: ${String(error)}`);
       });

@@ -5,6 +5,7 @@ export interface ChangelogEntry {
 
 const PENDING_CHANGELOG_KEY = "kimai:pendingChangelog";
 const QUEUED_CHANGELOG_KEY = "kimai:queuedChangelogWindow";
+const SHOWN_CHANGELOG_PREFIX = "kimai:shownChangelog:";
 const MAX_VERSION_LENGTH = 64;
 const MAX_BODY_LENGTH = 100_000;
 
@@ -18,6 +19,26 @@ function isChangelogEntry(value: unknown): value is ChangelogEntry {
     typeof entry.body === "string" &&
     entry.body.length <= MAX_BODY_LENGTH
   );
+}
+
+function wasChangelogShown(version: string): boolean {
+  try {
+    return localStorage.getItem(SHOWN_CHANGELOG_PREFIX + version) === "true";
+  } catch {
+    return false;
+  }
+}
+
+/** Record delivery as soon as the content window opens, independently of focus. */
+export function rememberShownChangelog(entry: ChangelogEntry): void {
+  if (!isChangelogEntry(entry)) return;
+  try {
+    localStorage.setItem(SHOWN_CHANGELOG_PREFIX + entry.version, "true");
+  } catch {
+    // Still consume queued notes when storage cannot persist the receipt.
+  }
+  forgetPendingChangelog(entry.version);
+  forgetQueuedChangelogWindow(entry);
 }
 
 function removePendingChangelog(): void {
@@ -85,6 +106,7 @@ export function claimInstalledChangelog(
     }
     if (parsed.version !== installedVersion) return null;
     removePendingChangelog();
+    if (wasChangelogShown(installedVersion)) return null;
     return parsed;
   } catch {
     removePendingChangelog();
@@ -105,7 +127,12 @@ export function queueChangelogWindow(entry: ChangelogEntry): boolean {
 
 /** Read staged content without consuming it during React Strict Mode renders. */
 export function readQueuedChangelogWindow(): ChangelogEntry | null {
-  return readStoredChangelog(QUEUED_CHANGELOG_KEY);
+  const entry = readStoredChangelog(QUEUED_CHANGELOG_KEY);
+  if (entry && wasChangelogShown(entry.version)) {
+    forgetQueuedChangelogWindow(entry);
+    return null;
+  }
+  return entry;
 }
 
 /** Consume only the content that this webview successfully displayed. */

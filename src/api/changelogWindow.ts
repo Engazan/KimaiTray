@@ -23,8 +23,10 @@ async function showChangelogWindowNow(
     return false;
   }
   await existing.show();
-  await existing.setFocus();
   await emitTo(CHANGELOG_WINDOW_LABEL, CHANGELOG_SHOW_EVENT, changelog);
+  await existing.setFocus().catch((error) => {
+    logger.error(`Failed to focus changelog: ${String(error)}`);
+  });
   return true;
 }
 

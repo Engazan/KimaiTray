@@ -52,8 +52,8 @@ describe("changelog window bridge", () => {
     );
     expect(mocks.show).toHaveBeenCalledOnce();
     expect(mocks.setFocus).toHaveBeenCalledOnce();
-    expect(mocks.setFocus.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.emitTo.mock.invocationCallOrder[0],
+    expect(mocks.emitTo.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.setFocus.mock.invocationCallOrder[0],
     );
     expect(mocks.queueChangelogWindow).toHaveBeenCalledWith(changelog);
   });
@@ -66,6 +66,13 @@ describe("changelog window bridge", () => {
 
     expect(mocks.queueChangelogWindow).toHaveBeenCalledWith(changelog);
     expect(mocks.emitTo).not.toHaveBeenCalled();
+  });
+
+  it("delivers content without retrying when focus fails", async () => {
+    mocks.setFocus.mockRejectedValueOnce(new Error("focus denied"));
+    const entry = { version: "2.1.0", body: "Notes" };
+    await expect(showChangelogWindow(entry)).resolves.toBe(true);
+    expect(mocks.emitTo).toHaveBeenCalledWith(CHANGELOG_WINDOW_LABEL, CHANGELOG_SHOW_EVENT, entry);
   });
 
   it("uses the event when staging is unavailable", async () => {

@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("../api/changelog", () => ({
   readQueuedChangelogWindow: () => mocks.readQueued(),
-  forgetQueuedChangelogWindow: mocks.forget,
+  rememberShownChangelog: mocks.forget,
 }));
 vi.mock("../api/changelogWindow", () => ({ CHANGELOG_SHOW_EVENT: "show-changelog" }));
 vi.mock("../settings/service", async (importOriginal) => {
@@ -61,6 +61,23 @@ describe("Changelog window", () => {
     await user.click(screen.getByRole("button", { name: "close" }));
     expect(screen.queryByTestId("dialog")).toBeNull();
     expect(mocks.hide).toHaveBeenCalled();
+  });
+
+  it("records the opened version even when focusing fails", async () => {
+    mocks.queued = { version: "2.0", body: "Changes" };
+    mocks.focus.mockRejectedValueOnce(new Error("focus failed"));
+    render(<Changelog />);
+    await waitFor(() => expect(mocks.logger).toHaveBeenCalledWith(expect.stringContaining("focus failed")));
+    expect(mocks.forget).toHaveBeenCalledWith(mocks.queued);
+    expect(mocks.forget.mock.invocationCallOrder[0]).toBeLessThan(mocks.focus.mock.invocationCallOrder[0]);
+  });
+
+  it("does not record a version when opening fails", async () => {
+    mocks.queued = { version: "2.0", body: "Changes" };
+    mocks.show.mockRejectedValue(new Error("show failed"));
+    render(<Changelog />);
+    await waitFor(() => expect(mocks.logger).toHaveBeenCalled());
+    expect(mocks.forget).not.toHaveBeenCalled();
   });
 
   it("responds to show events and live appearance changes", async () => {
