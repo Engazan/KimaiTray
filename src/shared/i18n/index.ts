@@ -5,9 +5,10 @@ import sk from "./locales/sk.json";
 import cs from "./locales/cs.json";
 import de from "./locales/de.json";
 import uk from "./locales/uk.json";
+import es from "./locales/es.json";
 import { loadSettings } from "../../settings/service";
 
-export const SUPPORTED_LANGUAGES = ["sk", "en", "cs", "de", "uk"] as const;
+export const SUPPORTED_LANGUAGES = ["sk", "en", "cs", "de", "uk", "es"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export type LanguageSetting = SupportedLanguage | "system";
 
@@ -18,6 +19,7 @@ export function resolveSystemLanguage(): SupportedLanguage {
   if (lower.startsWith("cs") || lower.startsWith("cz")) return "cs";
   if (lower.startsWith("de")) return "de";
   if (lower.startsWith("uk") || lower.startsWith("ua")) return "uk";
+  if (lower.startsWith("es")) return "es";
   if (lower.startsWith("en")) return "en";
   return "en";
 }
@@ -45,6 +47,7 @@ const initPromise = getInitialLanguage().then((lng) =>
       cs: { translation: cs },
       de: { translation: de },
       uk: { translation: uk },
+      es: { translation: es },
     },
     lng,
     fallbackLng: "en",

@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const localesDir = resolve(__dirname, "../src/shared/i18n/locales");
 
-const languages = ["en", "sk", "cs", "de", "uk"];
+const languages = ["en", "sk", "cs", "de", "uk", "es"];
 
 function flatten(obj, prefix = "") {
   const entries = [];

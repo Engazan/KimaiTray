@@ -94,7 +94,7 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 - Configurable macOS menu-bar label (timer, project, activity or icon only) and tray left/right-click actions
 - Native context menus for timers, tasks, today's entries, issue selection, layout controls and editable text
 - Configurable popup monitor and placement on supported Linux/X11 desktops
-- Five bundled languages: English, Slovak, Czech, German and Ukrainian, plus system-language detection
+- Six bundled languages: English, Slovak, Czech, German, Ukrainian and Spanish, plus system-language detection
 - Native support for macOS, Windows and Linux, including X11 and supported Wayland desktops
 
 ## Full-screen reminders
@@ -277,7 +277,7 @@ src/                    # React frontend
   tray/                 # Popup workflows, keyboard navigation and UI helpers
   settings/             # Settings UI & service
   windows/              # TrayPopup & Settings windows
-  shared/i18n/          # Translations (5 languages)
+  shared/i18n/          # Translations (6 languages)
   utils/                # Logger, time formatting
 src-tauri/              # Tauri / Rust backend
   src/lib.rs            # App setup, plugin registration

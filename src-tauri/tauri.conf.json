@@ -87,7 +87,7 @@
     "createUpdaterArtifacts": true,
     "category": "Productivity",
     "shortDescription": "Kimai time-tracking tray companion",
-    "longDescription": "KimaiTray is a system tray companion for Kimai time tracking. Start, stop, pause, and switch timers without leaving your desktop. Supports multiple connections, idle detection, tags, and 5 languages.",
+    "longDescription": "KimaiTray is a system tray companion for Kimai time tracking. Start, stop, pause, and switch timers without leaving your desktop. Supports multiple connections, idle detection, tags, and 6 languages.",
     "copyright": "Copyright (c) 2026 KimaiTray contributors",
     "publisher": "engazan",
     "homepage": "https://github.com/Engazan/KimaiTray",
@@ -95,7 +95,7 @@
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": true,
-        "languages": ["English", "Slovak", "Czech", "German", "Ukrainian"]
+        "languages": ["English", "Slovak", "Czech", "German", "Ukrainian", "Spanish"]
       },
       "webviewInstallMode": {
         "type": "downloadBootstrapper"

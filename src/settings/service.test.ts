@@ -22,6 +22,10 @@ vi.mock("../api/storeMigrations", () => ({ migrateLegacyStore: storeMocks.migrat
 import { defaultSettings, loadSettings, mergeSettings, onSettingsChange, patchSettings } from "./service";
 
 describe("settings schema defaults", () => {
+  it("preserves Spanish as the saved language", () => {
+    expect(mergeSettings({ language: "es" }).language).toBe("es");
+  });
+
   it("defaults idle retention to 30 days and bounds it to 1–365 days", () => {
     expect(mergeSettings({}).idleStatsRetentionDays).toBe(30);
     expect(mergeSettings({ idleStatsRetentionDays: 0 }).idleStatsRetentionDays).toBe(1);

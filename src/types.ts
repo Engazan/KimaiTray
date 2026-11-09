@@ -97,7 +97,7 @@ export interface AppSettings {
   connections: SavedConnection[];
   activeConnectionId: string;
 
-  language: "sk" | "en" | "cs" | "de" | "uk" | "system";
+  language: "sk" | "en" | "cs" | "de" | "uk" | "es" | "system";
 
   launchAtLogin: boolean;
   refreshInterval: number;

@@ -105,6 +105,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("GeneralSection", () => {
+  it("offers Spanish and applies it when selected", async () => {
+    const user = userEvent.setup();
+    const update = vi.fn();
+    render(<GeneralSection settings={settings()} update={update} />);
+    await user.selectOptions(screen.getAllByRole("combobox")[0], "es");
+    expect(screen.getByRole("option", { name: "Español" })).toBeTruthy();
+    expect(update).toHaveBeenCalledWith("language", "es");
+    expect(mocks.changeLanguage).toHaveBeenCalledWith("es");
+  });
+
   it("updates preferences, enables autostart and installs an available update", async () => {
     const user = userEvent.setup();
     const update = vi.fn();

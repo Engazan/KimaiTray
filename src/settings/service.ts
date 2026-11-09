@@ -385,7 +385,7 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
       : "",
     language: enumValue(
       value.language,
-      ["sk", "en", "cs", "de", "uk", "system"] as const,
+      ["sk", "en", "cs", "de", "uk", "es", "system"] as const,
       defaultSettings.language,
     ),
     launchAtLogin: booleanValue(value.launchAtLogin, defaultSettings.launchAtLogin),

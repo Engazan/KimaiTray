@@ -24,6 +24,7 @@ const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
   { value: "cs", label: "Česky" },
   { value: "de", label: "Deutsch" },
   { value: "uk", label: "Українська" },
+  { value: "es", label: "Español" },
   { value: "system", label: "" },
 ];
 

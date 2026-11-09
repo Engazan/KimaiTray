@@ -14,6 +14,9 @@ describe("language resolution", () => {
     ["uk-UA", "uk"],
     ["ua", "uk"],
     ["en-US", "en"],
+    ["es-ES", "es"],
+    ["es-MX", "es"],
+    ["es-AR", "es"],
     ["fr-FR", "en"],
   ] as const)("maps %s to %s", (browserLanguage, expected) => {
     vi.spyOn(navigator, "language", "get").mockReturnValue(browserLanguage);
@@ -23,5 +26,6 @@ describe("language resolution", () => {
 
   it("keeps an explicit supported language", () => {
     expect(resolveLanguage("de")).toBe("de");
+    expect(resolveLanguage("es")).toBe("es");
   });
 });
