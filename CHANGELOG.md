@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.22.19] - 2026-11-09
+
+### New Features
+
+- **Spanish translation** ([#49](https://github.com/Engazan/KimaiTray/issues/49)) — add Spanish throughout the app, system-language detection and the Windows installer, using the translation contributed by Rudiberto
+
+### Bug Fixes
+
+- **Show release notes once per version** ([#48](https://github.com/Engazan/KimaiTray/issues/48)) — remember when What's new has opened so it does not reappear on subsequent starts, even if focusing the window fails or stale release notes remain queued
+- **Clearer connection errors** — distinguish TLS certificate failures, DNS lookup failures and timeouts instead of reporting them as generic connection failures
+
+### Security
+
+- **Patched development dependencies** — update `undici` to 7.30.2 and `zod` to 4.6.7 to resolve high-severity npm audit advisories
+
 ## [0.22.18] - 2026-10-23
 
 ### Security
