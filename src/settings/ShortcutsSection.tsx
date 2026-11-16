@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { AppSettings } from "../types";
 import { ShortcutInput } from "./Controls";
 import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
@@ -24,7 +25,7 @@ function findConflict(
   currentKey: string,
   value: string,
   settings: AppSettings,
-  t: (key: string, opts?: Record<string, string>) => string,
+  t: TFunction,
 ): string | null {
   if (!value) return null;
   for (const s of SHORTCUT_KEYS) {

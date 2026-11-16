@@ -188,7 +188,7 @@ base path.
 
 | Tool | Version |
 |------|---------|
-| [Node.js](https://nodejs.org/) | 22.12+ (22.x), 24.x or 26+ |
+| [Node.js](https://nodejs.org/) | 22.22.2+ (22.x), 24.15+ (24.x) or 26+ |
 | [Rust](https://rustup.rs/) | 1.95.0, pinned in [`rust-toolchain.toml`](rust-toolchain.toml) |
 | [Tauri CLI](https://tauri.app/start/) | Installed locally by `npm install` |
 

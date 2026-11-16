@@ -39,8 +39,13 @@ describe("log redaction", () => {
     logger.info("info token=secret");
     logger.warn("warning");
     logger.error("failure");
-    await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith("failure"));
+    await vi.waitFor(() => expect(mocks.error).toHaveBeenCalledWith("failure"));
+    expect(mocks.info).toHaveBeenCalledWith("info token=[REDACTED]");
+    expect(mocks.warn).toHaveBeenCalledWith("warning");
     expect(mocks.debug).not.toHaveBeenCalled();
+    expect(consoleInfo).not.toHaveBeenCalled();
+    expect(consoleWarn).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
     consoleInfo.mockRestore();
     consoleWarn.mockRestore();
     consoleError.mockRestore();
