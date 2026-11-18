@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.20] - 2026-11-18
+
+### Bug Fixes
+
+- **Linux AppImage rendering on Wayland** ([#50](https://github.com/Engazan/KimaiTray/issues/50)) — update the AppImage bundler so it uses the system Wayland client library, addressing an EGL initialization error that can leave the tray popup and Settings blank
+
+### Maintenance
+
+- **Updated frontend and Rust dependencies** — refresh Tauri, its plugins, and the frontend and test toolchain. Use the published tray-icon crate, which includes the macOS 27 tray click fix, in place of the local backport
+- **Updated Node.js build requirements** — the frontend toolchain requires Node.js 22.22.2 or later in the 22.x series, 24.15.0 or later in the 24.x series, or 26 and later
+
 ## [0.22.19] - 2026-11-09
 
 ### New Features

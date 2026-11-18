@@ -1,7 +1,7 @@
 {
   "name": "kimaitray",
   "private": true,
-  "version": "0.22.19",
+  "version": "0.22.20",
   "license": "MIT",
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
