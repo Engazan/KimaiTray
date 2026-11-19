@@ -401,6 +401,80 @@ async fn client_for_target(url: &Url) -> Result<reqwest::Client, String> {
         .map_err(|_| "Failed to initialize HTTP client".to_string())
 }
 
+#[cfg(desktop)]
+pub(crate) async fn stop_running_kimai_timers(base_url: &str, token: &str) -> Result<(), String> {
+    #[derive(Deserialize)]
+    struct RunningTimer {
+        id: u64,
+    }
+
+    let base = validate_url(base_url)?;
+    if base.query().is_some() || base.fragment().is_some() {
+        return Err("Kimai server URL must not include a query or fragment".into());
+    }
+    let active_url = validate_url(&format!("{base_url}/api/timesheets/active"))?;
+    let client = client_for_target(&active_url).await?;
+    let response = client
+        .get(active_url)
+        .bearer_auth(token)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .await
+        .map_err(request_failure)?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Could not list active timers (HTTP {})",
+            response.status()
+        ));
+    }
+    let timers: Vec<RunningTimer> = serde_json::from_slice(&read_response_body(response).await?)
+        .map_err(|_| "Invalid active timers response".to_string())?;
+
+    let mut failed = 0;
+    for batch in timers.chunks(MAX_CONCURRENT_REQUESTS) {
+        let mut stops = tokio::task::JoinSet::new();
+        for timer in batch {
+            let url = format!("{base_url}/api/timesheets/{}/stop", timer.id);
+            let request = client
+                .patch(url)
+                .bearer_auth(token)
+                .header(reqwest::header::ACCEPT, "application/json")
+                .header(reqwest::header::CONTENT_TYPE, "application/json");
+            stops.spawn(async move { request.send().await });
+        }
+        while let Some(result) = stops.join_next().await {
+            // Continue trying the other timers if an individual stop fails.
+            if !matches!(result, Ok(Ok(response)) if response.status().is_success()) {
+                failed += 1;
+            }
+        }
+    }
+    if failed > 0 {
+        return Err(format!("{failed} of {} timer stops failed", timers.len()));
+    }
+    if !timers.is_empty() {
+        log::info!("Stopped {} running timer(s) at session end", timers.len());
+    }
+    Ok(())
+}
+
+async fn read_response_body(mut response: reqwest::Response) -> Result<Vec<u8>, String> {
+    if response
+        .content_length()
+        .is_some_and(|size| size > MAX_RESPONSE_BODY_BYTES as u64)
+    {
+        return Err("HTTP response body is too large".into());
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(request_failure)? {
+        if body.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+            return Err("HTTP response body is too large".into());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
 fn cancellations() -> &'static CancellationRegistry {
     CANCELLATIONS.get_or_init(CancellationRegistry::default)
 }
@@ -459,17 +533,10 @@ pub async fn http_request(
     if let Some(body) = request.body {
         builder = builder.body(body);
     }
-    let mut response = tokio::select! {
+    let response = tokio::select! {
         result = builder.send() => result.map_err(request_failure)?,
         _ = cancellation.notify.notified() => return Err("HTTP request cancelled".into()),
     };
-
-    if response
-        .content_length()
-        .is_some_and(|size| size > MAX_RESPONSE_BODY_BYTES as u64)
-    {
-        return Err("HTTP response body is too large".into());
-    }
 
     let status = response.status();
     if response.headers().len() > MAX_RESPONSE_HEADERS {
@@ -487,18 +554,10 @@ pub async fn http_request(
         }
         headers.push((name.to_string(), value.to_string()));
     }
-    let mut body = Vec::new();
-    loop {
-        let chunk = tokio::select! {
-            result = response.chunk() => result.map_err(request_failure)?,
-            _ = cancellation.notify.notified() => return Err("HTTP request cancelled".into()),
-        };
-        let Some(chunk) = chunk else { break };
-        if body.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-            return Err("HTTP response body is too large".into());
-        }
-        body.extend_from_slice(&chunk);
-    }
+    let body = tokio::select! {
+        result = read_response_body(response) => result?,
+        _ = cancellation.notify.notified() => return Err("HTTP request cancelled".into()),
+    };
 
     Ok(HttpResponse {
         status: status.as_u16(),
@@ -518,6 +577,64 @@ mod tests {
     use serde_json::json;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::time::Duration;
+
+    #[cfg(desktop)]
+    #[tokio::test]
+    async fn shutdown_attempts_every_active_timer_even_if_one_stop_fails() {
+        use std::io::{BufRead, BufReader, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base_url = format!("http://{}/kimai", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for stream in listener.incoming().take(3) {
+                let mut stream = stream.unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(3)))
+                    .unwrap();
+                let mut headers = BufReader::new(&stream).lines().map(Result::unwrap);
+                let request = headers.next().unwrap();
+                assert!(headers
+                    .take_while(|line| !line.is_empty())
+                    .any(|line| line.eq_ignore_ascii_case("authorization: Bearer test-token")));
+                let (status, body) = match request.as_str() {
+                    "GET /kimai/api/timesheets/active HTTP/1.1" => {
+                        ("200 OK", r#"[{"id":41},{"id":42}]"#)
+                    }
+                    "PATCH /kimai/api/timesheets/41/stop HTTP/1.1" => ("403 Forbidden", ""),
+                    "PATCH /kimai/api/timesheets/42/stop HTTP/1.1" => ("204 No Content", ""),
+                    _ => panic!("Unexpected request: {request}"),
+                };
+                write!(
+                    stream,
+                    "HTTP/1.1 {status}\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+                requests.push(request);
+            }
+            requests
+        });
+
+        let result = tokio::time::timeout(
+            Duration::from_secs(3),
+            super::stop_running_kimai_timers(&base_url, "test-token"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.unwrap_err(), "1 of 2 timer stops failed");
+        let mut requests = server.join().unwrap();
+        requests.sort_unstable();
+        assert_eq!(
+            requests,
+            [
+                "GET /kimai/api/timesheets/active HTTP/1.1",
+                "PATCH /kimai/api/timesheets/41/stop HTTP/1.1",
+                "PATCH /kimai/api/timesheets/42/stop HTTP/1.1"
+            ]
+        );
+    }
 
     #[test]
     fn accepts_supported_http_requests() {

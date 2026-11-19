@@ -118,6 +118,17 @@ export default function IdleDetectionSection({ settings, update }: Props) {
         )}
 
         <SettingsRow
+          label={t("idle.stopOnShutdown")}
+          description={t("idle.stopOnShutdownDescription")}
+        >
+          <Toggle
+            ariaLabel={t("idle.stopOnShutdown")}
+            checked={settings.stopTimerOnShutdown}
+            onChange={(value) => update("stopTimerOnShutdown", value)}
+          />
+        </SettingsRow>
+
+        <SettingsRow
           label={t("idle.testReminder")}
           description={t("idle.testReminderDescription")}
         >

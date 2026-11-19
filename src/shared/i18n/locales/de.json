@@ -300,6 +300,8 @@
     "showNotificationDescription": "Systembenachrichtigung bei erkanntem Leerlauf anzeigen",
     "stopOnScreensaver": "Timer beim Start des Bildschirmschoners stoppen",
     "stopOnScreensaverDescription": "Den aktiven Timer sofort stoppen, wenn der macOS-Bildschirmschoner aktiviert wird",
+    "stopOnShutdown": "Timer beim Herunterfahren oder Abmelden stoppen",
+    "stopOnShutdownDescription": "Beim Herunterfahren oder Abmelden versuchen, alle laufenden Timer der aktuellen Kimai-Verbindung zu stoppen",
     "stopOnScreenLock": "Timer beim Sperren des Macs stoppen",
     "stopOnScreenLockDescription": "Den aktiven Timer sofort stoppen, wenn die macOS-Benutzersitzung gesperrt wird",
     "testReminder": "Leerlauf-Erinnerung testen",

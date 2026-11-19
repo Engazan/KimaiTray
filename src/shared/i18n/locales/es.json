@@ -299,6 +299,8 @@
     "showNotification": "Mostrar notificación",
     "showNotificationDescription": "Mostrar una notificación del sistema cuando se detecte inactividad",
     "stopOnScreensaver": "Detener el temporizador al activarse el salvapantallas", "stopOnScreensaverDescription": "Detener inmediatamente el temporizador activo cuando se active el salvapantallas de macOS",
+    "stopOnShutdown": "Detener los temporizadores al apagar o cerrar sesión",
+    "stopOnShutdownDescription": "Intentar detener todos los temporizadores activos de la conexión actual a Kimai al apagar o cerrar sesión",
     "stopOnScreenLock": "Detener el temporizador al bloquear el Mac",
     "stopOnScreenLockDescription": "Detener inmediatamente el temporizador activo cuando se bloquee la sesión de usuario de macOS",
     "testReminder": "Probar el recordatorio de inactividad",

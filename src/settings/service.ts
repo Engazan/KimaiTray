@@ -66,6 +66,7 @@ export const defaultSettings: AppSettings = {
   showIdleNotification: true,
   stopTimerOnScreensaver: false,
   stopTimerOnScreenLock: false,
+  stopTimerOnShutdown: false,
 
   enableNoTimerReminder: false,
   noTimerReminderMinutes: 15,
@@ -458,6 +459,10 @@ export function mergeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     stopTimerOnScreenLock: booleanValue(
       value.stopTimerOnScreenLock,
       defaultSettings.stopTimerOnScreenLock,
+    ),
+    stopTimerOnShutdown: booleanValue(
+      value.stopTimerOnShutdown,
+      defaultSettings.stopTimerOnShutdown,
     ),
     enableNoTimerReminder: booleanValue(
       value.enableNoTimerReminder,

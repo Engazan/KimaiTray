@@ -4,6 +4,8 @@ mod idle_stats;
 mod keychain;
 mod platform;
 mod shortcuts;
+#[cfg(desktop)]
+mod shutdown;
 mod store;
 mod store_persistence;
 mod tray;
@@ -243,6 +245,11 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             idle::register_screen_state_listener(app.handle())?;
+
+            #[cfg(desktop)]
+            if let Err(error) = shutdown::register(app.handle()) {
+                log::warn!("Failed to register system session end listener: {error}");
+            }
 
             #[cfg(any(target_os = "windows", target_os = "linux"))]
             {

@@ -120,6 +120,8 @@ export interface AppSettings {
   stopTimerOnScreensaver: boolean;
   /** macOS: stop the active timer as soon as the user session is locked. */
   stopTimerOnScreenLock: boolean;
+  /** Try to stop running timers when the desktop session ends. */
+  stopTimerOnShutdown: boolean;
 
   enableNoTimerReminder: boolean;
   noTimerReminderMinutes: number;

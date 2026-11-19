@@ -120,6 +120,7 @@ describe("settings schema defaults", () => {
       enableIdleDetection: "true",
       stopTimerOnScreensaver: "true",
       stopTimerOnScreenLock: "true",
+      stopTimerOnShutdown: "true",
       trayIconShape: "triangle",
       shortcutNewTask: 42,
     } as unknown as Partial<typeof defaultSettings>);
@@ -135,6 +136,7 @@ describe("settings schema defaults", () => {
     expect(merged.enableIdleDetection).toBe(defaultSettings.enableIdleDetection);
     expect(merged.stopTimerOnScreensaver).toBe(false);
     expect(merged.stopTimerOnScreenLock).toBe(false);
+    expect(merged.stopTimerOnShutdown).toBe(false);
     expect(merged.trayIconShape).toBe(defaultSettings.trayIconShape);
     expect(merged.shortcutNewTask).toBe("");
   });

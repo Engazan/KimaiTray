@@ -300,6 +300,8 @@
     "showNotificationDescription": "Display a system notification when idle is detected",
     "stopOnScreensaver": "Stop timer when screen saver starts",
     "stopOnScreensaverDescription": "Immediately stop the active timer when the macOS screen saver is activated",
+    "stopOnShutdown": "Stop timers on shutdown or sign-out",
+    "stopOnShutdownDescription": "Try to stop all running timers on the current Kimai connection when you shut down or sign out",
     "stopOnScreenLock": "Stop timer when Mac is locked",
     "stopOnScreenLockDescription": "Immediately stop the active timer when the macOS user session is locked",
     "testReminder": "Test idle reminder",

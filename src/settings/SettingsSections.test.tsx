@@ -197,11 +197,23 @@ describe("reminder sections", () => {
     })));
   });
 
-  it("only shows the screen saver toggle on macOS", () => {
+  it("hides macOS screen lock and screen saver settings on Linux", () => {
     mocks.platformOs = "linux";
     render(<IdleDetectionSection settings={settings()} update={vi.fn()} />);
     expect(screen.queryByText("idle.stopOnScreensaver")).toBeNull();
     expect(screen.queryByText("idle.stopOnScreenLock")).toBeNull();
+  });
+
+  it.each(["macos", "windows", "linux"])("opts in to stopping timers on shutdown on %s", async (os) => {
+    mocks.platformOs = os;
+    const user = userEvent.setup();
+    const update = vi.fn();
+    render(<IdleDetectionSection settings={settings({ enableIdleDetection: false })} update={update} />);
+
+    const toggle = screen.getByRole("switch", { name: "idle.stopOnShutdown" });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    await user.click(toggle);
+    expect(update).toHaveBeenCalledWith("stopTimerOnShutdown", true);
   });
 
   it("logs idle reminder failures and disables dependent controls", async () => {

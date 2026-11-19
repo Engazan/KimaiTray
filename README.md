@@ -72,6 +72,7 @@ Built with [Tauri 2](https://tauri.app/), React 19 and TypeScript.
 - Automatic local idle statistics with period history, total duration and a daily chart in idle detection settings; retained for 30 days by default (configurable from 1 to 365 days). Recording runs while the app and idle detection are enabled, even without a running timer.
 - Full-screen idle prompt and optional desktop notification
 - Independently configurable options to stop all running timers when the macOS screen saver starts or the Mac is locked, both disabled by default
+- Optional stop on shutdown or sign-out. KimaiTray tries to stop all running timers on the active connection within a short time limit. Deployments can set `settings.stopTimerOnShutdown` to `true` in `settings.json`. On Linux, desktop sign-out requires a session manager that reports the event through XDG Desktop Portal (Inhibit v3) or GNOME SessionManager. System shutdown and reboot can also be detected through systemd-logind.
 - Configurable full-screen reminder when no timer has been running
 - Launch at login, configurable server refresh interval and one-click opening of Kimai
 - Automatic updates, manual update checks and a localized What's New screen after updates

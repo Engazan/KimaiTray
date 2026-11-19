@@ -300,6 +300,8 @@
     "showNotificationDescription": "Zobrazit systémové upozornění při detekci nečinnosti",
     "stopOnScreensaver": "Zastavit časovač při spuštění spořiče obrazovky",
     "stopOnScreensaverDescription": "Okamžitě zastavit aktivní časovač po aktivaci spořiče obrazovky v macOS",
+    "stopOnShutdown": "Zastavit časovače při vypnutí nebo odhlášení",
+    "stopOnShutdownDescription": "Při vypnutí nebo odhlášení se aplikace pokusí zastavit všechny běžící časovače na aktuálním připojení ke Kimai",
     "stopOnScreenLock": "Zastavit časovač při zamknutí Macu",
     "stopOnScreenLockDescription": "Okamžitě zastavit aktivní časovač po zamknutí uživatelské relace v macOS",
     "testReminder": "Otestovat upozornění nečinnosti",
