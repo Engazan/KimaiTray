@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.21] - 2026-11-20
+
+### New Features
+
+- **Stop timers on shutdown or sign-out** ([#51](https://github.com/Engazan/KimaiTray/issues/51)) — enable this option in Idle Detection on macOS, Windows, and supported Linux desktops. KimaiTray tries to stop all running timers on the active Kimai connection within a short time limit. The option is off by default and sleep leaves timers running.
+
 ## [0.22.20] - 2026-11-18
 
 ### Bug Fixes
