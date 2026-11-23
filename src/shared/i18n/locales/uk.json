@@ -120,7 +120,13 @@
     "unexpectedError": "Неочікувана помилка під час перевірки підключення",
     "redirectToHttps": "Сервер перенаправляє на HTTPS. Використайте {{url}} як URL Kimai.",
     "redirectTo": "Сервер перенаправляє на {{url}}. Використайте цю адресу як URL Kimai.",
-    "connectionFailed": "Підключення не вдалося"
+    "connectionFailed": "Підключення не вдалося",
+    "activeBadge": "Активне",
+    "deleteTitle": "Видалити підключення",
+    "deleteDescription": "Видаляє підключення та його налаштування функцій, плагінів та інтеграцій.",
+    "advancedGroup": "Додатково",
+    "setActive": "Зробити активним",
+    "confirmDelete": "Справді видалити?"
   },
   "plugins": {
     "title": "Plugins",
@@ -157,7 +163,13 @@
     "about": "Про застосунок",
     "language": "Мова",
     "languageDescription": "Мова інтерфейсу застосунку",
-    "systemLanguage": "Системна мова"
+    "systemLanguage": "Системна мова",
+    "searchPlaceholder": "Пошук у налаштуваннях",
+    "searchResults": "Результати для «{{query}}»",
+    "searchHint": "Налаштування можна змінювати прямо тут.",
+    "searchEmpty": "Нічого не знайдено для «{{query}}».",
+    "saved": "Збережено",
+    "autosave": "Зберігається автоматично"
   },
   "settingsGroups": {
     "preferences": "Параметри",
@@ -233,7 +245,11 @@
     "stateRunning": "Виконується",
     "statePaused": "Призупинено",
     "stateError": "Помилка",
-    "resetColors": "Скинути до типових"
+    "resetColors": "Скинути до типових",
+    "previewTitle": "Попередній перегляд панелі",
+    "iconGroup": "Значок на панелі",
+    "behaviorGroup": "Поведінка",
+    "placementGroup": "Розташування вікна"
   },
   "timerSettings": {
     "title": "Таймер",
@@ -318,7 +334,9 @@
     "continueKeep": "Продовжити — зберегти час",
     "stopAt": "Зупинити о {{time}}",
     "stopNow": "Зупинити зараз",
-    "stopAtAndNew": "Зупинити о {{time}} і запустити нове"
+    "stopAtAndNew": "Зупинити о {{time}} і запустити нове",
+    "detectionGroup": "Виявлення",
+    "autoStopGroup": "Автоматична зупинка"
   },
   "shortcuts": {
     "title": "Гарячі клавіші",
@@ -345,7 +363,9 @@
     "clearShortcut": "Очистити скорочення",
     "conflict": "Вже використовується для «{{action}}»",
     "invalid": "Недійсне скорочення",
-    "waylandUnavailable": "Глобальні комбінації клавіш недоступні в цьому сеансі Wayland. Натомість налаштуйте відповідні комбінації в середовищі робочого столу."
+    "waylandUnavailable": "Глобальні комбінації клавіш недоступні в цьому сеансі Wayland. Натомість налаштуйте відповідні комбінації в середовищі робочого столу.",
+    "groupTimer": "Таймер",
+    "groupWindows": "Вікна"
   },
   "updateSettings": {
     "title": "Оновлення",
@@ -405,7 +425,11 @@
     "colorModeCustomer": "Колір клієнта",
     "colorModeActivityProject": "Активність + Проєкт",
     "colorModeActivityCustomer": "Активність + Клієнт",
-    "colorModeProjectCustomer": "Проєкт + Клієнт"
+    "colorModeProjectCustomer": "Проєкт + Клієнт",
+    "popupGroup": "Спливаюче вікно",
+    "colorsGroup": "Кольори та розмір",
+    "previewLabel": "Живий попередній перегляд вікна",
+    "transparentNoBlur": "Без розмиття, фон повністю прозорий. Розмиття доступне лише на macOS."
   },
   "featuresSettings": {
     "title": "Функції",
@@ -433,7 +457,9 @@
     "categoryMode": "Режим категорій",
     "categoryModeDescription": "Замінює останні завдання фіксованим набором кнопок категорій для швидкого та структурованого обліку часу.",
     "categoryModeConfigure": "Налаштувати категорії",
-    "categoryModeConfigureHint": "Керуй категоріями та їх зіставленням з активностями Kimai"
+    "categoryModeConfigureHint": "Керуй категоріями та їх зіставленням з активностями Kimai",
+    "taskFormGroup": "Форма завдання",
+    "goalPreview": "Попередній перегляд у вкладці Сьогодні"
   },
   "categoryMode": {
     "title": "Режим категорій",

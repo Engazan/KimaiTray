@@ -105,7 +105,7 @@ export default function PluginsSection({ settings, update, connectionId }: Props
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 6.75A2.25 2.25 0 016.75 4.5h10.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25H6.75a2.25 2.25 0 01-2.25-2.25V6.75zM8 9h8M8 13h5" />
                     </svg>
                   </span>
-                  <span className="truncate text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                  <span className="truncate text-[11px] font-medium text-[var(--s-fg-muted)]">
                     {field.label.trim() || field.name}
                   </span>
                 </div>
@@ -123,7 +123,7 @@ export default function PluginsSection({ settings, update, connectionId }: Props
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--s-fg-subtle)]">
                   {t("customFields.internalName")}
                   <input
                     value={field.name}
@@ -138,7 +138,7 @@ export default function PluginsSection({ settings, update, connectionId }: Props
                     className="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-[12px] font-normal tracking-normal text-gray-700 shadow-sm shadow-gray-200/30 transition-colors placeholder:text-gray-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/15 aria-[invalid=true]:border-red-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:shadow-none"
                   />
                 </label>
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--s-fg-subtle)]">
                   {t("customFields.label")}
                   <input
                     value={field.label}
@@ -148,7 +148,7 @@ export default function PluginsSection({ settings, update, connectionId }: Props
                 </label>
 
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--s-fg-subtle)]">
                     {t("customFields.type")}
                   </span>
                   <div
@@ -185,10 +185,10 @@ export default function PluginsSection({ settings, update, connectionId }: Props
                 <div className="flex items-end">
                   <div className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
                     <div>
-                      <div className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                      <div className="text-[11px] font-medium text-[var(--s-fg-muted)]">
                         {t("customFields.required")}
                       </div>
-                      <div className="text-[9px] text-gray-400 dark:text-gray-500">
+                      <div className="text-[9px] text-[var(--s-fg-subtle)]">
                         {t("customFields.requiredHint")}
                       </div>
                     </div>

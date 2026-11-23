@@ -5,12 +5,11 @@ import type { AppSettings } from "../types";
 import { checkForUpdate, installUpdate } from "../api/updater";
 import i18n from "../shared/i18n";
 import { resolveLanguage, type LanguageSetting } from "../shared/i18n";
-import { Select, Toggle } from "./Controls";
+import { Select, Toggle, buttonClass } from "./Controls";
 import {
   SettingsList,
   SettingsPage,
   SettingsRow,
-  SettingsRowStacked,
 } from "./SettingsLayout";
 
 interface Props {
@@ -99,7 +98,7 @@ export default function GeneralSection({ settings, update }: Props) {
         </SettingsRow>
 
         <SettingsRow label={t("general.launchAtLogin")} description={t("general.launchAtLoginDescription")}>
-          <Toggle checked={autostart} onChange={toggleAutostart} />
+          <Toggle ariaLabel={t("general.launchAtLogin")} checked={autostart} onChange={toggleAutostart} />
         </SettingsRow>
 
         <SettingsRow label={t("general.refreshInterval")} description={t("general.refreshIntervalDescription")}>
@@ -125,7 +124,7 @@ export default function GeneralSection({ settings, update }: Props) {
         </SettingsRow>
       </SettingsList>
 
-      <SettingsList title={t("updateSettings.autoUpdate")}>
+      <SettingsList title={t("updateSettings.title")}>
         <SettingsRow
           label={t("updateSettings.autoUpdate")}
           description={t("updateSettings.autoUpdateDescription")}
@@ -136,38 +135,30 @@ export default function GeneralSection({ settings, update }: Props) {
           />
         </SettingsRow>
 
-        <SettingsRowStacked label={t("updateSettings.checkForUpdates")}>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              disabled={checking}
-              onClick={checkForUpdates}
-              className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] font-medium
-                text-gray-700 transition-colors
-                hover:bg-gray-100 active:bg-gray-150
-                focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
-                dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700
-                disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {checking ? t("updateSettings.checking") : t("updateSettings.checkForUpdates")}
-            </button>
-            {updateResult === "upToDate" && (
-              <span className="text-[11px] text-green-600 dark:text-green-400">
-                {t("updateSettings.upToDate")}
-              </span>
+        <SettingsRow
+          label={t("updateSettings.checkForUpdates")}
+          description={
+            updateResult === "upToDate" ? (
+              <span className="text-emerald-600 dark:text-emerald-400">{t("updateSettings.upToDate")}</span>
+            ) : updateResult === "available" ? (
+              <span className="text-[var(--accent)]">{t("updateSettings.updateAvailable", { version: updateVersion })}</span>
+            ) : updateResult === "error" ? (
+              <span className="text-red-500 dark:text-red-400">{t("updateSettings.checkFailed")}</span>
+            ) : undefined
+          }
+        >
+          <button
+            type="button"
+            disabled={checking}
+            onClick={checkForUpdates}
+            className={buttonClass()}
+          >
+            {checking && (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true" />
             )}
-            {updateResult === "available" && (
-              <span className="text-[11px] text-blue-600 dark:text-blue-400">
-                {t("updateSettings.updateAvailable", { version: updateVersion })}
-              </span>
-            )}
-            {updateResult === "error" && (
-              <span className="text-[11px] text-red-500 dark:text-red-400">
-                {t("updateSettings.checkFailed")}
-              </span>
-            )}
-          </div>
-        </SettingsRowStacked>
+            {checking ? t("updateSettings.checking") : t("updateSettings.checkForUpdates")}
+          </button>
+        </SettingsRow>
       </SettingsList>
     </SettingsPage>
   );

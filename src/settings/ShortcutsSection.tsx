@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { AppSettings } from "../types";
 import { ShortcutInput } from "./Controls";
-import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
+import { SettingsList, SettingsNote, SettingsPage, SettingsRow, SettingsWarning } from "./SettingsLayout";
 import { usePlatform } from "../platform";
 
 interface Props {
@@ -36,6 +36,17 @@ function findConflict(
   return null;
 }
 
+const SHORTCUT_GROUPS: { titleKey: string; keys: (typeof SHORTCUT_KEYS)[number]["key"][] }[] = [
+  {
+    titleKey: "shortcuts.groupTimer",
+    keys: ["shortcutStartStopTimer", "shortcutNewTask", "shortcutPauseResume", "shortcutContinueLastTask", "shortcutEditNote"],
+  },
+  {
+    titleKey: "shortcuts.groupWindows",
+    keys: ["shortcutTogglePopup", "shortcutOpenKimai", "shortcutOpenSettings"],
+  },
+];
+
 export default function ShortcutsSection({ settings, update }: Props) {
   const { t } = useTranslation();
   const platform = usePlatform();
@@ -43,40 +54,39 @@ export default function ShortcutsSection({ settings, update }: Props) {
   return (
     <SettingsPage title={t("shortcuts.title")} description={t("shortcuts.description")}>
       {!platform.supportsGlobalShortcuts && (
-        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400">
-          {t("shortcuts.waylandUnavailable")}
-        </div>
+        <SettingsWarning>{t("shortcuts.waylandUnavailable")}</SettingsWarning>
       )}
-      <SettingsList>
-        {SHORTCUT_KEYS.map((item) => {
-          const conflict = findConflict(item.key, settings[item.key], settings, t);
-          return (
-            <SettingsRow
-              key={item.key}
-              label={t(item.labelKey)}
-              description={
-                <>
-                  {t(item.descKey)}
-                  {conflict && (
-                    <span className="mt-1 block text-red-500 dark:text-red-400">
-                      {conflict}
-                    </span>
-                  )}
-                </>
-              }
-            >
-              <ShortcutInput
-                disabled={!platform.supportsGlobalShortcuts}
-                value={settings[item.key]}
-                onChange={(v) => update(item.key, v)}
-              />
-            </SettingsRow>
-          );
-        })}
-      </SettingsList>
-      <p className="px-1 text-[11px] text-gray-400 dark:text-gray-500">
-        {t("shortcuts.formSubmitHint")}
-      </p>
+      {SHORTCUT_GROUPS.map((group) => (
+        <SettingsList key={group.titleKey} title={t(group.titleKey)}>
+          {group.keys.map((key) => {
+            const item = SHORTCUT_KEYS.find((s) => s.key === key)!;
+            const conflict = findConflict(item.key, settings[item.key], settings, t);
+            return (
+              <SettingsRow
+                key={item.key}
+                label={t(item.labelKey)}
+                description={
+                  <>
+                    {t(item.descKey)}
+                    {conflict && (
+                      <span className="mt-1 block text-red-500 dark:text-red-400">
+                        {conflict}
+                      </span>
+                    )}
+                  </>
+                }
+              >
+                <ShortcutInput
+                  disabled={!platform.supportsGlobalShortcuts}
+                  value={settings[item.key]}
+                  onChange={(v) => update(item.key, v)}
+                />
+              </SettingsRow>
+            );
+          })}
+        </SettingsList>
+      ))}
+      <SettingsNote>{t("shortcuts.formSubmitHint")}</SettingsNote>
     </SettingsPage>
   );
 }

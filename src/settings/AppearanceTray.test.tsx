@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppearanceSection from "./AppearanceSection";
 import ColorPicker from "./ColorPicker";
+import PopupPreview from "./PopupPreview";
+import TrayBarPreview from "./TrayBarPreview";
 import TrayWindowSection from "./TrayWindowSection";
 import { defaultSettings } from "./service";
 
@@ -60,7 +62,7 @@ describe("AppearanceSection", () => {
     fireEvent.change(screen.getByRole("slider", { name: "appearanceSettings.uiSize" }), { target: { value: "5" } });
     for (const toggle of screen.getAllByRole("switch")) await user.click(toggle);
     await user.click(screen.getByTitle("purple"));
-    await user.click(screen.getByRole("button", { name: "appearanceSettings.colorModeActivityProject" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "appearanceSettings.colorMode" }), "activity-project");
 
     expect(update).toHaveBeenCalledWith("theme", "dark");
     expect(update).toHaveBeenCalledWith("popupLayout", "focus");
@@ -76,6 +78,96 @@ describe("AppearanceSection", () => {
   it("falls back to the first size for unknown persisted values", () => {
     render(<AppearanceSection settings={{ ...defaultSettings, uiSize: "unknown" as never, theme: "transparent" }} update={vi.fn()} />);
     expect(screen.getByRole("slider").getAttribute("aria-valuetext")).toContain("85%");
+  });
+});
+
+describe("PopupPreview", () => {
+  it.each([
+    ["classic", "light", "kimai"],
+    ["focus", "dark", "project"],
+    ["taskbar", "transparent", "customer"],
+    ["timeline", "transparent", "activity-project"],
+    ["classic", "dark", "activity-customer"],
+    ["focus", "light", "project-customer"],
+  ] as const)("renders the %s layout in the %s theme with %s colors", (popupLayout, theme, colorMode) => {
+    const { container } = render(
+      <PopupPreview
+        label="preview"
+        settings={{
+          ...defaultSettings,
+          popupLayout,
+          theme,
+          colorMode,
+          reduceVisualEffects: popupLayout === "timeline",
+          roundedPopupCorners: theme !== "dark",
+          showSecondsInTimer: theme === "light",
+          uiSize: "unknown" as never,
+        }}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "preview" })).toBeTruthy();
+    expect(container.textContent).toContain("KimaiTray");
+    expect(container.textContent).toContain(theme === "light" ? "01:24:07" : "KimaiTray");
+  });
+
+  it("falls back to the light palette for an unknown theme", () => {
+    render(<PopupPreview label="preview" settings={{ ...defaultSettings, theme: "neon" as never }} />);
+    expect(screen.getByRole("img", { name: "preview" })).toBeTruthy();
+  });
+});
+
+describe("OS-specific previews", () => {
+  it.each(["macos", "windows", "linux", "unknown"] as const)("renders the %s tray area", (os) => {
+    const { container } = render(<TrayBarPreview os={os} dark={os === "windows"} ariaLabel="bar" icon={<i data-testid="icon" />} label={os === "macos" ? "1:23" : ""} />);
+    expect(screen.getByRole("img", { name: "bar" }).dataset.trayPreview).toBe(os === "unknown" ? "macos" : os);
+    expect(screen.getByTestId("icon")).toBeTruthy();
+    expect(container.textContent?.includes("1:23")).toBe(os === "macos");
+  });
+
+  it("renders a light Windows taskbar", () => {
+    render(<TrayBarPreview os="windows" dark={false} ariaLabel="bar" icon={null} label="" />);
+    expect(screen.getByRole("img", { name: "bar" }).innerHTML).toContain("f3f3f3");
+  });
+
+  it("only blurs the transparent popup on macOS and follows the system appearance", () => {
+    const transparent = { ...defaultSettings, theme: "transparent" as const };
+    const { rerender } = render(<PopupPreview label="p" settings={transparent} os="macos" prefersDark />);
+    expect(screen.getByRole("img", { name: "p" }).dataset.previewBlur).toBe("true");
+    rerender(<PopupPreview label="p" settings={transparent} os="windows" />);
+    expect(screen.getByRole("img", { name: "p" }).dataset.previewBlur).toBe("false");
+  });
+
+  it("describes the missing blur in the theme picker off macOS", () => {
+    mocks.platform.os = "windows";
+    render(<AppearanceSection settings={defaultSettings} update={vi.fn()} />);
+    expect(screen.getByText("appearanceSettings.transparentNoBlur")).toBeTruthy();
+  });
+
+  it("shows the menu bar label only on macOS and tracks system dark mode", async () => {
+    const listeners: Array<() => void> = [];
+    let dark = false;
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: dark, media: query,
+      addEventListener: (_: string, cb: () => void) => listeners.push(cb),
+      removeEventListener: vi.fn(),
+    }));
+    try {
+      mocks.platform.os = "windows";
+      const { container, unmount } = render(<TrayWindowSection settings={{ ...defaultSettings, menuBarLabelStyle: "timer" }} update={vi.fn()} />);
+      const bar = () => container.querySelector("[data-tray-preview]") as HTMLElement;
+      expect(bar().dataset.trayPreview).toBe("windows");
+      expect(bar().innerHTML).toContain("f3f3f3");
+      dark = true;
+      await act(async () => { listeners.forEach((cb) => cb()); });
+      expect(bar().innerHTML).toContain("202020");
+      expect(bar().textContent).not.toMatch(/1:23/);
+      unmount();
+      mocks.platform.os = "macos";
+      render(<TrayWindowSection settings={{ ...defaultSettings, menuBarLabelStyle: "timer", showSecondsInTimer: false }} update={vi.fn()} />);
+      expect(document.querySelector("[data-tray-preview]")?.textContent).toMatch(/1:23/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
@@ -131,13 +223,16 @@ describe("TrayWindowSection", () => {
     await user.click(screen.getByRole("button", { name: "traySettings.iconSizeLarge" }));
     await user.click(screen.getByRole("button", { name: /general.displayModeDetached/ }));
     await user.click(screen.getByRole("button", { name: "traySettings.resetColors" }));
+    const pausedPreview = screen.getByRole("button", { name: "traySettings.previewTitle: traySettings.statePaused" });
+    await user.click(pausedPreview);
+    expect(pausedPreview.getAttribute("aria-pressed")).toBe("true");
 
+    await user.click(screen.getByRole("button", { name: "traySettings.popupMonitorModeActive" }));
     const selects = screen.getAllByRole("combobox");
-    await user.selectOptions(selects[0], "active");
-    await user.selectOptions(selects[1], "1");
-    await user.selectOptions(selects[2], "center");
-    await user.selectOptions(selects[3], "nothing");
-    await user.selectOptions(selects[4], "popup");
+    await user.selectOptions(selects[0], "nothing");
+    await user.selectOptions(selects[1], "popup");
+    await user.selectOptions(selects[2], "1");
+    await user.click(screen.getByRole("button", { name: "traySettings.popupMonitorPositionCenter" }));
 
     expect(mocks.setTrayIconShape).toHaveBeenCalledWith("ring");
     expect(mocks.setTrayIconSize).toHaveBeenCalledWith("large");
@@ -172,9 +267,9 @@ describe("TrayWindowSection", () => {
     Object.assign(mocks.platform, { os: "macos", supportsWindowPositioning: true, supportsTrayClickActions: true });
     const update = vi.fn();
     render(<TrayWindowSection settings={{ ...defaultSettings, menuBarLabelStyle: "timer" }} update={update} />);
-    await user.click(screen.getAllByRole("switch")[0]);
+    await user.click(screen.getByRole("switch", { name: "traySettings.trueTray" }));
     await user.click(screen.getByRole("button", { name: /timerSettings.activityName/ }));
-    await user.click(screen.getAllByRole("switch")[1]);
+    await user.click(screen.getByRole("switch", { name: "timerSettings.showSeconds" }));
     expect(update).toHaveBeenCalledWith("trueTrayMode", true);
     expect(update).toHaveBeenCalledWith("menuBarLabelStyle", "activity");
     expect(update).toHaveBeenCalledWith("showSecondsInTimer", false);

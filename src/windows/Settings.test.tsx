@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Settings from "./Settings";
@@ -22,13 +22,16 @@ vi.mock("../hooks/useAppearance", () => ({ useAppearance: vi.fn() }));
 vi.mock("../hooks/useLanguageSync", () => ({ useLanguageSync: vi.fn() }));
 
 vi.mock("../settings/ConnectionSection", () => ({ default: ({ selectedConnectionId, onSelectedConnectionChange }: any) => <div data-testid="connection">connection:{String(selectedConnectionId)}<button onClick={() => onSelectedConnectionChange("missing")}>invalid-selection</button></div> }));
-vi.mock("../settings/GeneralSection", () => ({ default: () => <div>section-general</div> }));
+vi.mock("../settings/GeneralSection", () => ({ default: ({ update }: any) => <section data-settings-group><div data-settings-item>section-general<button onClick={() => update("language", "en")}>change-language</button></div></section> }));
 vi.mock("../settings/AppearanceSection", () => ({ default: () => <div>section-appearance</div> }));
 vi.mock("../settings/TrayWindowSection", () => ({ default: () => <div>section-tray</div> }));
 vi.mock("../settings/IdleDetectionSection", () => ({ default: () => <div>section-idle</div> }));
 vi.mock("../settings/TimerReminderSection", () => ({ default: () => <div>section-reminder</div> }));
 vi.mock("../settings/ShortcutsSection", () => ({ default: () => <div>section-shortcuts</div> }));
 vi.mock("../settings/TestSection", () => ({ default: ({ appVersion }: any) => <div>section-test:{appVersion}</div> }));
+vi.mock("../settings/FeaturesSection", () => ({ default: ({ connectionId }: any) => <section data-settings-group><div data-settings-item>features-for:{connectionId}</div></section> }));
+vi.mock("../settings/PluginsSection", () => ({ default: () => <div>plugins</div> }));
+vi.mock("../settings/IntegrationsSection", () => ({ default: () => <div>integrations</div> }));
 vi.mock("../settings/AboutSection", () => ({ default: () => <div>section-about</div> }));
 
 beforeEach(() => {
@@ -93,5 +96,48 @@ describe("Settings window", () => {
     mocks.settingsHook.settings = { ...mocks.settingsHook.settings, activeConnectionId: "" };
     render(<Settings />);
     expect(screen.getByTestId("connection").textContent).toContain("connection:a");
+  });
+
+  it("filters every settings section from the sidebar search", async () => {
+    const user = userEvent.setup();
+    render(<Settings />);
+    const search = screen.getByRole("searchbox", { name: "settings.searchPlaceholder" });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(document.activeElement).toBe(search);
+
+    await user.type(search, "general");
+    expect(screen.getByText("settings.searchResults")).toBeTruthy();
+    expect(screen.getByText("section-general")).toBeTruthy();
+    expect(screen.queryByText("settings.searchEmpty")).toBeNull();
+
+    await user.clear(search);
+    await user.type(search, "no-such-setting");
+    expect(await screen.findByText("settings.searchEmpty")).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByTestId("connection")).toBeTruthy();
+  });
+
+  it("jumps from a search result to its section and flashes the saved indicator", async () => {
+    const user = userEvent.setup();
+    render(<Settings />);
+    await user.type(screen.getByRole("searchbox"), "section-general");
+    await user.click(screen.getByRole("button", { name: "change-language" }));
+    expect(mocks.settingsHook.update).toHaveBeenCalledWith("language", "en");
+
+    await user.click(screen.getAllByRole("button", { name: "general.title" })[1]);
+    expect(screen.queryByText("settings.searchResults")).toBeNull();
+    expect(screen.getByText("section-general")).toBeTruthy();
+  });
+
+  it("includes the selected connection's settings in search results", async () => {
+    const user = userEvent.setup();
+    render(<Settings />);
+    await user.click(screen.getByRole("button", { name: /Beta/ }));
+    await user.type(screen.getByRole("searchbox"), "features-for");
+    expect(screen.getByText("features-for:b")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Beta" }));
+    expect(screen.getByTestId("connection").textContent).toContain("connection:b");
   });
 });

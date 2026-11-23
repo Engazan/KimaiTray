@@ -1,20 +1,23 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Divider,
   FieldGroup,
   NumberInput,
+  Segmented,
   SectionDescription,
   SectionTitle,
   Select,
   ShortcutInput,
   TextInput,
   Toggle,
+  buttonClass,
   formatAcceleratorForDisplay,
 } from "./Controls";
+import { SettingsPage, SettingsSavedContext } from "./SettingsLayout";
 
 const platform = vi.hoisted(() => ({ os: "macos" }));
 
@@ -159,5 +162,71 @@ describe("settings controls", () => {
     await user.click(screen.getByRole("button"));
     expect(screen.queryByText("shortcuts.recording")).toBeNull();
     expect(screen.queryByTitle("shortcuts.clearShortcut")).toBeNull();
+  });
+
+  it("steps number inputs within their bounds", () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(<NumberInput value={5} min={1} max={6} onChange={onChange} />);
+    const [minus, plus] = container.querySelectorAll<HTMLButtonElement>("button");
+    fireEvent.click(plus);
+    expect(onChange).toHaveBeenLastCalledWith(6);
+    fireEvent.click(minus);
+    expect(onChange).toHaveBeenLastCalledWith(4);
+    rerender(<NumberInput value={6} min={1} max={6} onChange={onChange} />);
+    expect(container.querySelectorAll<HTMLButtonElement>("button")[1].disabled).toBe(true);
+  });
+
+  it("selects segmented options and exposes their pressed state", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <Segmented
+        ariaLabel="Mode"
+        value="a"
+        onChange={onChange}
+        options={[
+          { value: "a", label: "Alpha" },
+          { value: "b", label: <span>Beta</span>, ariaLabel: "Beta option" },
+          { value: "c", label: "Gamma", disabled: true },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Alpha" }).getAttribute("aria-pressed")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Beta option" }));
+    await user.click(screen.getByRole("button", { name: "Gamma" }));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("b");
+    expect(buttonClass("primary", "sm")).toContain("h-[27px]");
+  });
+
+  it("flashes the autosave indicator after a settings write", () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(
+        <SettingsSavedContext.Provider value={0}>
+          <SettingsPage title="Page">content</SettingsPage>
+        </SettingsSavedContext.Provider>,
+      );
+      expect(screen.getByText("settings.autosave")).toBeTruthy();
+      rerender(
+        <SettingsSavedContext.Provider value={1}>
+          <SettingsPage title="Page">content</SettingsPage>
+        </SettingsSavedContext.Provider>,
+      );
+      expect(screen.getByText("settings.saved")).toBeTruthy();
+      act(() => { vi.advanceTimersByTime(1500); });
+      expect(screen.getByText("settings.autosave")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("renders each key of a shortcut as its own key cap", () => {
+    platform.os = "macos";
+    const { container, rerender } = render(<ShortcutInput value="CommandOrControl+Shift+F8" onChange={vi.fn()} />);
+    expect([...container.querySelectorAll("kbd")].map((k) => k.textContent)).toEqual(["⌘", "⇧", "F8"]);
+    platform.os = "windows";
+    rerender(<ShortcutInput value="CommandOrControl+Alt+K" onChange={vi.fn()} />);
+    expect([...container.querySelectorAll("kbd")].map((k) => k.textContent)).toEqual(["Ctrl", "Alt", "K"]);
   });
 });

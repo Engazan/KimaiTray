@@ -1,5 +1,7 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { SettingsSection } from "../types";
@@ -15,6 +17,12 @@ import TimerReminderSection from "../settings/TimerReminderSection";
 import ShortcutsSection from "../settings/ShortcutsSection";
 import TestSection from "../settings/TestSection";
 import AboutSection from "../settings/AboutSection";
+import FeaturesSection from "../settings/FeaturesSection";
+import PluginsSection from "../settings/PluginsSection";
+import IntegrationsSection from "../settings/IntegrationsSection";
+import { SettingsSavedContext } from "../settings/SettingsLayout";
+import { currentPlatform } from "../platform";
+import type { AppSettings } from "../types";
 
 /** Sidebar-navigable settings sections (excludes connection tabs). */
 type NavSection = Exclude<SettingsSection, "connection" | "features" | "integrations">;
@@ -85,8 +93,8 @@ const NAV_ITEMS: NavSection[] = NAV_GROUPS.flatMap((g) => g.items);
 
 function BrandMark() {
   return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm">
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[var(--accent)] text-white shadow-[0_2px_8px_var(--accent-line)]">
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
         <circle cx="12" cy="12" r="8.25" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.75V12l2.75 1.75" />
       </svg>
@@ -94,10 +102,28 @@ function BrandMark() {
   );
 }
 
+/** Lowercase and strip diacritics so "nečinnosť" matches "necinnost". */
+function normalizeSearch(value: string): string {
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+const NAV_ITEM =
+  "flex w-full min-w-0 items-center gap-2.5 rounded-[7px] px-2.5 py-[7px] text-left text-[13px] transition-colors " +
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]";
+const NAV_ITEM_ON = "bg-[var(--accent-soft)] font-medium text-[var(--accent)]";
+const NAV_ITEM_OFF =
+  "text-[var(--s-fg-muted)] hover:bg-[var(--s-hover)] hover:text-[var(--s-fg)]";
+
 export default function Settings() {
   const { t } = useTranslation();
   const [section, setSection] = useState<SettingsSection>("connection");
   const [appVersion, setAppVersion] = useState("");
+  const [query, setQuery] = useState("");
+  const [savedAt, setSavedAt] = useState(0);
+  const [noResults, setNoResults] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
     string | null | undefined
   >(undefined);
@@ -111,21 +137,74 @@ export default function Settings() {
     const unlisten = win.listen<string>("kimai://navigate-section", (e) => {
       const target = e.payload as SettingsSection;
       if (target === "connection" || NAV_ITEMS.includes(target as NavSection)) {
+        setQuery("");
         setSection(target);
       }
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
+
+  // ⌘K / Ctrl+K and "/" focus the settings search.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = !!target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing)) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const {
     settings,
     token,
-    update,
+    update: rawUpdate,
     loaded,
     saveConnection,
     removeConnection,
+    activateConnection,
   } = useSettings();
   useAppearance();
   useLanguageSync();
+
+  const update = useCallback(
+    <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+      rawUpdate(key, value);
+      setSavedAt(Date.now());
+    },
+    [rawUpdate],
+  );
+
+  // Filter rendered settings rows by the search query. Works on the DOM so
+  // every section keeps rendering its own, fully interactive controls.
+  const searching = query.trim().length > 0;
+  useLayoutEffect(() => {
+    const root = resultsRef.current;
+    if (!searching || !root) return;
+    const q = normalizeSearch(query.trim());
+    let anyHit = false;
+    root.querySelectorAll<HTMLElement>("[data-search-section]").forEach((sectionEl) => {
+      let hits = 0;
+      sectionEl.querySelectorAll<HTMLElement>("[data-settings-item]").forEach((item) => {
+        const haystack = normalizeSearch(
+          `${item.textContent ?? ""} ${item.dataset.settingsSearch ?? ""}`,
+        );
+        const match = haystack.includes(q);
+        item.hidden = !match;
+        if (match) hits++;
+      });
+      sectionEl.querySelectorAll<HTMLElement>("[data-settings-group]").forEach((group) => {
+        group.hidden = !group.querySelector("[data-settings-item]:not([hidden])");
+      });
+      sectionEl.hidden = hits === 0;
+      if (hits > 0) anyHit = true;
+    });
+    setNoResults(!anyHit);
+  }, [searching, query, settings, appVersion]);
 
   const fallbackConnectionId =
     settings.activeConnectionId || settings.connections[0]?.id || null;
@@ -137,193 +216,252 @@ export default function Settings() {
         ? fallbackConnectionId
         : selectedConnectionId;
 
+  const searchConnection =
+    settings.connections.find((c) => c.id === connectionSelection) ?? null;
+
+  const go = (target: SettingsSection) => {
+    setQuery("");
+    setSection(target);
+    mainRef.current?.scrollTo?.({ top: 0 });
+  };
+
   const openConnection = (id: string | null) => {
     setSelectedConnectionId(id);
-    setSection("connection");
+    go("connection");
   };
 
   if (!loaded) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white dark:bg-[#1a1a1a]">
-        <span className="text-[12px] text-gray-400">{t("common.loading")}</span>
+      <div className="settings-root flex h-screen items-center justify-center bg-[var(--s-window)]">
+        <span className="text-[12px] text-[var(--s-fg-subtle)]">{t("common.loading")}</span>
       </div>
     );
   }
 
+  const renderSection = (id: NavSection) => {
+    switch (id) {
+      case "general":
+        return <GeneralSection settings={settings} update={update} />;
+      case "appearance":
+        return <AppearanceSection settings={settings} update={update} />;
+      case "tray":
+        return <TrayWindowSection settings={settings} update={update} />;
+      case "reminder":
+        return <TimerReminderSection settings={settings} update={update} />;
+      case "idle":
+        return <IdleDetectionSection settings={settings} update={update} />;
+      case "shortcuts":
+        return <ShortcutsSection settings={settings} update={update} />;
+      case "test":
+        return <TestSection settings={settings} appVersion={appVersion} />;
+      case "about":
+        return <AboutSection />;
+    }
+  };
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100">
-      {/* Sidebar */}
-      <nav className="flex w-[220px] shrink-0 flex-col overflow-y-auto border-r border-gray-100 bg-gray-50/80 dark:border-gray-800 dark:bg-[#141414] [scrollbar-width:thin]">
-        {/* Brand */}
-        <div className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-gray-100 bg-gray-50/95 px-4 py-3.5 backdrop-blur dark:border-gray-800 dark:bg-[#141414]/95">
-          <BrandMark />
-          <div className="min-w-0 leading-tight">
-            <div className="truncate text-[13px] font-semibold text-gray-800 dark:text-gray-100">
-              KimaiTray
-            </div>
-            {appVersion && (
-              <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                v{appVersion}
+    <SettingsSavedContext.Provider value={savedAt}>
+      <div className="settings-root flex h-screen w-screen overflow-hidden bg-[var(--s-window)] text-[var(--s-fg)] antialiased">
+        {/* Sidebar */}
+        <nav className="flex w-[228px] shrink-0 flex-col border-r border-[var(--s-line)] bg-[var(--s-sidebar)]">
+          <div className="flex flex-col gap-3 px-3.5 pb-2.5 pt-3.5">
+            <div className="flex items-center gap-2.5">
+              <BrandMark />
+              <div className="min-w-0 leading-tight">
+                <div className="truncate text-[13.5px] font-semibold">KimaiTray</div>
+                {appVersion && (
+                  <div className="font-mono text-[10.5px] text-[var(--s-fg-subtle)]">
+                    v{appVersion}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1 px-2 py-3">
-          {/* Connections group */}
-          <NavGroupHeader>{t("connection.connectionsTitle")}</NavGroupHeader>
-          <div className="mb-1 space-y-0.5">
-            {settings.connections.map((conn) => {
-              const selected =
-                section === "connection" && connectionSelection === conn.id;
-              const active = conn.id === settings.activeConnectionId;
-              return (
-                <button
-                  key={conn.id}
-                  type="button"
-                  onClick={() => openConnection(conn.id)}
-                  className={`flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] transition-colors
-                    focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
-                    ${
-                      selected
-                        ? "bg-[var(--accent-light)] text-[var(--accent)] font-medium"
-                        : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                    }`}
-                >
-                  <span
-                    title={
-                      active
-                        ? t("connection.activeSuffix")
-                        : undefined
-                    }
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      active
-                        ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
-                        : "bg-gray-300 dark:bg-gray-600"
-                    }`}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">{conn.name}</span>
-                    <span className="block truncate text-[10px] font-normal text-gray-400 dark:text-gray-500">
-                      {conn.url}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={() => openConnection(null)}
-              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] transition-colors
-                focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
-                ${
-                  section === "connection" && connectionSelection === null
-                    ? "bg-[var(--accent-light)] text-[var(--accent)] font-medium"
-                    : "text-[var(--accent)] hover:bg-gray-100 dark:hover:bg-gray-800"
-                }`}
-            >
-              <svg
-                className="h-3.5 w-3.5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4.5v15m7.5-7.5h-15"
-                />
+            </div>
+            <div className="relative">
+              <svg className="pointer-events-none absolute left-[9px] top-[9px] h-3.5 w-3.5 text-[var(--s-fg-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <circle cx="11" cy="11" r="7" />
+                <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
               </svg>
-              {t("connection.addNew")}
-            </button>
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Escape") setQuery(""); }}
+                placeholder={t("settings.searchPlaceholder")}
+                aria-label={t("settings.searchPlaceholder")}
+                autoComplete="off"
+                className="h-8 w-full rounded-lg border border-[var(--s-line)] bg-[var(--s-card)] pl-[30px] pr-11 text-[12.5px] outline-none
+                  placeholder:text-[var(--s-fg-subtle)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]
+                  [&::-webkit-search-cancel-button]:hidden"
+              />
+              <kbd className="pointer-events-none absolute right-[7px] top-[7px] rounded border border-[var(--s-line)] bg-[var(--s-sidebar)] px-[5px] py-px font-mono text-[10px] text-[var(--s-fg-subtle)]">
+                {currentPlatform().os === "macos" ? "⌘K" : "Ctrl K"}
+              </kbd>
+            </div>
           </div>
 
-          {/* Settings groups */}
-          {NAV_GROUPS.map((group) => (
-            <div key={group.titleKey}>
-              <NavGroupHeader>{t(group.titleKey)}</NavGroupHeader>
-              <div className="mb-1 space-y-0.5">
-                {group.items.map((id) => (
+          <div className="flex-1 overflow-y-auto px-2 pb-3.5 [scrollbar-width:thin]">
+            {/* Connections group */}
+            <NavGroupHeader>{t("connection.connectionsTitle")}</NavGroupHeader>
+            <div className="space-y-px">
+              {settings.connections.map((conn) => {
+                const selected =
+                  !searching && section === "connection" && connectionSelection === conn.id;
+                const active = conn.id === settings.activeConnectionId;
+                return (
                   <button
-                    key={id}
+                    key={conn.id}
                     type="button"
-                    onClick={() => setSection(id)}
-                    className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors
-                      focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
-                      ${
-                        section === id
-                          ? "bg-[var(--accent-light)] text-[var(--accent)] font-medium"
-                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                      }`}
+                    onClick={() => openConnection(conn.id)}
+                    className={`${NAV_ITEM} ${selected ? NAV_ITEM_ON : NAV_ITEM_OFF}`}
                   >
                     <span
-                      className={
-                        section === id
-                          ? "text-[var(--accent)]"
-                          : "text-gray-400 dark:text-gray-500"
-                      }
-                    >
-                      {NAV_ICONS[id]}
+                      title={active ? t("connection.activeSuffix") : undefined}
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        active
+                          ? "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.2)]"
+                          : "bg-gray-400/50 dark:bg-gray-500/50"
+                      }`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{conn.name}</span>
+                      <span className="block truncate text-[10.5px] font-normal text-[var(--s-fg-subtle)]">
+                        {conn.url}
+                      </span>
                     </span>
-                    {t(NAV_LABEL_KEYS[id])}
                   </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </nav>
+                );
+              })}
 
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-8 py-6">
-          {section === "connection" && (
-            <ConnectionSection
-              settings={settings}
-              token={token}
-              selectedConnectionId={connectionSelection}
-              onSelectedConnectionChange={setSelectedConnectionId}
-              saveConnection={saveConnection}
-              removeConnection={removeConnection}
-              update={update}
-            />
-          )}
-          {section === "general" && (
-            <GeneralSection settings={settings} update={update} />
-          )}
-          {section === "appearance" && (
-            <AppearanceSection settings={settings} update={update} />
-          )}
-          {section === "tray" && (
-            <TrayWindowSection settings={settings} update={update} />
-          )}
-          {section === "reminder" && (
-            <TimerReminderSection settings={settings} update={update} />
-          )}
-          {section === "idle" && (
-            <IdleDetectionSection settings={settings} update={update} />
-          )}
-          {section === "shortcuts" && (
-            <ShortcutsSection settings={settings} update={update} />
-          )}
-          {section === "test" && (
-            <TestSection settings={settings} appVersion={appVersion} />
-          )}
-          {section === "about" && <AboutSection />}
-        </div>
-      </main>
-    </div>
+              <button
+                type="button"
+                onClick={() => openConnection(null)}
+                className={`${NAV_ITEM} ${
+                  !searching && section === "connection" && connectionSelection === null
+                    ? NAV_ITEM_ON
+                    : "text-[var(--accent)] hover:bg-[var(--s-hover)]"
+                }`}
+              >
+                <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                {t("connection.addNew")}
+              </button>
+            </div>
+
+            {/* Settings groups */}
+            {NAV_GROUPS.map((group) => (
+              <div key={group.titleKey}>
+                <NavGroupHeader>{t(group.titleKey)}</NavGroupHeader>
+                <div className="space-y-px">
+                  {group.items.map((id) => {
+                    const on = !searching && section === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => go(id)}
+                        className={`${NAV_ITEM} ${on ? NAV_ITEM_ON : NAV_ITEM_OFF}`}
+                      >
+                        <span className={on ? "text-[var(--accent)]" : "opacity-80"}>
+                          {NAV_ICONS[id]}
+                        </span>
+                        {t(NAV_LABEL_KEYS[id])}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </nav>
+
+        {/* Content */}
+        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
+          <div className="mx-auto w-full max-w-[720px] px-7 pb-12 pt-[26px]">
+            {searching ? (
+              <div ref={resultsRef} className="space-y-[22px]">
+                <header>
+                  <h2 className="text-[21px] font-semibold tracking-[-0.015em]">
+                    {t("settings.searchResults", { query: query.trim() })}
+                  </h2>
+                  <p className="mt-1.5 text-[12.5px] text-[var(--s-fg-muted)]">
+                    {t("settings.searchHint")}
+                  </p>
+                </header>
+                {searchConnection && (
+                  <div
+                    data-search-section
+                    className="space-y-3 [&_[data-settings-note]]:hidden [&_[data-settings-page-header]]:hidden"
+                  >
+                    <SearchSectionLink onClick={() => openConnection(searchConnection.id)}>
+                      {searchConnection.name}
+                    </SearchSectionLink>
+                    <FeaturesSection settings={settings} update={update} connectionId={searchConnection.id} />
+                    <PluginsSection settings={settings} update={update} connectionId={searchConnection.id} />
+                    <IntegrationsSection settings={settings} update={update} connectionId={searchConnection.id} />
+                  </div>
+                )}
+                {NAV_ITEMS.map((id) => (
+                  <div
+                    key={id}
+                    data-search-section
+                    className="space-y-3 [&_[data-settings-note]]:hidden [&_[data-settings-page-header]]:hidden"
+                  >
+                    <SearchSectionLink onClick={() => go(id)}>
+                      {t(NAV_LABEL_KEYS[id])}
+                    </SearchSectionLink>
+                    {renderSection(id)}
+                  </div>
+                ))}
+                {noResults && (
+                  <p className="py-10 text-center text-[13px] text-[var(--s-fg-subtle)]">
+                    {t("settings.searchEmpty", { query: query.trim() })}
+                  </p>
+                )}
+              </div>
+            ) : section === "connection" ? (
+              <ConnectionSection
+                settings={settings}
+                token={token}
+                selectedConnectionId={connectionSelection}
+                onSelectedConnectionChange={setSelectedConnectionId}
+                saveConnection={saveConnection}
+                removeConnection={removeConnection}
+                activateConnection={activateConnection}
+                update={update}
+              />
+            ) : (
+              NAV_ITEMS.includes(section as NavSection) && renderSection(section as NavSection)
+            )}
+          </div>
+        </main>
+      </div>
+    </SettingsSavedContext.Provider>
   );
 }
 
 function NavGroupHeader({ children }: { children: ReactNode }) {
   return (
-    <div className="px-2.5 pb-1 pt-3 first:pt-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+    <div className="px-2.5 pb-[5px] pt-3.5">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--s-fg-subtle)]">
         {children}
       </span>
     </div>
+  );
+}
+
+function SearchSectionLink({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--s-fg-muted)] hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+    >
+      {children}
+      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+      </svg>
+    </button>
   );
 }

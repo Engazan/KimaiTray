@@ -122,7 +122,7 @@ function CategoryVisualPicker({
           aria-label={t("categoryMode.editVisual")}
           className="absolute left-0 top-full z-40 mt-2 w-[252px] rounded-xl border border-gray-200 bg-white p-3 shadow-xl shadow-black/10 dark:border-gray-700 dark:bg-[#252525] dark:shadow-black/30"
         >
-          <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-[var(--s-fg-subtle)]">
             {t("categoryMode.categoryIcon")}
           </span>
           <div className="grid grid-cols-5 gap-1.5">
@@ -163,7 +163,7 @@ function CategoryVisualPicker({
             ))}
           </div>
           <div className="my-3 border-t border-gray-100 dark:border-gray-700" />
-          <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-[var(--s-fg-subtle)]">
             {t("categoryMode.categoryColor")}
           </span>
           <div className="flex flex-wrap gap-2">
@@ -512,13 +512,13 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                     {t("categoryMode.syncFailed")}
                   </span>
                 ) : config.sourceSyncedAt ? (
-                  <span className="text-gray-400 dark:text-gray-500">
+                  <span className="text-[var(--s-fg-subtle)]">
                     {t("categoryMode.lastSynced", {
                       time: new Date(config.sourceSyncedAt * 1000).toLocaleString(),
                     })}
                   </span>
                 ) : (
-                  <span className="text-gray-400 dark:text-gray-500">
+                  <span className="text-[var(--s-fg-subtle)]">
                     {t("categoryMode.neverSynced")}
                   </span>
                 )}
@@ -545,7 +545,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
           config.categories.map((cat, ci) => (
             <div
               key={cat.id}
-              className="rounded-xl border border-gray-200 dark:border-gray-700"
+              className="rounded-xl border border-[var(--s-line)]"
             >
               <div className="flex items-center gap-2 rounded-t-xl border-b border-gray-100 bg-gray-50/70 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
                 <CategoryVisualPicker
@@ -611,7 +611,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                 {cat.children.map((leaf, li) => (
                   <div key={leaf.id} className="rounded-lg border border-gray-100 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-gray-800/30">
                     <div className="mb-3 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--s-fg-subtle)]">
                         {t("categoryMode.subcategoryLabel", { number: li + 1 })}
                       </span>
                       <IconButton
@@ -641,7 +641,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="block min-w-0">
-                        <span className="mb-1.5 block text-[11px] font-medium text-gray-500 dark:text-gray-400">{t("categoryMode.displayName")}</span>
+                        <span className="mb-1.5 block text-[11px] font-medium text-[var(--s-fg-muted)]">{t("categoryMode.displayName")}</span>
                         <TextInput
                           value={leaf.label}
                           onChange={(v) => updateLeaf(ci, li, { label: v })}
@@ -649,7 +649,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                         />
                       </label>
                       <div className="min-w-0">
-                        <span className="mb-1.5 block text-[11px] font-medium text-gray-500 dark:text-gray-400">{t("categoryMode.activityMapping")}</span>
+                        <span className="mb-1.5 block text-[11px] font-medium text-[var(--s-fg-muted)]">{t("categoryMode.activityMapping")}</span>
                         {activityNames.length > 0 ? (
                         <SearchableSelect
                           options={(activityNames.includes(leaf.activityName) || !leaf.activityName
@@ -670,7 +670,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                       </div>
                     </div>
                     <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 border-t border-gray-200/70 pt-3 dark:border-gray-700/70">
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                      <span className="text-[11px] text-[var(--s-fg-muted)]">
                         {t("categoryMode.requiresProject")}
                       </span>
                         <Toggle
@@ -681,7 +681,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                     {leaf.requiresProject && (
                       <div className="mt-3 space-y-3">
                         <label className="flex cursor-pointer items-center justify-between gap-3">
-                          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          <span className="text-[11px] text-[var(--s-fg-muted)]">
                             {t("categoryMode.autoSelectProject")}
                           </span>
                           <Toggle
@@ -691,7 +691,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                         </label>
                         {leaf.autoSelectProject && (
                           <div>
-                            <span className="mb-1.5 block text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                            <span className="mb-1.5 block text-[11px] font-medium text-[var(--s-fg-muted)]">
                               {t("categoryMode.autoProject")}
                             </span>
                             <SearchableSelect
@@ -708,7 +708,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
                   </div>
                 ))}
                 {cat.children.length === 0 && (
-                  <p className="py-2 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                  <p className="py-2 text-center text-[11px] text-[var(--s-fg-subtle)]">
                     {t("categoryMode.noSubcategories")}
                   </p>
                 )}
@@ -728,7 +728,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
 
         {loaded && config.categories.length === 0 && (
           <div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center dark:border-gray-700">
-            <p className="text-[12px] text-gray-500 dark:text-gray-400">{t("categoryMode.noCategoriesEditor")}</p>
+            <p className="text-[12px] text-[var(--s-fg-muted)]">{t("categoryMode.noCategoriesEditor")}</p>
           </div>
         )}
 
@@ -755,14 +755,14 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
         <button
           type="button"
           onClick={copyJson}
-          className="rounded-md border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none"
+          className="rounded-md border border-[var(--s-line)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--s-fg-muted)] hover:bg-[var(--s-hover)] transition-colors focus:outline-none"
         >
           {copied ? t("categoryMode.copied") : t("categoryMode.exportJson")}
         </button>
         <button
           type="button"
           onClick={() => (jsonOpen ? setJsonOpen(false) : openJson())}
-          className="rounded-md border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none"
+          className="rounded-md border border-[var(--s-line)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--s-fg-muted)] hover:bg-[var(--s-hover)] transition-colors focus:outline-none"
         >
           {t("categoryMode.importJson")}
         </button>
@@ -780,7 +780,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
           className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors focus:outline-none ${
             resetConfirm
               ? "border-red-300 bg-red-50 text-red-600 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-400"
-              : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              : "border-[var(--s-line)] text-[var(--s-fg-muted)] hover:bg-[var(--s-hover)]"
           }`}
         >
           {resetConfirm ? t("categoryMode.resetConfirm") : t("categoryMode.resetDefault")}
@@ -794,7 +794,7 @@ export default function CategoryModeSettingsSection({ connectionId, url, name }:
             onChange={(e) => setJsonDraft(e.target.value)}
             rows={10}
             spellCheck={false}
-            className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-mono text-gray-800 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            className="w-full rounded-md border border-[var(--s-line)] bg-[var(--s-card)] px-3 py-2 text-[11px] font-mono text-gray-800 focus:border-[var(--accent)] focus:outline-none focus:shadow-[0_0_0_3px_var(--accent-soft)]  dark:text-gray-200"
           />
           {jsonError && (
             <p className="text-[11px] text-red-500 dark:text-red-400">{jsonError}</p>

@@ -1,13 +1,17 @@
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
-import { Toggle } from "./Controls";
+import { Select, Toggle } from "./Controls";
+import PopupPreview from "./PopupPreview";
+import { usePlatform } from "../platform";
+import { usePrefersDark } from "./usePrefersDark";
 import {
+  CARD,
   RadioDot,
   SelectableCard,
-  SettingsCard,
   SettingsList,
   SettingsPage,
   SettingsRow,
+  SettingsRowStacked,
 } from "./SettingsLayout";
 
 interface Props {
@@ -32,7 +36,7 @@ function LayoutPreview({ layout }: { layout: AppSettings["popupLayout"] }) {
   const todayRow = "h-[3px] rounded-full bg-gray-200 dark:bg-gray-700";
   const footer = `${line} w-full bg-gray-400 dark:bg-gray-500`;
   const header = `${line} w-full bg-gray-400 dark:bg-gray-500`;
-  const wrap = "w-full h-[72px] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 flex flex-col";
+  const wrap = "w-full h-[72px] rounded-md border border-[var(--s-line)] bg-white dark:bg-gray-900 p-1.5 flex flex-col";
 
   if (layout === "classic") {
     return (
@@ -135,7 +139,7 @@ function LayoutPreview({ layout }: { layout: AppSettings["popupLayout"] }) {
             <div className={sectionLabel} />
             <div className={`${line} w-4 bg-gray-300 dark:bg-gray-600`} />
           </div>
-          <svg className="h-[5px] w-[5px] text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <svg className="h-[5px] w-[5px] text-[var(--s-fg-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </div>
@@ -183,7 +187,7 @@ function LayoutPreview({ layout }: { layout: AppSettings["popupLayout"] }) {
       {/* Collapsed recent tasks header with chevron */}
       <div className="mt-0.5 flex items-center justify-between">
         <div className={sectionLabel} />
-        <svg className="h-[5px] w-[5px] text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+        <svg className="h-[5px] w-[5px] text-[var(--s-fg-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </div>
@@ -195,6 +199,8 @@ function LayoutPreview({ layout }: { layout: AppSettings["popupLayout"] }) {
 
 export default function AppearanceSection({ settings, update }: Props) {
   const { t } = useTranslation();
+  const { os } = usePlatform();
+  const prefersDark = usePrefersDark();
 
   const layoutOptions: {
     value: AppSettings["popupLayout"];
@@ -233,60 +239,93 @@ export default function AppearanceSection({ settings, update }: Props) {
     { value: "transparent", label: t("appearanceSettings.transparent"), description: t("appearanceSettings.transparentDescription") },
   ];
 
+  const sizes: Array<{ value: AppSettings["uiSize"]; label: string; tick: string }> = [
+    { value: "small", label: `${t("appearanceSettings.uiSizeSmall")} · 85%`, tick: "85%" },
+    { value: "default", label: `${t("appearanceSettings.uiSizeDefault")} · 100%`, tick: "100%" },
+    { value: "large", label: `${t("appearanceSettings.uiSizeLarge")} · 115%`, tick: "115%" },
+    { value: "scale130", label: "130%", tick: "130%" },
+    { value: "scale145", label: "145%", tick: "145%" },
+    { value: "scale160", label: "160%", tick: "160%" },
+  ];
+  const selectedSize = Math.max(0, sizes.findIndex((size) => size.value === settings.uiSize));
+
   return (
     <SettingsPage
       title={t("appearanceSettings.title")}
       description={t("appearanceSettings.description")}
     >
-      <SettingsCard
-        title={t("appearanceSettings.theme")}
-        description={t("appearanceSettings.themeDescription")}
-      >
-        <div className="flex gap-2 mt-1">
-          {themeOptions.map((opt) => {
-            const active = settings.theme === opt.value;
-            return (
-              <SelectableCard
-                key={opt.value}
-                active={active}
-                onClick={() => update("theme", opt.value)}
-                className="flex-1 flex flex-col items-center gap-1.5 px-3 py-3"
-              >
-                <div
-                  className={`h-8 w-full rounded-md border ${
-                    opt.value === "light"
-                      ? "bg-white border-gray-200"
-                      : opt.value === "dark"
-                        ? "bg-gray-900 border-gray-700"
-                        : "border-gray-300 dark:border-gray-600"
-                  }`}
-                  style={
-                    opt.value === "transparent"
-                      ? {
-                          background:
-                            "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(200,200,255,0.2) 100%)",
-                          backdropFilter: "blur(4px)",
-                        }
-                      : undefined
-                  }
-                />
-                <div className="flex items-center gap-1.5">
-                  <RadioDot active={active} size="md" />
-                  <span className="text-[12px] text-gray-600 dark:text-gray-400">
-                    {opt.label}
-                  </span>
-                </div>
-              </SelectableCard>
-            );
-          })}
+      <section data-settings-group>
+        <h3 className="mb-2 px-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--s-fg-subtle)]">
+          {t("appearanceSettings.popupGroup")}
+        </h3>
+        <div className={`grid overflow-hidden sm:grid-cols-[240px_1fr] ${CARD}`}>
+          <PopupPreview settings={settings} label={t("appearanceSettings.previewLabel")} os={os} prefersDark={prefersDark} />
+          <div className="flex min-w-0 flex-col gap-3 border-t border-[var(--s-line-soft)] px-4 py-3.5 sm:border-l sm:border-t-0">
+            <div data-settings-item data-settings-search={themeOptions.map((o) => o.label).join(" ")}>
+              <div className="text-[13px] font-medium text-[var(--s-fg)]">{t("appearanceSettings.theme")}</div>
+              <div className="mt-0.5 text-[11.5px] text-[var(--s-fg-subtle)]">{t("appearanceSettings.themeDescription")}</div>
+              <div className="mt-2.5 flex flex-col gap-1.5">
+                {themeOptions.map((opt) => {
+                  const active = settings.theme === opt.value;
+                  return (
+                    <SelectableCard
+                      key={opt.value}
+                      active={active}
+                      onClick={() => update("theme", opt.value)}
+                      className="flex items-center gap-2.5 px-2.5 py-2 text-left"
+                    >
+                      <RadioDot active={active} />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="text-[12.5px] font-medium text-[var(--s-fg)]">{opt.label}</span>
+                        <span className="text-[11px] text-[var(--s-fg-subtle)]" aria-hidden="true">
+                          {opt.value === "transparent" && os !== "macos"
+                            ? t("appearanceSettings.transparentNoBlur")
+                            : opt.description}
+                        </span>
+                      </span>
+                    </SelectableCard>
+                  );
+                })}
+              </div>
+            </div>
+            <SettingsRow
+              inset
+              label={t("appearanceSettings.roundedCorners")}
+              description={t("appearanceSettings.roundedCornersDescription")}
+            >
+              <Toggle
+                ariaLabel={t("appearanceSettings.roundedCorners")}
+                checked={settings.roundedPopupCorners}
+                onChange={(v) => update("roundedPopupCorners", v)}
+              />
+            </SettingsRow>
+            <SettingsRow
+              inset
+              label={t("appearanceSettings.reduceEffects")}
+              description={t("appearanceSettings.reduceEffectsDescription")}
+            >
+              <Toggle
+                ariaLabel={t("appearanceSettings.reduceEffects")}
+                checked={settings.reduceVisualEffects}
+                onChange={(v) => update("reduceVisualEffects", v)}
+              />
+            </SettingsRow>
+          </div>
         </div>
-      </SettingsCard>
+      </section>
 
-      <SettingsCard
-        title={t("appearanceSettings.popupLayout")}
-        description={t("appearanceSettings.popupLayoutDescription")}
-      >
-        <div className="mt-1 grid grid-cols-2 gap-2.5">
+      <section data-settings-group>
+        <div className="mb-2 px-1">
+          <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--s-fg-subtle)]">
+            {t("appearanceSettings.popupLayout")}
+          </h3>
+          <p className="mt-0.5 text-[11.5px] text-[var(--s-fg-subtle)]">{t("appearanceSettings.popupLayoutDescription")}</p>
+        </div>
+        <div
+          data-settings-item
+          data-settings-search={`${t("appearanceSettings.popupLayout")} ${layoutOptions.map((o) => o.label).join(" ")}`}
+          className="grid grid-cols-2 gap-2 md:grid-cols-4"
+        >
           {layoutOptions.map((opt) => {
             const active = settings.popupLayout === opt.value;
             return (
@@ -297,161 +336,93 @@ export default function AppearanceSection({ settings, update }: Props) {
                 className="flex min-w-0 flex-col gap-2 p-2.5 text-left"
               >
                 <LayoutPreview layout={opt.value} />
-                <div className="flex min-w-0 items-start gap-2 px-0.5 pb-0.5">
-                  <span className="mt-0.5">
-                    <RadioDot active={active} size="md" />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-[12px] font-medium text-gray-700 dark:text-gray-200">
-                      {opt.label}
-                    </div>
-                    <div className="mt-0.5 text-[10px] leading-3.5 text-gray-400 dark:text-gray-500">
-                      {opt.description}
-                    </div>
-                  </div>
+                <div className="flex min-w-0 items-center gap-[7px]">
+                  <RadioDot active={active} />
+                  <span className="text-[12.5px] font-medium text-[var(--s-fg)]">{opt.label}</span>
                 </div>
+                <span className="text-[11px] leading-[1.4] text-[var(--s-fg-subtle)]">{opt.description}</span>
               </SelectableCard>
             );
           })}
         </div>
-      </SettingsCard>
+      </section>
 
-      <SettingsCard
-        title={t("appearanceSettings.uiSize")}
-        description={t("appearanceSettings.uiSizeDescription")}
-      >
-        <div className="mt-2 px-1">
-          {(() => {
-            const sizes: Array<{ value: AppSettings["uiSize"]; label: string }> = [
-              { value: "small", label: `${t("appearanceSettings.uiSizeSmall")} · 85%` },
-              { value: "default", label: `${t("appearanceSettings.uiSizeDefault")} · 100%` },
-              { value: "large", label: `${t("appearanceSettings.uiSizeLarge")} · 115%` },
-              { value: "scale130", label: "130%" },
-              { value: "scale145", label: "145%" },
-              { value: "scale160", label: "160%" },
-            ];
-            const selected = Math.max(0, sizes.findIndex((size) => size.value === settings.uiSize));
-            return (
-              <>
-                <div className="mb-2 text-center text-[13px] font-medium text-gray-700 dark:text-gray-200">
-                  {sizes[selected].label}
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={sizes.length - 1}
-                  step={1}
-                  value={selected}
-                  aria-label={t("appearanceSettings.uiSize")}
-                  aria-valuetext={sizes[selected].label}
-                  onChange={(event) => update("uiSize", sizes[Number(event.target.value)].value)}
-                  className="h-2 w-full cursor-pointer accent-blue-500"
+      <SettingsList title={t("appearanceSettings.colorsGroup")}>
+        <SettingsRow
+          label={t("appearanceSettings.accentColor")}
+          description={t("appearanceSettings.accentColorDescription")}
+        >
+          <div className="flex gap-[9px]" role="group" aria-label={t("appearanceSettings.accentColor")}>
+            {accentOptions.map((opt) => {
+              const active = settings.accentStyle === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => update("accentStyle", opt.value)}
+                  title={opt.value}
+                  aria-pressed={active}
+                  className={`h-[26px] w-[26px] rounded-full transition-transform
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--accent)]
+                    ${active
+                      ? "ring-2 ring-[var(--s-fg)] ring-offset-2 ring-offset-[var(--s-card)]"
+                      : "hover:scale-110"}`}
+                  style={{ backgroundColor: opt.color }}
                 />
-                <div className="mt-1.5 flex justify-between text-[9px] text-gray-400 dark:text-gray-500">
-                  {sizes.map((size) => (
-                    <span key={size.value} className="w-8 text-center first:text-left last:text-right">
-                      {size.value === "small" ? "85%" : size.value === "default" ? "100%" : size.value === "large" ? "115%" : size.label}
-                    </span>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      </SettingsCard>
-
-      <SettingsList>
-        <SettingsRow
-          label={t("appearanceSettings.roundedCorners")}
-          description={t("appearanceSettings.roundedCornersDescription")}
-        >
-          <Toggle
-            checked={settings.roundedPopupCorners}
-            onChange={(v) => update("roundedPopupCorners", v)}
-          />
+              );
+            })}
+          </div>
         </SettingsRow>
 
         <SettingsRow
-          label={t("appearanceSettings.reduceEffects")}
-          description={t("appearanceSettings.reduceEffectsDescription")}
+          label={t("appearanceSettings.colorMode")}
+          description={t("appearanceSettings.colorModeDescription")}
         >
-          <Toggle
-            checked={settings.reduceVisualEffects}
-            onChange={(v) => update("reduceVisualEffects", v)}
+          <Select
+            ariaLabel={t("appearanceSettings.colorMode")}
+            value={settings.colorMode}
+            onChange={(v) => update("colorMode", v as AppSettings["colorMode"])}
+            options={[
+              { value: "kimai", label: t("appearanceSettings.colorModeKimai") },
+              { value: "activity", label: t("appearanceSettings.colorModeActivity") },
+              { value: "project", label: t("appearanceSettings.colorModeProject") },
+              { value: "customer", label: t("appearanceSettings.colorModeCustomer") },
+              { value: "activity-project", label: t("appearanceSettings.colorModeActivityProject") },
+              { value: "activity-customer", label: t("appearanceSettings.colorModeActivityCustomer") },
+              { value: "project-customer", label: t("appearanceSettings.colorModeProjectCustomer") },
+            ]}
           />
         </SettingsRow>
+
+        <SettingsRowStacked
+          label={t("appearanceSettings.uiSize")}
+          description={
+            <>
+              {t("appearanceSettings.uiSizeDescription")} ·{" "}
+              <b className="font-medium text-[var(--s-fg)]">{sizes[selectedSize].label}</b>
+            </>
+          }
+        >
+          <input
+            type="range"
+            min={0}
+            max={sizes.length - 1}
+            step={1}
+            value={selectedSize}
+            aria-label={t("appearanceSettings.uiSize")}
+            aria-valuetext={sizes[selectedSize].label}
+            onChange={(event) => update("uiSize", sizes[Number(event.target.value)].value)}
+            className="w-full cursor-pointer accent-[var(--accent)]"
+          />
+          <div className="mt-0.5 flex justify-between font-mono text-[10.5px] text-[var(--s-fg-subtle)]">
+            {sizes.map((size, i) => (
+              <span key={size.value} className={i === selectedSize ? "font-semibold text-[var(--accent)]" : ""}>
+                {size.tick}
+              </span>
+            ))}
+          </div>
+        </SettingsRowStacked>
       </SettingsList>
-
-      <SettingsCard
-        title={t("appearanceSettings.accentColor")}
-        description={t("appearanceSettings.accentColorDescription")}
-      >
-        <div className="flex gap-2 mt-1">
-          {accentOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => update("accentStyle", opt.value)}
-              title={opt.value}
-              className={`h-7 w-7 rounded-full transition-all
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400
-                ${
-                  settings.accentStyle === opt.value
-                    ? "ring-2 ring-offset-2 ring-gray-400 dark:ring-gray-500 dark:ring-offset-gray-900 scale-110"
-                    : "hover:scale-105"
-                }`}
-              style={{ backgroundColor: opt.color }}
-            />
-          ))}
-        </div>
-      </SettingsCard>
-
-      <SettingsCard
-        title={t("appearanceSettings.colorMode")}
-        description={t("appearanceSettings.colorModeDescription")}
-      >
-        <div className="flex flex-col gap-1.5 mt-1">
-          {([
-            { value: "kimai" as const, label: t("appearanceSettings.colorModeKimai"), dots: 1 },
-            { value: "activity" as const, label: t("appearanceSettings.colorModeActivity"), dots: 1 },
-            { value: "project" as const, label: t("appearanceSettings.colorModeProject"), dots: 1 },
-            { value: "customer" as const, label: t("appearanceSettings.colorModeCustomer"), dots: 1 },
-            { value: "activity-project" as const, label: t("appearanceSettings.colorModeActivityProject"), dots: 2 },
-            { value: "activity-customer" as const, label: t("appearanceSettings.colorModeActivityCustomer"), dots: 2 },
-            { value: "project-customer" as const, label: t("appearanceSettings.colorModeProjectCustomer"), dots: 2 },
-          ]).map((opt) => {
-            const active = settings.colorMode === opt.value;
-            return (
-              <SelectableCard
-                key={opt.value}
-                active={active}
-                onClick={() => update("colorMode", opt.value)}
-                className="flex items-center gap-2.5 px-3 py-2 text-left"
-              >
-                <RadioDot active={active} size="md" />
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <span className="inline-flex gap-0.5 shrink-0">
-                    {Array.from({ length: opt.dots }, (_, i) => (
-                      <span
-                        key={i}
-                        className="inline-block h-2 w-2 rounded-full"
-                        style={{
-                          backgroundColor: opt.dots === 1
-                            ? "#10b981"
-                            : i === 0 ? "#10b981" : "#3b82f6",
-                        }}
-                      />
-                    ))}
-                  </span>
-                  <span className="text-[12px] text-gray-600 dark:text-gray-400 truncate">
-                    {opt.label}
-                  </span>
-                </span>
-              </SelectableCard>
-            );
-          })}
-        </div>
-      </SettingsCard>
     </SettingsPage>
   );
 }

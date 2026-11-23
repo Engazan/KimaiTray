@@ -120,7 +120,13 @@
     "unexpectedError": "Unexpected error during connection test",
     "redirectToHttps": "The server redirects to HTTPS. Use {{url}} as the Kimai URL.",
     "redirectTo": "The server redirects to {{url}}. Use that address as the Kimai URL.",
-    "connectionFailed": "Connection failed"
+    "connectionFailed": "Connection failed",
+    "activeBadge": "Active",
+    "deleteTitle": "Delete connection",
+    "deleteDescription": "Removes the connection and its feature, plugin and integration settings.",
+    "advancedGroup": "Advanced",
+    "setActive": "Set as active",
+    "confirmDelete": "Really delete?"
   },
   "plugins": {
     "title": "Plugins",
@@ -157,7 +163,13 @@
     "about": "About",
     "language": "Language",
     "languageDescription": "Application interface language",
-    "systemLanguage": "System language"
+    "systemLanguage": "System language",
+    "searchPlaceholder": "Search settings",
+    "searchResults": "Results for “{{query}}”",
+    "searchHint": "You can change settings right here.",
+    "searchEmpty": "Nothing matches “{{query}}”.",
+    "saved": "Saved",
+    "autosave": "Saved automatically"
   },
   "settingsGroups": {
     "preferences": "Preferences",
@@ -233,7 +245,11 @@
     "stateRunning": "Running",
     "statePaused": "Paused",
     "stateError": "Error",
-    "resetColors": "Reset to defaults"
+    "resetColors": "Reset to defaults",
+    "previewTitle": "Menu bar preview",
+    "iconGroup": "Menu bar icon",
+    "behaviorGroup": "Behavior",
+    "placementGroup": "Popup placement"
   },
   "timerSettings": {
     "title": "Timer",
@@ -318,7 +334,9 @@
     "continueKeep": "Continue — keep idle time",
     "stopAt": "Stop at {{time}}",
     "stopNow": "Stop now",
-    "stopAtAndNew": "Stop at {{time}} & start new task"
+    "stopAtAndNew": "Stop at {{time}} & start new task",
+    "detectionGroup": "Detection",
+    "autoStopGroup": "Automatic stop"
   },
   "appearanceSettings": {
     "title": "Appearance",
@@ -360,7 +378,11 @@
     "colorModeCustomer": "Customer color",
     "colorModeActivityProject": "Activity + Project",
     "colorModeActivityCustomer": "Activity + Customer",
-    "colorModeProjectCustomer": "Project + Customer"
+    "colorModeProjectCustomer": "Project + Customer",
+    "popupGroup": "Popup window",
+    "colorsGroup": "Colors and size",
+    "previewLabel": "Live popup preview",
+    "transparentNoBlur": "No blur, the background is fully see-through. Blur is only available on macOS."
   },
   "shortcuts": {
     "title": "Shortcuts",
@@ -387,7 +409,9 @@
     "clearShortcut": "Clear shortcut",
     "conflict": "Already used for \"{{action}}\"",
     "invalid": "Invalid shortcut",
-    "waylandUnavailable": "Global shortcuts are unavailable in this Wayland session. Configure equivalent shortcuts in your desktop environment instead."
+    "waylandUnavailable": "Global shortcuts are unavailable in this Wayland session. Configure equivalent shortcuts in your desktop environment instead.",
+    "groupTimer": "Timer",
+    "groupWindows": "Windows"
   },
   "updateSettings": {
     "title": "Update",
@@ -433,7 +457,9 @@
     "categoryMode": "Category Mode",
     "categoryModeDescription": "Replace recent tasks with a fixed set of category buttons for quick, structured time tracking.",
     "categoryModeConfigure": "Configure categories",
-    "categoryModeConfigureHint": "Manage categories and their Kimai activity mapping"
+    "categoryModeConfigureHint": "Manage categories and their Kimai activity mapping",
+    "taskFormGroup": "Task form",
+    "goalPreview": "Preview in the Today tab"
   },
   "categoryMode": {
     "title": "Category Mode",

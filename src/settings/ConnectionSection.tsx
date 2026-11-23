@@ -6,11 +6,13 @@ import { getConnectionToken } from "../api/connectionTokenStore";
 import IntegrationsSection from "./IntegrationsSection";
 import FeaturesSection from "./FeaturesSection";
 import PluginsSection from "./PluginsSection";
-import { TextInput } from "./Controls";
+import { TextInput, buttonClass } from "./Controls";
 import {
   SettingsList,
   SettingsPage,
+  SettingsRow,
   SettingsRowStacked,
+  SettingsWarning,
 } from "./SettingsLayout";
 import { LockClosed } from "./icons";
 import { LatestRequest } from "../utils/latestRequest";
@@ -25,6 +27,8 @@ interface Props {
     id: string,
   ) => Promise<{ credentialCleanupPending: boolean }>;
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  /** Make a saved connection the one the tray popup uses. */
+  activateConnection?: (id: string) => Promise<void>;
 }
 
 type ConnectionTab = "connection" | "features" | "integrations" | "plugins";
@@ -37,8 +41,10 @@ export default function ConnectionSection({
   saveConnection,
   removeConnection,
   update,
+  activateConnection,
 }: Props) {
   const { t } = useTranslation();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(selectedConnectionId);
   const [activeTab, setActiveTab] = useState<ConnectionTab>("connection");
   const [name, setName] = useState("");
@@ -229,8 +235,33 @@ export default function ConnectionSection({
   );
 
   return (
-    <SettingsPage title={t("connection.title")} description={t("connection.description")}>
-      <div className="-mt-1 flex gap-4 border-b border-gray-200 dark:border-gray-800">
+    <SettingsPage
+      title={editingConn ? editingConn.name : t("connection.title")}
+      titleAddon={
+        editingConn && editingConn.id === settings.activeConnectionId ? (
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-500/15 px-2.5 py-[3px] text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {t("connection.activeBadge")}
+          </span>
+        ) : editingConn && activateConnection ? (
+          <button
+            type="button"
+            onClick={() => void activateConnection(editingConn.id)}
+            className={buttonClass("secondary", "sm")}
+          >
+            {t("connection.setActive")}
+          </button>
+        ) : undefined
+      }
+      description={
+        editingConn ? (
+          <span className="font-mono text-[11.5px]">{editingConn.url}</span>
+        ) : (
+          t("connection.description")
+        )
+      }
+    >
+      <div className="-mt-1.5 flex gap-0.5 overflow-x-auto border-b border-[var(--s-line)] [scrollbar-width:none]">
         <TabButton
           active={activeTab === "connection"}
           onClick={() => setActiveTab("connection")}
@@ -287,46 +318,7 @@ export default function ConnectionSection({
           connectionId={editingId ?? ""}
         />
       ) : (
-        <div className="space-y-4">
-          {editingConn && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
-              <div className="min-w-0">
-                <div className="truncate text-[12px] font-medium text-gray-700 dark:text-gray-300">
-                  {editingConn.name}
-                </div>
-                <div className="truncate text-[11px] text-gray-400 dark:text-gray-500">
-                  {editingConn.url}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-              >
-                {t("common.delete")}
-              </button>
-            </div>
-          )}
-
-          {insecure && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12px] text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400">
-              <svg
-                className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-                />
-              </svg>
-              <span>{t("connection.httpsWarning")}</span>
-            </div>
-          )}
-
+        <div className="space-y-[22px]">
           <SettingsList>
             <SettingsRowStacked
               label={t("connection.connectionName")}
@@ -339,7 +331,69 @@ export default function ConnectionSection({
               />
             </SettingsRowStacked>
 
-            {editingConn && (
+
+            <SettingsRowStacked
+              label={t("connection.baseUrl")}
+              description={t("connection.baseUrlDescription")}
+            >
+              <TextInput
+                type="url"
+                mono
+                value={url}
+                onChange={setUrl}
+                placeholder={t("connection.baseUrlPlaceholder")}
+              />
+              {insecure && (
+                <div className="mt-2">
+                  <SettingsWarning>{t("connection.httpsWarning")}</SettingsWarning>
+                </div>
+              )}
+            </SettingsRowStacked>
+
+            <SettingsRowStacked
+              label={t("connection.apiToken")}
+              description={t("connection.apiTokenDescription")}
+            >
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <TextInput
+                    mono
+                    type={showToken ? "text" : "password"}
+                    value={editToken}
+                    onChange={setEditToken}
+                    placeholder={t("connection.apiTokenPlaceholder")}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className={buttonClass()}
+                >
+                  {showToken ? t("common.hide") : t("common.show")}
+                </button>
+              </div>
+            </SettingsRowStacked>
+          </SettingsList>
+
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="mr-auto">
+              <StatusBadge status={status} message={statusMessage} />
+            </div>
+            <button
+              type="button"
+              onClick={handleTestAndSave}
+              disabled={status === "testing" || !url || !editToken}
+              className={buttonClass("primary")}
+            >
+              {status === "testing" && (
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true" />
+              )}
+              {status === "testing" ? t("connection.testing") : t("connection.testAndSave")}
+            </button>
+          </div>
+
+          {editingConn && (
+            <SettingsList title={t("connection.advancedGroup")}>
               <SettingsRowStacked
                 label={t("connection.internalId")}
                 description={t("connection.internalIdDescription")}
@@ -347,14 +401,14 @@ export default function ConnectionSection({
                 {showConnectionId ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <code
-                      className="min-w-0 flex-1 select-all break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      className="min-w-0 flex-1 select-all break-all rounded-lg border border-[var(--s-line)] bg-[var(--s-hover)] px-2.5 py-1.5 font-mono text-[11.5px] text-[var(--s-fg-muted)]"
                     >
                       {editingConn.id}
                     </code>
                     <button
                       type="button"
                       onClick={() => void copyConnectionId()}
-                      className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                      className={buttonClass("secondary", "sm")}
                     >
                       {connectionIdCopied
                         ? t("connection.internalIdCopied")
@@ -366,7 +420,7 @@ export default function ConnectionSection({
                         setShowConnectionId(false);
                         setConnectionIdCopied(false);
                       }}
-                      className="shrink-0 rounded-md px-2.5 py-1.5 text-[11px] text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                      className={buttonClass("ghost", "sm")}
                     >
                       {t("common.hide")}
                     </button>
@@ -375,69 +429,38 @@ export default function ConnectionSection({
                   <button
                     type="button"
                     onClick={() => setShowConnectionId(true)}
-                    className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                    className={buttonClass("secondary", "sm")}
                   >
                     {t("connection.showInternalId")}
                   </button>
                 )}
               </SettingsRowStacked>
-            )}
-
-            <SettingsRowStacked
-              label={t("connection.baseUrl")}
-              description={t("connection.baseUrlDescription")}
-            >
-              <TextInput
-                type="url"
-                value={url}
-                onChange={setUrl}
-                placeholder={t("connection.baseUrlPlaceholder")}
-              />
-            </SettingsRowStacked>
-
-            <SettingsRowStacked
-              label={t("connection.apiToken")}
-              description={t("connection.apiTokenDescription")}
-            >
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <TextInput
-                    type={showToken ? "text" : "password"}
-                    value={editToken}
-                    onChange={setEditToken}
-                    placeholder={t("connection.apiTokenPlaceholder")}
-                  />
-                </div>
+              <SettingsRow
+                label={t("connection.deleteTitle")}
+                description={t("connection.deleteDescription")}
+              >
                 <button
                   type="button"
-                  onClick={() => setShowToken(!showToken)}
-                  className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-500
-                    hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700
-                    focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+                  onClick={() => {
+                    if (confirmDelete) {
+                      setConfirmDelete(false);
+                      void handleDelete();
+                    } else {
+                      setConfirmDelete(true);
+                    }
+                  }}
+                  onBlur={() => setConfirmDelete(false)}
+                  className={
+                    confirmDelete
+                      ? `${buttonClass("danger")} !border-red-600 !bg-red-600 !text-white hover:!bg-red-700`
+                      : buttonClass("danger")
+                  }
                 >
-                  {showToken ? t("common.hide") : t("common.show")}
+                  {confirmDelete ? t("connection.confirmDelete") : t("common.delete")}
                 </button>
-              </div>
-            </SettingsRowStacked>
-          </SettingsList>
-
-          {/* Test & Save + status */}
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleTestAndSave}
-              disabled={status === "testing" || !url || !editToken}
-              className="rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-medium text-white
-                hover:bg-[var(--accent-hover)] active:opacity-80
-                disabled:opacity-50 disabled:cursor-not-allowed
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1
-                transition-colors"
-            >
-              {status === "testing" ? t("connection.testing") : t("connection.testAndSave")}
-            </button>
-
-            <StatusBadge status={status} message={statusMessage} />
-          </div>
+              </SettingsRow>
+            </SettingsList>
+          )}
         </div>
       )}
     </SettingsPage>
@@ -463,12 +486,12 @@ function TabButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13px] font-medium transition-colors
-        focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
+      className={`-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-[9px] text-[12.5px] transition-colors
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]
         disabled:cursor-not-allowed disabled:opacity-50 ${
           active
-            ? "border-[var(--accent)] text-[var(--accent)]"
-            : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            ? "border-[var(--accent)] font-medium text-[var(--s-fg)]"
+            : "border-transparent text-[var(--s-fg-muted)] hover:text-[var(--s-fg)]"
         }`}
     >
       {children}

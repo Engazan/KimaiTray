@@ -5,8 +5,8 @@ import type { AppSettings } from "../types";
 import { showFullscreenReminder } from "../api/reminderWindow";
 import { logger } from "../utils/logger";
 import { usePlatform } from "../platform";
-import { NumberInput, Select, Toggle } from "./Controls";
-import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
+import { NumberInput, Segmented, Toggle, buttonClass } from "./Controls";
+import { Badge, SettingsList, SettingsPage, SettingsRow, SettingsRowStacked } from "./SettingsLayout";
 
 interface Props {
   settings: AppSettings;
@@ -41,66 +41,79 @@ export default function IdleDetectionSection({ settings, update }: Props) {
     }
   };
 
+  const on = settings.enableIdleDetection;
+
   return (
     <SettingsPage title={t("idle.title")} description={t("idle.description")}>
-      <SettingsList>
+      <SettingsList title={t("idle.detectionGroup")}>
         <SettingsRow label={t("idle.enableIdle")} description={t("idle.enableIdleDescription")}>
           <Toggle
-            checked={settings.enableIdleDetection}
+            ariaLabel={t("idle.enableIdle")}
+            checked={on}
             onChange={(v) => update("enableIdleDetection", v)}
           />
         </SettingsRow>
 
-        <SettingsRow label={t("idle.idleThreshold")} description={t("idle.idleThresholdDescription")}>
+        <SettingsRow label={t("idle.idleThreshold")} description={t("idle.idleThresholdDescription")} dimmed={!on}>
           <NumberInput
             value={settings.idleThresholdMinutes}
             onChange={(v) => update("idleThresholdMinutes", v)}
             min={1}
             max={60}
             suffix="min"
-            disabled={!settings.enableIdleDetection}
+            disabled={!on}
           />
         </SettingsRow>
 
-        <SettingsRow label={t("idle.statsRetention")} description={t("idle.statsRetentionDescription")}>
-          <NumberInput
-            value={settings.idleStatsRetentionDays}
-            onChange={(v) => update("idleStatsRetentionDays", v)}
-            min={1}
-            max={365}
-            suffix={t("idle.statsDays")}
-          />
-        </SettingsRow>
-
-        <SettingsRow label={t("idle.whenIdle")} description={t("idle.whenIdleDescription")}>
-          <Select
+        <SettingsRowStacked label={t("idle.whenIdle")} description={t("idle.whenIdleDescription")} dimmed={!on}>
+          <Segmented
+            ariaLabel={t("idle.whenIdle")}
             value={settings.idleAction}
-            onChange={(v) => update("idleAction", v as AppSettings["idleAction"])}
+            onChange={(v) => update("idleAction", v)}
             options={[
               { value: "ask", label: t("idle.askMe") },
               { value: "stop", label: t("idle.stopTimer") },
               { value: "discard", label: t("idle.discardIdleTime") },
               { value: "continue", label: t("idle.keepRunning") },
             ]}
-            disabled={!settings.enableIdleDetection}
+            disabled={!on}
           />
-        </SettingsRow>
+        </SettingsRowStacked>
 
-        <SettingsRow label={t("idle.showNotification")} description={t("idle.showNotificationDescription")}>
+        <SettingsRow label={t("idle.showNotification")} description={t("idle.showNotificationDescription")} dimmed={!on}>
           <Toggle
+            ariaLabel={t("idle.showNotification")}
             checked={settings.showIdleNotification}
             onChange={(v) => update("showIdleNotification", v)}
-            disabled={!settings.enableIdleDetection}
+            disabled={!on}
           />
         </SettingsRow>
 
+        <SettingsRow
+          label={t("idle.testReminder")}
+          description={t("idle.testReminderDescription")}
+        >
+          <button
+            type="button"
+            disabled={testing}
+            onClick={() => void testIdleReminder()}
+            className={buttonClass()}
+          >
+            {testing ? t("idle.testingReminder") : t("idle.testReminderButton")}
+          </button>
+        </SettingsRow>
+      </SettingsList>
+
+      <SettingsList title={t("idle.autoStopGroup")}>
         {os === "macos" && (
           <>
             <SettingsRow
               label={t("idle.stopOnScreensaver")}
               description={t("idle.stopOnScreensaverDescription")}
+              badge={<Badge>macOS</Badge>}
             >
               <Toggle
+                ariaLabel={t("idle.stopOnScreensaver")}
                 checked={settings.stopTimerOnScreensaver}
                 onChange={(v) => update("stopTimerOnScreensaver", v)}
               />
@@ -108,8 +121,10 @@ export default function IdleDetectionSection({ settings, update }: Props) {
             <SettingsRow
               label={t("idle.stopOnScreenLock")}
               description={t("idle.stopOnScreenLockDescription")}
+              badge={<Badge>macOS</Badge>}
             >
               <Toggle
+                ariaLabel={t("idle.stopOnScreenLock")}
                 checked={settings.stopTimerOnScreenLock}
                 onChange={(v) => update("stopTimerOnScreenLock", v)}
               />
@@ -127,22 +142,22 @@ export default function IdleDetectionSection({ settings, update }: Props) {
             onChange={(value) => update("stopTimerOnShutdown", value)}
           />
         </SettingsRow>
+      </SettingsList>
 
-        <SettingsRow
-          label={t("idle.testReminder")}
-          description={t("idle.testReminderDescription")}
-        >
-          <button
-            type="button"
-            disabled={testing}
-            onClick={() => void testIdleReminder()}
-            className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {testing ? t("idle.testingReminder") : t("idle.testReminderButton")}
-          </button>
+      <SettingsList title={t("idle.statsTitle")}>
+        <SettingsRow label={t("idle.statsRetention")} description={t("idle.statsRetentionDescription")}>
+          <NumberInput
+            value={settings.idleStatsRetentionDays}
+            onChange={(v) => update("idleStatsRetentionDays", v)}
+            min={1}
+            max={365}
+            suffix={t("idle.statsDays")}
+          />
         </SettingsRow>
       </SettingsList>
-      <IdleStatistics retentionDays={settings.idleStatsRetentionDays} />
+      <div className="-mt-3">
+        <IdleStatistics retentionDays={settings.idleStatsRetentionDays} />
+      </div>
     </SettingsPage>
   );
 }

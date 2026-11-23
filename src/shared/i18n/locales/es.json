@@ -108,7 +108,7 @@
     "baseUrl": "URL base de Kimai",
     "baseUrlDescription": "La URL raíz de tu instalación de Kimai",
     "baseUrlPlaceholder": "https://kimai.example.com",
-    "apiToken": "Token de API", 
+    "apiToken": "Token de API",
     "apiTokenDescription": "Crea uno en Kimai → Configuración → API",
     "apiTokenPlaceholder": "Introduce el token de la API",
     "testAndSave": "Probar y guardar",
@@ -120,7 +120,13 @@
     "unexpectedError": "Error inesperado durante la prueba de conexión",
     "redirectToHttps": "El servidor redirige a HTTPS. Utiliza {{url}} como URL de Kimai.",
     "redirectTo": "El servidor redirige a {{url}}. Utiliza esta dirección como URL de Kimai.",
-    "connectionFailed": "Error de conexión"
+    "connectionFailed": "Error de conexión",
+    "activeBadge": "Activa",
+    "deleteTitle": "Eliminar conexión",
+    "deleteDescription": "Elimina la conexión y sus ajustes de funciones, plugins e integraciones.",
+    "advancedGroup": "Avanzado",
+    "setActive": "Establecer como activa",
+    "confirmDelete": "¿Eliminar de verdad?"
   },
   "plugins": {
     "title": "Complementos",
@@ -143,7 +149,7 @@
     "required": "Obligatorio",
     "requiredHint": "Debe rellenarse antes de comenzar",
     "invalidDefinition": "Introduzca un nombre y un título técnico de entre 2 y 50 caracteres compuesto por letras, números, guiones bajos o guiones.",
-    "duplicateName": "Cada título técnico solo puede configurarse una vez." ,
+    "duplicateName": "Cada título técnico solo puede configurarse una vez.",
     "invalidUrl": "Introduzca una URL HTTP o HTTPS válida.",
     "requiredError": "Este campo es obligatorio.",
     "openUrl": "Abrir {{label}}"
@@ -157,7 +163,13 @@
     "about": "Acerca de",
     "language": "Idioma",
     "languageDescription": "Idioma de la interfaz de usuario",
-    "systemLanguage": "Idioma del sistema"
+    "systemLanguage": "Idioma del sistema",
+    "searchPlaceholder": "Buscar en ajustes",
+    "searchResults": "Resultados para «{{query}}»",
+    "searchHint": "Puedes cambiar los ajustes aquí mismo.",
+    "searchEmpty": "No hay resultados para «{{query}}».",
+    "saved": "Guardado",
+    "autosave": "Se guarda automáticamente"
   },
   "settingsGroups": {
     "preferences": "Configuración",
@@ -233,7 +245,11 @@
     "stateRunning": "En marcha",
     "statePaused": "En pausa",
     "stateError": "Error",
-    "resetColors": "Restablecer valores predeterminados"
+    "resetColors": "Restablecer valores predeterminados",
+    "previewTitle": "Vista previa de la barra",
+    "iconGroup": "Icono de la barra",
+    "behaviorGroup": "Comportamiento",
+    "placementGroup": "Posición de la ventana"
   },
   "timerSettings": {
     "title": "Temporizador",
@@ -272,7 +288,7 @@
     "statsRetentionDescription": "De 1 a 365 días. Los datos más antiguos se eliminan de forma permanente, incluso si se reduce el periodo de conservación.",
     "statsDays": "Días",
     "statsSummary": "Periodos de inactividad: {{count}} · en total {{duration}} · últimos {{days}} días",
-    "statsDuration": "{{hours}} horas, {{minutes}} minutos, {{seconds}} segundos." ,
+    "statsDuration": "{{hours}} horas, {{minutes}} minutos, {{seconds}} segundos.",
     "statsChart": "Inactividad diaria · últimos {{days}} días naturales",
     "statsDailyValues": "Valores diarios",
     "statsStart": "Inicio",
@@ -298,7 +314,8 @@
     "keepRunning": "Dejar que siga funcionando",
     "showNotification": "Mostrar notificación",
     "showNotificationDescription": "Mostrar una notificación del sistema cuando se detecte inactividad",
-    "stopOnScreensaver": "Detener el temporizador al activarse el salvapantallas", "stopOnScreensaverDescription": "Detener inmediatamente el temporizador activo cuando se active el salvapantallas de macOS",
+    "stopOnScreensaver": "Detener el temporizador al activarse el salvapantallas",
+    "stopOnScreensaverDescription": "Detener inmediatamente el temporizador activo cuando se active el salvapantallas de macOS",
     "stopOnShutdown": "Detener los temporizadores al apagar o cerrar sesión",
     "stopOnShutdownDescription": "Intentar detener todos los temporizadores activos de la conexión actual a Kimai al apagar o cerrar sesión",
     "stopOnScreenLock": "Detener el temporizador al bloquear el Mac",
@@ -317,7 +334,9 @@
     "continueKeep": "Continuar — Mantener el tiempo de inactividad",
     "stopAt": "Detener en {{time}}",
     "stopNow": "Detener ahora",
-    "stopAtAndNew": "Detener en {{time}} y nueva tarea"
+    "stopAtAndNew": "Detener en {{time}} y nueva tarea",
+    "detectionGroup": "Detección",
+    "autoStopGroup": "Detención automática"
   },
   "shortcuts": {
     "title": "Atajos de teclado",
@@ -344,7 +363,9 @@
     "clearShortcut": "Eliminar atajo",
     "conflict": "Ya se utiliza para \"{{action}}\"",
     "invalid": "Atajo no válido",
-    "waylandUnavailable": "Los atajos de teclado globales no están disponibles en esta sesión de Wayland. Configure los atajos correspondientes en su entorno de escritorio."
+    "waylandUnavailable": "Los atajos de teclado globales no están disponibles en esta sesión de Wayland. Configure los atajos correspondientes en su entorno de escritorio.",
+    "groupTimer": "Temporizador",
+    "groupWindows": "Ventanas"
   },
   "updateSettings": {
     "title": "Actualización",
@@ -404,7 +425,11 @@
     "colorModeCustomer": "Color del cliente",
     "colorModeActivityProject": "Actividad + proyecto",
     "colorModeActivityCustomer": "Actividad + cliente",
-    "colorModeProjectCustomer": "Proyecto + cliente"
+    "colorModeProjectCustomer": "Proyecto + cliente",
+    "popupGroup": "Ventana emergente",
+    "colorsGroup": "Colores y tamaño",
+    "previewLabel": "Vista previa en vivo",
+    "transparentNoBlur": "Sin desenfoque, el fondo es totalmente transparente. El desenfoque solo está disponible en macOS."
   },
   "featuresSettings": {
     "title": "Funciones",
@@ -432,7 +457,9 @@
     "categoryMode": "Modo de categorías",
     "categoryModeDescription": "Sustituye las últimas tareas por un conjunto fijo de botones de categorías para un registro rápido y estructurado del tiempo.",
     "categoryModeConfigure": "Configurar categorías",
-    "categoryModeConfigureHint": "Gestionar las categorías y su asignación a actividades de Kimai"
+    "categoryModeConfigureHint": "Gestionar las categorías y su asignación a actividades de Kimai",
+    "taskFormGroup": "Formulario de tarea",
+    "goalPreview": "Vista previa en la pestaña Hoy"
   },
   "categoryMode": {
     "title": "Modo de categoría",
@@ -731,7 +758,7 @@
     "to": "Hacia",
     "count": "Favoritos en la conexión de origen: {{count}}",
     "move": "Mover favoritos",
-    "needTwo": "Añade al menos dos conexiones para poder mover favoritos." ,
+    "needTwo": "Añade al menos dos conexiones para poder mover favoritos.",
     "moved": "{{count}} favorito(s) movido(s).",
     "nothing": "No hay favoritos en la conexión de origen que se puedan mover.",
     "error": "Error al mover los favoritos.",

@@ -178,7 +178,7 @@ describe("reminder sections", () => {
 
     await user.click(screen.getAllByRole("switch")[0]);
     fireEvent.change(screen.getAllByRole("spinbutton")[0], { target: { value: "12" } });
-    await user.selectOptions(screen.getByRole("combobox"), "discard");
+    await user.click(screen.getByRole("button", { name: "idle.discardIdleTime" }));
     await user.click(screen.getAllByRole("switch")[1]);
     await user.click(screen.getAllByRole("switch")[2]);
     await user.click(screen.getAllByRole("switch")[3]);
@@ -221,7 +221,7 @@ describe("reminder sections", () => {
     mocks.showFullscreenReminder.mockRejectedValue(new Error("window failed"));
     render(<IdleDetectionSection settings={settings()} update={vi.fn()} />);
     expect((screen.getAllByRole("spinbutton")[0] as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByRole("combobox") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "idle.discardIdleTime" }) as HTMLButtonElement).disabled).toBe(true);
     await user.click(screen.getByRole("button", { name: "idle.testReminderButton" }));
     await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith(expect.stringContaining("window failed")));
   });

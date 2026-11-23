@@ -4,6 +4,7 @@ import type { AppSettings } from "../types";
 import { INTEGRATIONS } from "./integrations/registry";
 import { SectionDescription } from "./Controls";
 import { ChevronRight } from "./icons";
+import { SettingsList } from "./SettingsLayout";
 
 interface Props {
   settings: AppSettings;
@@ -25,7 +26,7 @@ export default function IntegrationsSection({
     return (
       <div>
         <SectionDescription>{t("integrations.description")}</SectionDescription>
-        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center text-[12px] text-gray-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
+        <div className="rounded-xl border border-dashed border-[var(--s-line)] px-4 py-5 text-center text-[12px] text-[var(--s-fg-muted)]">
           {t("connection.saveFirstForIntegrations")}
         </div>
       </div>
@@ -46,52 +47,47 @@ export default function IntegrationsSection({
   }
 
   return (
-    <div>
-      <SectionDescription>
-        {t("integrations.listDescription")}
-      </SectionDescription>
-
-      <div className="space-y-2">
-        {INTEGRATIONS.map((integration) => {
-          const enabled = integration.isEnabled(settings, connectionId);
-          return (
-            <button
-              key={integration.id}
-              type="button"
-              onClick={() => setOpenId(integration.id)}
-              className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-left transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-[#181818] dark:hover:bg-gray-800/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+    <SettingsList title={t("integrations.title")} description={t("integrations.listDescription")}>
+      {INTEGRATIONS.map((integration) => {
+        const enabled = integration.isEnabled(settings, connectionId);
+        return (
+          <button
+            key={integration.id}
+            type="button"
+            data-settings-item
+            onClick={() => setOpenId(integration.id)}
+            className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-[var(--s-hover)]
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"
+          >
+            <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[10px] bg-[var(--accent-soft)] text-[var(--accent)]">
+              {integration.icon}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-medium text-[var(--s-fg)]">
+                {t(integration.nameKey)}
+              </span>
+              <span className="block text-[11.5px] leading-[1.45] text-[var(--s-fg-subtle)]">
+                {t(integration.descriptionKey)}
+              </span>
+            </span>
+            <span
+              className={`shrink-0 whitespace-nowrap rounded-full px-[9px] py-[3px] text-[11px] font-medium ${
+                enabled
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  : "bg-[var(--s-line-soft)] text-[var(--s-fg-subtle)]"
+              }`}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-[#202020] dark:text-gray-300">
-                {integration.icon}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-medium text-gray-800 dark:text-gray-200">
-                  {t(integration.nameKey)}
-                </span>
-                <span className="block truncate text-[11px] text-gray-400 dark:text-gray-500">
-                  {t(integration.descriptionKey)}
-                </span>
-              </span>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  enabled
-                    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                    : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
-                }`}
-              >
-                {enabled
-                  ? t("integrations.statusEnabled")
-                  : t("integrations.statusDisabled")}
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
-            </button>
-          );
-        })}
-
-        <p className="px-1 pt-2 text-[11px] text-gray-400 dark:text-gray-500">
-          {t("integrations.comingSoon")}
-        </p>
-      </div>
-    </div>
+              {enabled
+                ? t("integrations.statusEnabled")
+                : t("integrations.statusDisabled")}
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--s-fg-subtle)]" />
+          </button>
+        );
+      })}
+      <p data-settings-note className="px-4 py-2.5 text-[11.5px] text-[var(--s-fg-subtle)]">
+        {t("integrations.comingSoon")}
+      </p>
+    </SettingsList>
   );
 }

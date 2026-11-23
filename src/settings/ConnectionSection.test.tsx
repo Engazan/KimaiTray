@@ -277,6 +277,7 @@ describe("connection internal ID", () => {
     );
     await screen.findByDisplayValue("secret-token");
     await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Really delete?" }));
     await waitFor(() => expect(selected).toHaveBeenCalledWith("b"));
     expect(await screen.findByText(/Unexpected error/)).toBeTruthy();
   });
@@ -298,6 +299,7 @@ describe("connection internal ID", () => {
     await user.click(screen.getByRole("button", { name: "Hide" }));
     expect(screen.queryByText("conn")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Really delete?" }));
     expect(await screen.findByText(/Unexpected error/)).toBeTruthy();
   });
 
@@ -364,5 +366,32 @@ describe("connection internal ID", () => {
     await user.click(screen.getByRole("button", { name: "Show internal ID" }));
     await user.click(screen.getByRole("button", { name: "Copy ID" }));
     expect(screen.getByRole("button", { name: "Copy ID" })).toBeTruthy();
+  });
+
+  it("activates an inactive connection and requires confirming deletion", async () => {
+    const user = userEvent.setup();
+    const connections = [
+      { id: "a", name: "Alpha", url: "https://a.test" },
+      { id: "b", name: "Beta", url: "https://b.test" },
+    ];
+    const activateConnection = vi.fn().mockResolvedValue(undefined);
+    const removeConnection = vi.fn().mockResolvedValue({ credentialCleanupPending: false });
+    render(<I18nextProvider i18n={i18n}><ConnectionSection
+      settings={{ ...defaultSettings, connections, activeConnectionId: "a" }} token="" selectedConnectionId="b"
+      onSelectedConnectionChange={vi.fn()} saveConnection={vi.fn()} removeConnection={removeConnection}
+      update={vi.fn()} activateConnection={activateConnection}
+    /></I18nextProvider>);
+    await screen.findByDisplayValue("secret-token");
+
+    await user.click(screen.getByRole("button", { name: "Set as active" }));
+    expect(activateConnection).toHaveBeenCalledWith("b");
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(removeConnection).not.toHaveBeenCalled();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Really delete?" }));
+    await waitFor(() => expect(removeConnection).toHaveBeenCalledWith("b"));
   });
 });

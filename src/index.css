@@ -12,6 +12,40 @@
 [data-accent="orange"] { --accent: #f59e0b; --accent-hover: #d97706; --accent-light: rgba(245, 158, 11, 0.1); }
 [data-accent="red"] { --accent: #ef4444; --accent-hover: #dc2626; --accent-light: rgba(239, 68, 68, 0.1); }
 
+/* ── Settings window surface tokens ──────────────────────────── */
+:root {
+  --s-window: #fbfbfd;
+  --s-sidebar: #f1f3f8;
+  --s-card: #ffffff;
+  --s-line: #e2e6ee;
+  --s-line-soft: #eef0f5;
+  --s-hover: rgba(30, 40, 70, 0.05);
+  --s-fg: #151922;
+  --s-fg-muted: #525a6b;
+  --s-fg-subtle: #8a91a2;
+  --s-shadow: 0 1px 2px rgba(20, 30, 60, 0.05), 0 4px 14px rgba(20, 30, 60, 0.04);
+  --accent-soft: color-mix(in oklab, var(--accent) 13%, transparent);
+  --accent-line: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+.dark {
+  --s-window: #121419;
+  --s-sidebar: #0e1015;
+  --s-card: #181b22;
+  --s-line: #252932;
+  --s-line-soft: #1f232b;
+  --s-hover: rgba(255, 255, 255, 0.045);
+  --s-fg: #eceef3;
+  --s-fg-muted: #a2a9b8;
+  --s-fg-subtle: #6b7283;
+  --s-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Settings window typeface (bundled locally via @fontsource-variable). */
+.settings-root {
+  font-family: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
 [data-reduce-motion="true"] * {
   animation-duration: 0s !important;
   transition-duration: 0.05s !important;

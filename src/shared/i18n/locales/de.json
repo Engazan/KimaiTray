@@ -120,7 +120,13 @@
     "unexpectedError": "Unerwarteter Fehler beim Verbindungstest",
     "redirectToHttps": "Der Server leitet auf HTTPS um. Verwende {{url}} als Kimai-URL.",
     "redirectTo": "Der Server leitet auf {{url}} um. Verwende diese Adresse als Kimai-URL.",
-    "connectionFailed": "Verbindung fehlgeschlagen"
+    "connectionFailed": "Verbindung fehlgeschlagen",
+    "activeBadge": "Aktiv",
+    "deleteTitle": "Verbindung löschen",
+    "deleteDescription": "Entfernt die Verbindung und ihre Funktions-, Plugin- und Integrationseinstellungen.",
+    "advancedGroup": "Erweitert",
+    "setActive": "Als aktiv festlegen",
+    "confirmDelete": "Wirklich löschen?"
   },
   "plugins": {
     "title": "Plugins",
@@ -157,7 +163,13 @@
     "about": "Über",
     "language": "Sprache",
     "languageDescription": "Sprache der Benutzeroberfläche",
-    "systemLanguage": "Systemsprache"
+    "systemLanguage": "Systemsprache",
+    "searchPlaceholder": "Einstellungen durchsuchen",
+    "searchResults": "Ergebnisse für „{{query}}“",
+    "searchHint": "Sie können die Einstellungen direkt hier ändern.",
+    "searchEmpty": "Keine Treffer für „{{query}}“.",
+    "saved": "Gespeichert",
+    "autosave": "Wird automatisch gespeichert"
   },
   "settingsGroups": {
     "preferences": "Einstellungen",
@@ -233,7 +245,11 @@
     "stateRunning": "Läuft",
     "statePaused": "Pausiert",
     "stateError": "Fehler",
-    "resetColors": "Auf Standard zurücksetzen"
+    "resetColors": "Auf Standard zurücksetzen",
+    "previewTitle": "Menüleisten-Vorschau",
+    "iconGroup": "Menüleisten-Symbol",
+    "behaviorGroup": "Verhalten",
+    "placementGroup": "Popup-Position"
   },
   "timerSettings": {
     "title": "Timer",
@@ -318,7 +334,9 @@
     "continueKeep": "Weiter — Leerlaufzeit behalten",
     "stopAt": "Stoppen um {{time}}",
     "stopNow": "Jetzt stoppen",
-    "stopAtAndNew": "Stoppen um {{time}} & neue Aufgabe"
+    "stopAtAndNew": "Stoppen um {{time}} & neue Aufgabe",
+    "detectionGroup": "Erkennung",
+    "autoStopGroup": "Automatisch stoppen"
   },
   "shortcuts": {
     "title": "Tastenkürzel",
@@ -345,7 +363,9 @@
     "clearShortcut": "Kürzel löschen",
     "conflict": "Bereits verwendet für \"{{action}}\"",
     "invalid": "Ungültiges Kürzel",
-    "waylandUnavailable": "Globale Tastenkürzel sind in dieser Wayland-Sitzung nicht verfügbar. Richten Sie stattdessen entsprechende Kürzel in Ihrer Desktop-Umgebung ein."
+    "waylandUnavailable": "Globale Tastenkürzel sind in dieser Wayland-Sitzung nicht verfügbar. Richten Sie stattdessen entsprechende Kürzel in Ihrer Desktop-Umgebung ein.",
+    "groupTimer": "Timer",
+    "groupWindows": "Fenster"
   },
   "updateSettings": {
     "title": "Aktualisierung",
@@ -405,7 +425,11 @@
     "colorModeCustomer": "Kundenfarbe",
     "colorModeActivityProject": "Aktivität + Projekt",
     "colorModeActivityCustomer": "Aktivität + Kunde",
-    "colorModeProjectCustomer": "Projekt + Kunde"
+    "colorModeProjectCustomer": "Projekt + Kunde",
+    "popupGroup": "Popup-Fenster",
+    "colorsGroup": "Farben und Größe",
+    "previewLabel": "Live-Vorschau des Popups",
+    "transparentNoBlur": "Ohne Unschärfe, der Hintergrund ist vollständig durchsichtig. Unschärfe gibt es nur unter macOS."
   },
   "featuresSettings": {
     "title": "Funktionen",
@@ -433,7 +457,9 @@
     "categoryMode": "Kategorie-Modus",
     "categoryModeDescription": "Ersetzt die letzten Aufgaben durch einen festen Satz Kategorie-Schaltflächen für schnelle, strukturierte Zeiterfassung.",
     "categoryModeConfigure": "Kategorien konfigurieren",
-    "categoryModeConfigureHint": "Kategorien und ihre Kimai-Aktivitätszuordnung verwalten"
+    "categoryModeConfigureHint": "Kategorien und ihre Kimai-Aktivitätszuordnung verwalten",
+    "taskFormGroup": "Aufgabenformular",
+    "goalPreview": "Vorschau im Tab Heute"
   },
   "categoryMode": {
     "title": "Kategorie-Modus",

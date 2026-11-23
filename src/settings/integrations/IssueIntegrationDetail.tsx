@@ -116,11 +116,11 @@ function Panel({
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm shadow-gray-200/40 dark:border-gray-800 dark:bg-[#181818] dark:shadow-black/10">
       <div className="mb-3">
-        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
+        <h3 className="text-[13px] font-semibold text-[var(--s-fg)]">
           {title}
         </h3>
         {description && (
-          <p className="mt-0.5 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+          <p className="mt-0.5 text-[11px] leading-4 text-[var(--s-fg-subtle)]">
             {description}
           </p>
         )}
@@ -141,14 +141,14 @@ function SummaryItem({
 }) {
   return (
     <div className="min-w-0 rounded-md border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-[#202020]">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--s-fg-subtle)]">
         {label}
       </div>
       <div
         className={`mt-1 truncate text-[12px] font-medium ${
           muted
-            ? "text-gray-400 dark:text-gray-500"
-            : "text-gray-700 dark:text-gray-300"
+            ? "text-[var(--s-fg-subtle)]"
+            : "text-[var(--s-fg)]"
         }`}
       >
         {value}
@@ -168,7 +168,7 @@ function StatusMessage({
 
   if (status === "testing") {
     return (
-      <div className="flex items-center gap-2 text-[12px] text-gray-500 dark:text-gray-400">
+      <div className="flex items-center gap-2 text-[12px] text-[var(--s-fg-muted)]">
         <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--accent)]" />
         <span>{message}</span>
       </div>
@@ -376,7 +376,7 @@ export default function IssueIntegrationDetail({
       <button
         type="button"
         onClick={onBack}
-        className="mb-4 flex items-center gap-1.5 rounded text-[12px] font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+        className="mb-4 flex items-center gap-1.5 rounded text-[12px] font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
       >
         <ChevronLeft />
         {t("integrations.title")}
@@ -394,7 +394,7 @@ export default function IssueIntegrationDetail({
               className={`text-[12px] font-medium ${
                 config.enabled
                   ? "text-[var(--accent)]"
-                  : "text-gray-500 dark:text-gray-400"
+                  : "text-[var(--s-fg-muted)]"
               }`}
             >
               {t("integrations.enabled")}
@@ -447,7 +447,7 @@ export default function IssueIntegrationDetail({
                   <span className="block text-[12px] font-semibold">
                     {t(`integrations.${provider}`)}
                   </span>
-                  <span className="mt-0.5 block text-[10px] text-gray-400 dark:text-gray-500">
+                  <span className="mt-0.5 block text-[10px] text-[var(--s-fg-subtle)]">
                     {PROVIDER_API_VERSION[provider]}
                   </span>
                 </button>
@@ -516,7 +516,7 @@ export default function IssueIntegrationDetail({
                 disabled={disabled}
                 className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[11px] font-medium text-gray-500
                   hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700
-                  focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
+                  focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]
                   disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {showToken ? t("common.hide") : t("common.show")}
@@ -625,7 +625,7 @@ export default function IssueIntegrationDetail({
                   type="button"
                   onClick={() => updateField("filterLabelsMode", "include")}
                   disabled={disabled}
-                  className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 ${
                     (config.filterLabelsMode ?? "include") === "include"
                       ? "border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300"
                       : "border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -637,7 +637,7 @@ export default function IssueIntegrationDetail({
                   type="button"
                   onClick={() => updateField("filterLabelsMode", "exclude")}
                   disabled={disabled}
-                  className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 ${
                     (config.filterLabelsMode ?? "include") === "exclude"
                       ? "border-red-400 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-900/30 dark:text-red-300"
                       : "border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
@@ -646,7 +646,7 @@ export default function IssueIntegrationDetail({
                   {t("integrations.filterModeExclude")}
                 </button>
               </div>
-              <div className="flex max-h-[140px] flex-wrap gap-1.5 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800">
+              <div className="flex max-h-[140px] flex-wrap gap-1.5 overflow-y-auto rounded-md border border-[var(--s-line)] bg-[var(--s-card)] p-2 ">
                 {availableLabels.map((label) => {
                   const selected = (config.filterLabels ?? []).includes(
                     label.name,
@@ -666,7 +666,7 @@ export default function IssueIntegrationDetail({
                       }}
                       disabled={disabled}
                       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors
-                        focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
+                        focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]
                         disabled:cursor-not-allowed disabled:opacity-50
                         ${
                           selected

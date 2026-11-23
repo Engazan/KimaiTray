@@ -120,7 +120,13 @@
     "unexpectedError": "Neočekávaná chyba při testu připojení",
     "redirectToHttps": "Server přesměrovává na HTTPS. Jako Kimai URL použijte {{url}}.",
     "redirectTo": "Server přesměrovává na {{url}}. Jako Kimai URL použijte tuto adresu.",
-    "connectionFailed": "Připojení selhalo"
+    "connectionFailed": "Připojení selhalo",
+    "activeBadge": "Aktivní",
+    "deleteTitle": "Odstranit připojení",
+    "deleteDescription": "Odstraní připojení a jeho nastavení funkcí, pluginů a integrací.",
+    "advancedGroup": "Pokročilé",
+    "setActive": "Nastavit jako aktivní",
+    "confirmDelete": "Opravdu odstranit?"
   },
   "plugins": {
     "title": "Plugins",
@@ -157,7 +163,13 @@
     "about": "O aplikaci",
     "language": "Jazyk",
     "languageDescription": "Jazyk rozhraní aplikace",
-    "systemLanguage": "Systémový jazyk"
+    "systemLanguage": "Systémový jazyk",
+    "searchPlaceholder": "Hledat v nastavení",
+    "searchResults": "Výsledky pro „{{query}}“",
+    "searchHint": "Nastavení můžete měnit přímo zde.",
+    "searchEmpty": "Pro „{{query}}“ nebylo nic nalezeno.",
+    "saved": "Uloženo",
+    "autosave": "Ukládá se automaticky"
   },
   "settingsGroups": {
     "preferences": "Předvolby",
@@ -233,7 +245,11 @@
     "stateRunning": "Běží",
     "statePaused": "Pozastaveno",
     "stateError": "Chyba",
-    "resetColors": "Obnovit výchozí"
+    "resetColors": "Obnovit výchozí",
+    "previewTitle": "Náhled lišty",
+    "iconGroup": "Ikona v liště",
+    "behaviorGroup": "Chování",
+    "placementGroup": "Umístění popup okna"
   },
   "timerSettings": {
     "title": "Časovač",
@@ -318,7 +334,9 @@
     "continueKeep": "Pokračovat — zachovat čas",
     "stopAt": "Zastavit v {{time}}",
     "stopNow": "Zastavit nyní",
-    "stopAtAndNew": "Zastavit v {{time}} a spustit nový"
+    "stopAtAndNew": "Zastavit v {{time}} a spustit nový",
+    "detectionGroup": "Detekce",
+    "autoStopGroup": "Automatické zastavení"
   },
   "shortcuts": {
     "title": "Zkratky",
@@ -345,7 +363,9 @@
     "clearShortcut": "Vymazat zkratku",
     "conflict": "Již se používá pro \"{{action}}\"",
     "invalid": "Neplatná zkratka",
-    "waylandUnavailable": "Globální zkratky nejsou v této relaci Wayland dostupné. Místo nich nastavte odpovídající zkratky v prostředí pracovní plochy."
+    "waylandUnavailable": "Globální zkratky nejsou v této relaci Wayland dostupné. Místo nich nastavte odpovídající zkratky v prostředí pracovní plochy.",
+    "groupTimer": "Časovač",
+    "groupWindows": "Okna"
   },
   "updateSettings": {
     "title": "Aktualizace",
@@ -405,7 +425,11 @@
     "colorModeCustomer": "Barva zákazníka",
     "colorModeActivityProject": "Aktivita + Projekt",
     "colorModeActivityCustomer": "Aktivita + Zákazník",
-    "colorModeProjectCustomer": "Projekt + Zákazník"
+    "colorModeProjectCustomer": "Projekt + Zákazník",
+    "popupGroup": "Popup okno",
+    "colorsGroup": "Barvy a velikost",
+    "previewLabel": "Živý náhled popup okna",
+    "transparentNoBlur": "Bez rozmazání, pozadí je zcela průhledné. Rozmazání je dostupné jen na macOS."
   },
   "featuresSettings": {
     "title": "Funkce",
@@ -433,7 +457,9 @@
     "categoryMode": "Režim kategorií",
     "categoryModeDescription": "Nahradí poslední úlohy pevnou sadou tlačítek kategorií pro rychlé a strukturované sledování času.",
     "categoryModeConfigure": "Nastavit kategorie",
-    "categoryModeConfigureHint": "Spravuj kategorie a jejich mapování na Kimai aktivity"
+    "categoryModeConfigureHint": "Spravuj kategorie a jejich mapování na Kimai aktivity",
+    "taskFormGroup": "Formulář úlohy",
+    "goalPreview": "Ukázka v záložce Dnes"
   },
   "categoryMode": {
     "title": "Režim kategorií",

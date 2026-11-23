@@ -21,11 +21,11 @@ export function FieldGroup({
     return (
       <div className="flex items-center justify-between gap-4 py-2">
         <div className="min-w-0">
-          <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
+          <div className="text-[13px] font-medium text-[var(--s-fg)]">
             {label}
           </div>
           {description && (
-            <div className="text-[11px] text-gray-400 dark:text-gray-500">
+            <div className="text-[11px] text-[var(--s-fg-subtle)]">
               {description}
             </div>
           )}
@@ -38,11 +38,11 @@ export function FieldGroup({
   }
   return (
     <div className="py-2">
-      <div className="mb-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300">
+      <div className="mb-1.5 text-[13px] font-medium text-[var(--s-fg)]">
         {label}
       </div>
       {description && (
-        <div className="mb-2 text-[11px] text-gray-400 dark:text-gray-500">
+        <div className="mb-2 text-[11px] text-[var(--s-fg-subtle)]">
           {description}
         </div>
       )}
@@ -57,7 +57,7 @@ export function FieldGroup({
 
 export function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mb-4 text-[15px] font-semibold text-gray-800 dark:text-gray-200">
+    <h2 className="mb-4 text-[15px] font-semibold text-[var(--s-fg)]">
       {children}
     </h2>
   );
@@ -65,15 +65,23 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 
 export function SectionDescription({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-4 text-[12px] text-gray-400 dark:text-gray-500">
+    <p className="mb-4 text-[12px] text-[var(--s-fg-subtle)]">
       {children}
     </p>
   );
 }
 
 export function Divider() {
-  return <div className="my-3 border-t border-gray-100 dark:border-gray-800" />;
+  return <div className="my-3 border-t border-[var(--s-line-soft)]" />;
 }
+
+/* ── Shared control styles ──────────────────────────────────────── */
+
+const FIELD =
+  "h-[31px] rounded-lg border border-[var(--s-line)] bg-[var(--s-card)] text-[12.5px] text-[var(--s-fg)] " +
+  "placeholder:text-[var(--s-fg-subtle)] outline-none transition-[border-color,box-shadow] " +
+  "focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] " +
+  "disabled:cursor-not-allowed disabled:opacity-45";
 
 /* ── Toggle ─────────────────────────────────────────────────────── */
 
@@ -93,14 +101,15 @@ export function Toggle({ checked, onChange, disabled, ariaLabel }: ToggleProps) 
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1
-        ${checked ? "bg-[var(--accent)]" : "bg-gray-200 dark:bg-gray-700"}
-        ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      className={`relative inline-flex h-[21px] w-9 shrink-0 items-center rounded-full transition-colors
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2
+        focus-visible:ring-offset-[var(--s-card)]
+        ${checked ? "bg-[var(--accent)]" : "bg-gray-300/80 dark:bg-white/15"}
+        ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
     >
       <span
-        className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform
-          ${checked ? "translate-x-[18px]" : "translate-x-[3px]"}`}
+        className={`inline-block h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.25)] transition-transform
+          ${checked ? "translate-x-[17.5px]" : "translate-x-[2.5px]"}`}
       />
     </button>
   );
@@ -114,6 +123,8 @@ interface TextInputProps {
   placeholder?: string;
   type?: "text" | "url" | "password";
   disabled?: boolean;
+  /** Render in the monospace face (URLs, tokens, technical ids). */
+  mono?: boolean;
 }
 
 export function TextInput({
@@ -122,6 +133,7 @@ export function TextInput({
   placeholder,
   type = "text",
   disabled,
+  mono = false,
 }: TextInputProps) {
   return (
     <input
@@ -130,11 +142,8 @@ export function TextInput({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px]
-        text-gray-800 placeholder-gray-400
-        focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400
-        dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500
-        disabled:opacity-50"
+      spellCheck={false}
+      className={`${FIELD} w-full px-2.5 ${mono ? "font-mono text-[12px]" : ""}`}
     />
   );
 }
@@ -160,8 +169,27 @@ export function NumberInput({
   suffix,
   disabled,
 }: NumberInputProps) {
+  const clamp = (v: number) =>
+    Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min ?? Number.NEGATIVE_INFINITY, v));
+  const stepBtn =
+    "flex h-full w-[26px] items-center justify-center text-[15px] text-[var(--s-fg-muted)] " +
+    "hover:bg-[var(--s-hover)] disabled:cursor-not-allowed disabled:hover:bg-transparent focus:outline-none " +
+    "focus-visible:bg-[var(--s-hover)]";
   return (
-    <div className="flex items-center gap-2">
+    <div
+      className={`inline-flex h-[31px] items-center overflow-hidden rounded-lg border border-[var(--s-line)] bg-[var(--s-card)]
+        focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)] ${disabled ? "opacity-45" : ""}`}
+    >
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        disabled={disabled || (min !== undefined && value <= min)}
+        onClick={() => onChange(clamp(value - step))}
+        className={stepBtn}
+      >
+        −
+      </button>
       <input
         type="number"
         value={value}
@@ -170,17 +198,25 @@ export function NumberInput({
         max={max}
         step={step}
         disabled={disabled}
-        className="w-20 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[13px] text-center
-          text-gray-800 tabular-nums
-          focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400
-          dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200
-          disabled:opacity-50"
+        className="w-11 bg-transparent text-center font-mono text-[12.5px] tabular-nums text-[var(--s-fg)] outline-none
+          [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none
+          disabled:cursor-not-allowed"
       />
       {suffix && (
-        <span className="text-[12px] text-gray-400 dark:text-gray-500">
+        <span className="pr-1 text-[11px] text-[var(--s-fg-subtle)]">
           {suffix}
         </span>
       )}
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        disabled={disabled || (max !== undefined && value >= max)}
+        onClick={() => onChange(clamp(value + step))}
+        className={stepBtn}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -197,21 +233,19 @@ interface SelectProps {
   onChange: (value: string) => void;
   options: SelectOption[];
   disabled?: boolean;
+  ariaLabel?: string;
 }
 
-export function Select({ value, onChange, options, disabled }: SelectProps) {
+export function Select({ value, onChange, options, disabled, ariaLabel }: SelectProps) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[13px]
-        text-gray-800 appearance-none pr-7
-        focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400
-        dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200
-        disabled:opacity-50
-        bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%2F%3E%3C%2Fsvg%3E')]
-        bg-[position:right_6px_center] bg-no-repeat"
+      aria-label={ariaLabel}
+      className={`${FIELD} max-w-[260px] appearance-none pl-2.5 pr-7
+        bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%238a91a2%22%20stroke-width%3D%222.5%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%2F%3E%3C%2Fsvg%3E')]
+        bg-[position:right_10px_center] bg-no-repeat`}
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -220,6 +254,86 @@ export function Select({ value, onChange, options, disabled }: SelectProps) {
       ))}
     </select>
   );
+}
+
+/* ── Segmented control ──────────────────────────────────────────── */
+
+interface SegmentedOption<T extends string> {
+  value: T;
+  label: ReactNode;
+  /** Accessible name when the label is not plain text. */
+  ariaLabel?: string;
+  disabled?: boolean;
+}
+
+export function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+  disabled,
+  ariaLabel,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: SegmentedOption<T>[];
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className="inline-flex flex-wrap gap-0.5 rounded-[9px] bg-gray-900/[0.06] p-[3px] dark:bg-white/[0.06]"
+    >
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={active}
+            aria-label={opt.ariaLabel}
+            disabled={disabled || opt.disabled}
+            onClick={() => onChange(opt.value)}
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-[11px] py-[5px] text-[12px] transition-colors
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
+              disabled:cursor-not-allowed disabled:opacity-40 ${
+                active
+                  ? "bg-[var(--s-card)] font-medium text-[var(--s-fg)] shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
+                  : "text-[var(--s-fg-muted)] hover:text-[var(--s-fg)]"
+              }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+
+const BUTTON_VARIANTS = {
+  secondary:
+    "border-[var(--s-line)] bg-[var(--s-card)] text-[var(--s-fg)] hover:bg-[var(--s-hover)]",
+  primary:
+    "border-[var(--accent)] bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)]",
+  danger:
+    "border-[var(--s-line)] bg-[var(--s-card)] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30",
+  ghost:
+    "border-transparent bg-transparent text-[var(--s-fg-muted)] hover:bg-[var(--s-hover)] hover:text-[var(--s-fg)]",
+} as const;
+
+/** Class names for a settings button; use on <button> or <a>. */
+export function buttonClass(
+  variant: keyof typeof BUTTON_VARIANTS = "secondary",
+  size: "md" | "sm" = "md",
+): string {
+  return `inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border font-medium transition-colors
+    focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1
+    disabled:cursor-not-allowed disabled:opacity-50 ${
+      size === "sm" ? "h-[27px] px-2.5 text-[11.5px]" : "h-[31px] px-3 text-[12.5px]"
+    } ${BUTTON_VARIANTS[variant]}`;
 }
 
 /* ── Shortcut input ────────────────────────────────────────────── */
@@ -260,6 +374,13 @@ export function formatAcceleratorForDisplay(accel: string): string {
       return part;
     })
     .join(isMac ? "" : "+");
+}
+
+/** Split a display accelerator into individual key caps ("⌘⇧F8" → ⌘ ⇧ F8). */
+function splitAcceleratorDisplay(display: string): string[] {
+  return display.includes("+")
+    ? display.split("+")
+    : Array.from(display.matchAll(/[⌘⌥⇧⌃]|[^⌘⌥⇧⌃]+/g), (m) => m[0]);
 }
 
 interface ShortcutInputProps {
@@ -304,41 +425,54 @@ export function ShortcutInput({ value, onChange, disabled }: ShortcutInputProps)
     };
   }, [recording, onChange]);
 
+  const display = value ? formatAcceleratorForDisplay(value) : "";
+  const keys = display ? splitAcceleratorDisplay(display) : [];
+
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       <button
         ref={ref}
         type="button"
         disabled={disabled}
+        aria-label={recording ? t("shortcuts.recording") : display || t("shortcuts.notSet")}
         onClick={() => { if (!disabled) setRecording(true); }}
-        className={`min-w-[120px] rounded-md border px-2.5 py-1.5 text-[12px] text-left transition-colors
-          focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
+        className={`inline-flex h-[31px] min-w-[132px] items-center justify-center gap-[3px] rounded-lg border px-2.5 text-[12px] transition-[border-color,box-shadow]
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
           ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
           ${recording
-            ? "border-blue-400 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-500 animate-pulse"
+            ? "border-[var(--accent)] bg-[var(--s-card)] text-[11.5px] text-[var(--accent)] shadow-[0_0_0_3px_var(--accent-soft)]"
             : value
-              ? "border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-              : "border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500"
+              ? "border-[var(--s-line)] bg-[var(--s-card)] font-mono text-[var(--s-fg)] hover:border-gray-300 dark:hover:border-gray-600"
+              : "border-dashed border-[var(--s-line)] bg-[var(--s-card)] italic text-[var(--s-fg-subtle)] hover:border-gray-300 dark:hover:border-gray-600"
           }`}
       >
         {recording
           ? t("shortcuts.recording")
           : value
-            ? formatAcceleratorForDisplay(value)
+            ? keys.map((key, i) => (
+                <kbd
+                  key={i}
+                  className="rounded bg-gray-900/[0.07] px-[5px] py-px font-mono text-[11.5px] dark:bg-white/[0.08]"
+                >
+                  {key}
+                </kbd>
+              ))
             : t("shortcuts.notSet")}
       </button>
-      {value && !recording && !disabled && (
+      {value && !recording && !disabled ? (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
-            focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--s-fg-subtle)] hover:bg-[var(--s-hover)] hover:text-[var(--s-fg)]
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           title={t("shortcuts.clearShortcut")}
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+      ) : (
+        <span className="w-6" aria-hidden="true" />
       )}
     </div>
   );

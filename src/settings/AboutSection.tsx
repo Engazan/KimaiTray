@@ -35,11 +35,11 @@ function LinkButton({
       onContextMenu={openLinkContextMenu}
       disabled={disabled}
       className={`flex items-center gap-2 px-4 py-2.5 text-[12px]
-        focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
+        focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]
         transition-colors w-full text-left
         ${disabled
           ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          : "text-[var(--s-fg-muted)] hover:bg-[var(--s-hover)]"
         }`}
     >
       {icon}
@@ -51,7 +51,7 @@ function LinkButton({
 function ExternalIcon() {
   return (
     <svg
-      className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500"
+      className="h-3.5 w-3.5 shrink-0 text-[var(--s-fg-subtle)]"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -77,13 +77,13 @@ export default function AboutSection() {
   return (
     <SettingsPage title={t("aboutSection.title")}>
       <SettingsCard>
-        <div className="text-[15px] font-semibold text-gray-800 dark:text-gray-200">
+        <div className="text-[15px] font-semibold text-[var(--s-fg)]">
           {t("aboutSection.appName")}
         </div>
-        <div className="text-[12px] text-gray-500 dark:text-gray-400">
+        <div className="text-[12px] text-[var(--s-fg-muted)]">
           {appVersion && t("aboutSection.version", { version: appVersion })}
         </div>
-        <div className="mt-2 text-[12px] text-gray-400 dark:text-gray-500">
+        <div className="mt-2 text-[12px] text-[var(--s-fg-subtle)]">
           {t("aboutSection.appDescription")}
         </div>
       </SettingsCard>
@@ -114,7 +114,7 @@ export default function AboutSection() {
       </SettingsList>
 
       <SettingsCard title={t("aboutSection.supportTitle")}>
-        <p className="mb-3 text-[12px] text-gray-400 dark:text-gray-500">
+        <p className="mb-3 text-[12px] text-[var(--s-fg-subtle)]">
           {t("aboutSection.supportDescription")}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -177,7 +177,7 @@ function DonateButton({
       onContextMenu={openLinkContextMenu}
       disabled={disabled}
       className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-opacity
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-400
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[var(--accent)]
         ${disabled ? "opacity-40 cursor-not-allowed" : "hover:opacity-85 active:opacity-75"}`}
       style={{
         backgroundColor: color,

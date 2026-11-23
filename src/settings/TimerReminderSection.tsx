@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../types";
 import { showFullscreenReminder } from "../api/reminderWindow";
 import { logger } from "../utils/logger";
-import { NumberInput, Toggle } from "./Controls";
+import { NumberInput, Toggle, buttonClass } from "./Controls";
 import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
 
 interface Props {
@@ -37,6 +37,7 @@ export default function TimerReminderSection({ settings, update }: Props) {
           description={t("timerReminder.enableDescription")}
         >
           <Toggle
+            ariaLabel={t("timerReminder.enable")}
             checked={settings.enableNoTimerReminder}
             onChange={(value) => update("enableNoTimerReminder", value)}
           />
@@ -45,6 +46,7 @@ export default function TimerReminderSection({ settings, update }: Props) {
         <SettingsRow
           label={t("timerReminder.threshold")}
           description={t("timerReminder.thresholdDescription")}
+          dimmed={!settings.enableNoTimerReminder}
         >
           <NumberInput
             value={settings.noTimerReminderMinutes}
@@ -64,7 +66,7 @@ export default function TimerReminderSection({ settings, update }: Props) {
             type="button"
             disabled={testing}
             onClick={() => void testReminder()}
-            className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className={buttonClass()}
           >
             {testing ? t("timerReminder.testing") : t("timerReminder.testButton")}
           </button>

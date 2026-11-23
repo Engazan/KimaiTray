@@ -5,13 +5,8 @@ import rawChangelog from "../../CHANGELOG.md?raw";
 import { loadFavorites, moveFavorites } from "../api/favoritesStore";
 import { extractVersionChangelog } from "../api/changelog";
 import { showChangelogWindow } from "../api/changelogWindow";
-import {
-  Divider,
-  FieldGroup,
-  SectionDescription,
-  SectionTitle,
-  Select,
-} from "./Controls";
+import { Select, buttonClass } from "./Controls";
+import { SettingsList, SettingsPage, SettingsRow } from "./SettingsLayout";
 
 interface Props {
   settings: AppSettings;
@@ -95,108 +90,84 @@ export default function TestSection({ settings, appVersion }: Props) {
   const previewVersion = appVersion || import.meta.env.VITE_APP_VERSION;
 
   return (
-    <div>
-      <SectionTitle>{t("testSection.title")}</SectionTitle>
-      <SectionDescription>{t("testSection.description")}</SectionDescription>
-
-      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
-        {t("testSection.moveFavorites")}
-      </div>
-      <div className="mb-2 text-[11px] text-gray-400 dark:text-gray-500">
-        {t("testSection.moveFavoritesDescription")}
-      </div>
-
-      {connections.length < 2 ? (
-        <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-[12px] text-gray-500 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
-          {t("testSection.needTwo")}
-        </div>
-      ) : (
-        <>
-          <FieldGroup label={t("testSection.from")} horizontal>
-            <Select
-              value={fromId}
-              onChange={(v) => {
-                setFromId(v);
-                setResult(null);
-              }}
-              options={connectionOptions}
-            />
-          </FieldGroup>
-
-          <FieldGroup label={t("testSection.to")} horizontal>
-            <Select
-              value={toId}
-              onChange={(v) => {
-                setToId(v);
-                setResult(null);
-              }}
-              options={connectionOptions}
-            />
-          </FieldGroup>
-
-          <Divider />
-
-          <div className="flex items-center gap-3 py-2">
-            <button
-              type="button"
-              disabled={!canMove}
-              onClick={handleMove}
-              className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] font-medium
-                text-gray-700 transition-colors
-                hover:bg-gray-100 active:bg-gray-150
-                focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
-                dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700
-                disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {t("testSection.move")}
-            </button>
-            <span className="text-[11px] text-gray-400 dark:text-gray-500">
-              {t("testSection.count", { count: fromCount })}
-            </span>
+    <SettingsPage title={t("testSection.title")} description={t("testSection.description")}>
+      <SettingsList title={t("testSection.moveFavorites")} description={t("testSection.moveFavoritesDescription")}>
+        {connections.length < 2 ? (
+          <div data-settings-item className="px-4 py-3 text-[12px] text-[var(--s-fg-muted)]">
+            {t("testSection.needTwo")}
           </div>
+        ) : (
+          <>
+            <SettingsRow label={t("testSection.from")}>
+              <Select
+                ariaLabel={t("testSection.from")}
+                value={fromId}
+                onChange={(v) => {
+                  setFromId(v);
+                  setResult(null);
+                }}
+                options={connectionOptions}
+              />
+            </SettingsRow>
+            <SettingsRow label={t("testSection.to")}>
+              <Select
+                ariaLabel={t("testSection.to")}
+                value={toId}
+                onChange={(v) => {
+                  setToId(v);
+                  setResult(null);
+                }}
+                options={connectionOptions}
+              />
+            </SettingsRow>
+            <SettingsRow
+              label={t("testSection.move")}
+              description={
+                <>
+                  {t("testSection.count", { count: fromCount })}
+                  {result?.type === "moved" && (
+                    <span className="mt-1 block text-emerald-600 dark:text-emerald-400">
+                      {t("testSection.moved", { count: result.count })}
+                    </span>
+                  )}
+                  {result?.type === "nothing" && (
+                    <span className="mt-1 block text-[var(--s-fg-muted)]">{t("testSection.nothing")}</span>
+                  )}
+                  {result?.type === "error" && (
+                    <span className="mt-1 block text-red-500 dark:text-red-400">{t("testSection.error")}</span>
+                  )}
+                </>
+              }
+            >
+              <button
+                type="button"
+                disabled={!canMove}
+                onClick={handleMove}
+                className={buttonClass("primary")}
+              >
+                {t("testSection.move")}
+              </button>
+            </SettingsRow>
+          </>
+        )}
+      </SettingsList>
 
-          {result?.type === "moved" && (
-            <span className="text-[11px] text-green-600 dark:text-green-400">
-              {t("testSection.moved", { count: result.count })}
-            </span>
-          )}
-          {result?.type === "nothing" && (
-            <span className="text-[11px] text-gray-500 dark:text-gray-400">
-              {t("testSection.nothing")}
-            </span>
-          )}
-          {result?.type === "error" && (
-            <span className="text-[11px] text-red-500 dark:text-red-400">
-              {t("testSection.error")}
-            </span>
-          )}
-        </>
-      )}
-
-      <Divider />
-
-      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
-        {t("testSection.changelog")}
-      </div>
-      <div className="mb-2 text-[11px] text-gray-400 dark:text-gray-500">
-        {t("testSection.changelogDescription")}
-      </div>
-      <button
-        type="button"
-        onClick={() =>
-          void showChangelogWindow({
-            version: previewVersion,
-            body: extractVersionChangelog(rawChangelog, previewVersion) ?? "",
-          })
-        }
-        className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-[12px] font-medium
-          text-gray-700 transition-colors hover:bg-gray-100
-          focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400
-          dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-      >
-        {t("testSection.showChangelog")}
-      </button>
-
-    </div>
+      <SettingsList>
+        <SettingsRow label={t("testSection.changelog")} description={t("testSection.changelogDescription")}>
+          <button
+            type="button"
+            onClick={() =>
+              void showChangelogWindow({
+                version: previewVersion,
+                body: extractVersionChangelog(rawChangelog, previewVersion) ?? "",
+              })
+            }
+            className={buttonClass()}
+          >
+            {t("testSection.showChangelog")}
+          </button>
+        </SettingsRow>
+      </SettingsList>
+    </SettingsPage>
   );
 }

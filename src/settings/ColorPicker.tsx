@@ -94,10 +94,10 @@ export default function ColorPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`w-full rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        className={`w-full rounded-[9px] border bg-[var(--s-card)] transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
           open
-            ? "border-[var(--accent)]/40 ring-2 ring-[var(--accent)]/20"
-            : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
+            ? "border-[var(--accent)] shadow-[0_0_0_3px_var(--accent-soft)]"
+            : "border-[var(--s-line)] hover:border-gray-300 dark:hover:border-gray-600"
         }`}
       >
         {children}
@@ -107,7 +107,7 @@ export default function ColorPicker({
         <div
           ref={popRef}
           role="dialog"
-          className={`absolute z-50 w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-xl dark:border-gray-700 dark:bg-gray-800 ${alignCls} ${
+          className={`absolute z-50 w-56 rounded-xl border border-[var(--s-line)] bg-[var(--s-card)] p-3 shadow-xl ${alignCls} ${
             flip ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >
@@ -161,7 +161,7 @@ export default function ColorPicker({
                   if (v) onChange(v);
                 }}
                 onBlur={() => setDraft(value)}
-                className={`w-full rounded-lg border bg-transparent py-1 pl-5 pr-2 text-[12px] font-mono uppercase tracking-wide focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                className={`w-full rounded-lg border bg-transparent py-1 pl-5 pr-2 text-[12px] font-mono uppercase tracking-wide focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
                   hexValid
                     ? "border-gray-200 dark:border-gray-600"
                     : "border-red-300 dark:border-red-700"
