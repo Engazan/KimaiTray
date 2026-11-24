@@ -44,6 +44,8 @@ const mocks = vi.hoisted(() => ({
   changelog: { claim: vi.fn(), remember: vi.fn(), show: vi.fn() },
   getVersion: vi.fn(),
   loggerError: vi.fn(),
+  invoke: vi.fn(),
+  platform: vi.fn(),
   issueProvider: {} as any,
   activeProps: null as any,
   formIssue: null as any,
@@ -60,6 +62,8 @@ vi.mock("../integrations/issues/issueTimeSyncStore", () => ({
 }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }) }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => mocks.queryClient }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
+vi.mock("../platform", () => ({ currentPlatform: mocks.platform }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: mocks.getVersion }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -176,6 +180,7 @@ const task = { key: "10-20", projectId: 10, activityId: 20, project: "Project", 
 const timer = { id: 7, projectId: 10, activityId: 20, project: "Project", activity: "Activity", description: "https://git.test/issues/1", beginSeconds: 100 };
 
 beforeEach(() => {
+  mocks.platform.mockReturnValue({ os: "unknown" });
   vi.clearAllMocks();
   mocks.events.clear();
   mocks.syncJobs = [];
@@ -267,6 +272,20 @@ describe("TrayPopup", () => {
     expect(screen.queryByTestId("new-form")).toBeNull();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(mocks.windowHide).toHaveBeenCalled();
+  });
+
+  it("dismisses the native macOS panel on Escape and logs a failed dismissal", async () => {
+    mocks.platform.mockReturnValue({ os: "macos" });
+    mocks.invoke.mockRejectedValueOnce(new Error("panel unavailable"));
+    render(<TrayPopup />);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(mocks.invoke).toHaveBeenCalledWith("dismiss_tray_popup");
+    expect(mocks.windowHide).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.loggerError).toHaveBeenCalledWith(
+      "Failed to dismiss tray popup: Error: panel unavailable",
+    ));
   });
 
   it("filters tasks by typing and starts the first match from the keyboard", async () => {

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.22.22] - 2026-11-24
+
+### Improvements
+
+- **Redesigned Settings** — find settings and connection options with Cmd/Ctrl+K or /. Grouped navigation and autosave indicators make it easier to see where changes are saved.
+- **Live Appearance and Tray previews** — preview the popup theme, layout, and size, and see how tray changes will look on your platform. Pick the popup monitor position visually where supported.
+
+### Bug Fixes
+
+- **macOS tray popup in Spaces and fullscreen** ([#52](https://github.com/Engazan/KimaiTray/issues/52)) — open the popup on the active Space, including over fullscreen apps. Switching to the Transparent theme applies the effect to the active panel.
+
+### Security
+
+- **Updated Rust dependencies** — update `url` and `cookie` to address RUSTSEC-2026-0592 and RUSTSEC-2026-0594.
+
 ## [0.22.21] - 2026-11-20
 
 ### New Features
