@@ -91,25 +91,53 @@ pub(in crate::tray) fn position_popup(
     window.set_position(position)
 }
 pub(in crate::tray) fn set_vibrancy(window: &WebviewWindow, enabled: bool) -> Result<(), String> {
+    use objc2_app_kit::{NSView, NSWindow};
+    use raw_window_handle::{AppKitWindowHandle, HandleError, HasWindowHandle, WindowHandle};
+    use std::ptr::NonNull;
     use window_vibrancy::{
         apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial, NSVisualEffectState,
     };
-    let applied = VIBRANCY_APPLIED.load(Ordering::SeqCst);
-    if enabled && !applied {
-        apply_vibrancy(
-            window,
-            NSVisualEffectMaterial::Popover,
-            Some(NSVisualEffectState::Active),
-            None,
-        )
-        .map_err(|e| format!("{e}"))?;
-        VIBRANCY_APPLIED.store(true, Ordering::SeqCst);
-    } else if !enabled && applied {
-        clear_vibrancy(window).map_err(|e| format!("{e}"))?;
-        VIBRANCY_APPLIED.store(false, Ordering::SeqCst);
+
+    struct ContentViewHandle<'a>(&'a NSView);
+
+    impl HasWindowHandle for ContentViewHandle<'_> {
+        fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+            let handle = AppKitWindowHandle::new(NonNull::from(self.0).cast());
+            // SAFETY: The borrowed NSView is alive for the returned handle's lifetime.
+            Ok(unsafe { WindowHandle::borrow_raw(handle.into()) })
+        }
     }
 
-    Ok(())
+    window
+        .with_webview(move |webview| {
+            if enabled == VIBRANCY_APPLIED.load(Ordering::SeqCst) {
+                return;
+            }
+            // SAFETY: Wry returns the WKWebView's current host window and keeps it
+            // alive on the AppKit thread for this callback.
+            let Some(host) = (unsafe { webview.ns_window().cast::<NSWindow>().as_ref() }) else {
+                return;
+            };
+            let Some(content) = host.contentView() else {
+                return;
+            };
+            let handle = ContentViewHandle(&content);
+            let result = if enabled {
+                apply_vibrancy(
+                    handle,
+                    NSVisualEffectMaterial::Popover,
+                    Some(NSVisualEffectState::Active),
+                    None,
+                )
+            } else {
+                clear_vibrancy(handle).map(|_| ())
+            };
+            match result {
+                Ok(()) => VIBRANCY_APPLIED.store(enabled, Ordering::SeqCst),
+                Err(error) => log::warn!("Failed to update tray popup vibrancy: {error}"),
+            }
+        })
+        .map_err(|error| error.to_string())
 }
 pub(in crate::tray) fn set_corner_radius(
     window: &WebviewWindow,

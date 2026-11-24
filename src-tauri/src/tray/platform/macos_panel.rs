@@ -5,7 +5,7 @@ use objc2::{
     MainThreadOnly, Message,
 };
 use objc2_app_kit::{
-    NSBackingStoreType, NSPanel, NSPopUpMenuWindowLevel, NSWindow,
+    NSBackingStoreType, NSPanel, NSPopUpMenuWindowLevel, NSView, NSWindow,
     NSWindowCollectionBehavior as Behavior, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::NSNotification;
@@ -115,7 +115,9 @@ fn create_panel(original: &NSWindow) -> Option<Retained<TrayPanel>> {
     panel.setCollectionBehavior(behavior);
 
     original.orderOut(None);
-    original.setContentView(None);
+    // Tao expects its native window to retain a content view even while hidden.
+    let placeholder = NSView::initWithFrame(original.mtm().alloc(), content.frame());
+    original.setContentView(Some(&placeholder));
     panel.setContentView(Some(&content));
     panel.setDelegate(Some(ProtocolObject::from_ref(&*panel)));
     PANEL.with_borrow_mut(|state| {
