@@ -1,7 +1,7 @@
 #[cfg(target_os = "linux")]
 use super::platform::linux::{linux_uses_appindicator, position_legacy_popup};
 #[cfg(target_os = "macos")]
-use super::platform::macos::apply_true_tray_from_store;
+use super::platform::{macos::apply_true_tray_from_store, macos_panel};
 use super::platform::{popup_interaction, position_popup, tray_scale_factor};
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -59,7 +59,7 @@ pub fn on_popup_resize() {
 fn recheck_popup_blur(window: &tauri::Window, generation: u64) -> bool {
     if POPUP_FOCUS_GENERATION.load(Ordering::SeqCst) != generation
         || is_detached()
-        || !window.is_visible().unwrap_or(false)
+        || !popup_is_visible(window)
     {
         return false;
     }
@@ -77,12 +77,17 @@ fn recheck_popup_blur(window: &tauri::Window, generation: u64) -> bool {
         // Keep watching for a real click away unless a focus-in event cancels us.
         PopupBlurAction::KeepOpen | PopupBlurAction::Wait => true,
         PopupBlurAction::RestoreFocus => {
+            #[cfg(target_os = "macos")]
+            if let Some(popup) = window.app_handle().get_webview_window("tray-popup") {
+                present_popup(&popup);
+                return true;
+            }
             let _ = window.set_focus();
             true
         }
         PopupBlurAction::Hide => {
             LAST_POPUP_HIDE.store(now_ms(), Ordering::SeqCst);
-            let _ = window.hide();
+            hide_popup_window(window);
             false
         }
     }
@@ -128,14 +133,62 @@ pub(super) fn restore_and_focus_popup(popup: &WebviewWindow) {
     let _ = popup.set_focus();
 }
 
+pub(super) fn popup_is_visible(window: &tauri::Window) -> bool {
+    #[cfg(target_os = "macos")]
+    if !is_detached() {
+        return macos_panel::panel_window()
+            .is_some_and(|panel| panel.isVisible() && panel.isOnActiveSpace());
+    }
+    window.is_visible().unwrap_or(false)
+}
+
+pub(super) fn hide_popup_window(window: &tauri::Window) {
+    #[cfg(target_os = "macos")]
+    if !is_detached() {
+        if let Some(panel) = macos_panel::panel_window() {
+            panel.orderOut(None);
+        }
+        return;
+    }
+    let _ = window.hide();
+}
+
+#[tauri::command]
+pub fn dismiss_tray_popup(app: AppHandle) -> Result<(), String> {
+    let popup = app
+        .get_webview_window("tray-popup")
+        .ok_or("Popup not found")?;
+    let handle = popup.as_ref().window();
+    popup
+        .run_on_main_thread(move || {
+            if !is_detached() {
+                hide_popup_window(&handle);
+            }
+        })
+        .map_err(|error| error.to_string())
+}
+
+pub(super) fn present_popup(popup: &WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    if !is_detached() {
+        if let Err(error) = macos_panel::show(popup) {
+            log::warn!("Cannot present tray popup: {error}");
+        }
+        return;
+    }
+    let _ = popup.show();
+    restore_and_focus_popup(popup);
+}
+
 #[tauri::command]
 pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
     let detached = mode == "detached";
-    DISPLAY_MODE.store(if detached { 1 } else { 0 }, Ordering::SeqCst);
-
     let window = app
         .get_webview_window("tray-popup")
         .ok_or("Popup not found")?;
+    #[cfg(target_os = "macos")]
+    let reopen_as_tray = !detached && is_detached() && window.is_visible().unwrap_or(false);
+    DISPLAY_MODE.store(if detached { 1 } else { 0 }, Ordering::SeqCst);
 
     if detached {
         // Detached windows should be freely resizable. Tray mode restores
@@ -159,6 +212,14 @@ pub fn set_display_mode(app: AppHandle, mode: String) -> Result<(), String> {
     window
         .set_skip_taskbar(!detached)
         .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    if detached {
+        macos_panel::restore_window(&window).map_err(|e| e.to_string())?;
+    } else if reopen_as_tray {
+        window.hide().map_err(|e| e.to_string())?;
+        show_popup_window(&app);
+    }
 
     if detached {
         let _ = window.center();
@@ -327,6 +388,8 @@ pub fn set_popup_size(app: AppHandle, width: f64, height: f64, zoom: f64) -> Res
         .map_err(|e| e.to_string())?;
 
     window.set_size(size).map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    macos_panel::sync_size(&window).map_err(|e| e.to_string())?;
     window.set_zoom(zoom).map_err(|e| e.to_string())
 }
 
@@ -339,7 +402,7 @@ pub fn set_popup_zoom(app: AppHandle, zoom: f64) -> Result<(), String> {
     window.set_zoom(zoom).map_err(|e| e.to_string())
 }
 
-pub fn show_popup_window(app: &AppHandle) {
+pub(super) fn begin_popup_activation(_app: &AppHandle) {
     // Cancel blur work from the previous opening before changing activation
     // policy, which can itself emit focus events.
     POPUP_FOCUS_GENERATION.fetch_add(1, Ordering::SeqCst);
@@ -349,10 +412,24 @@ pub fn show_popup_window(app: &AppHandle) {
     // immediately before showing/focusing the popup so a True Tray launch does
     // not leak KimaiTray into the Dock or Cmd+Tab switcher.
     #[cfg(target_os = "macos")]
-    apply_true_tray_from_store(app);
+    apply_true_tray_from_store(_app);
+}
 
+pub fn show_popup_window(app: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    if objc2::MainThreadMarker::new().is_none() {
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || show_popup_window(&handle));
+        return;
+    }
+    begin_popup_activation(app);
     if let Some(popup) = app.get_webview_window("tray-popup") {
-        if popup.is_visible().unwrap_or(false) {
+        if popup_is_visible(&popup.as_ref().window()) {
+            #[cfg(target_os = "macos")]
+            if !is_detached() {
+                present_popup(&popup);
+                return;
+            }
             restore_and_focus_popup(&popup);
         } else if is_detached() {
             let _ = popup.show();
@@ -381,19 +458,24 @@ pub fn show_popup_window(app: &AppHandle) {
                     }
                 }
             }
-            let _ = popup.show();
-            restore_and_focus_popup(&popup);
+            present_popup(&popup);
         }
     }
 }
 
 pub fn toggle_popup_window(app: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    if objc2::MainThreadMarker::new().is_none() {
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || toggle_popup_window(&handle));
+        return;
+    }
     if let Some(popup) = app.get_webview_window("tray-popup") {
-        if popup.is_visible().unwrap_or(false) {
+        if popup_is_visible(&popup.as_ref().window()) {
             if is_detached() {
                 restore_and_focus_popup(&popup);
             } else {
-                let _ = popup.hide();
+                hide_popup_window(&popup.as_ref().window());
             }
         } else {
             show_popup_window(app);

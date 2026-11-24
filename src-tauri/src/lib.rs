@@ -216,6 +216,7 @@ pub fn run() {
             tray::menu::update_tray_menu,
             tray::menu::set_tray_click_actions,
             tray::popup::set_display_mode,
+            tray::popup::dismiss_tray_popup,
             tray::popup::set_always_on_top,
             tray::ticker::start_tray_ticker,
             tray::ticker::stop_tray_ticker,

@@ -8,7 +8,11 @@ pub(in crate::tray) fn popup_interaction(window: &tauri::Window) -> Option<Popup
     use objc::runtime::{Object, BOOL, NO};
     use objc::{class, msg_send, sel, sel_impl};
 
-    let native = window.ns_window().ok()?.cast::<Object>();
+    let panel = super::macos_panel::panel_window();
+    let native = match panel.as_deref() {
+        Some(panel) => std::ptr::from_ref(panel).cast_mut().cast::<Object>(),
+        None => window.ns_window().ok()?.cast::<Object>(),
+    };
     if native.is_null() {
         return None;
     }

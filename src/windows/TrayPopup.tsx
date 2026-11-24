@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
+import { currentPlatform } from "../platform";
 import HeaderStatus from "../components/HeaderStatus";
 import IssueTimeSyncFeedback from "../components/IssueTimeSyncFeedback";
 import ActiveTimerCard from "../components/ActiveTimerCard";
@@ -352,7 +354,11 @@ export default function TrayPopup() {
           setShowNewTask(false);
           setNewTaskShortcutRequest(0);
         } else if (!isDetached) {
-          getCurrentWindow().hide();
+          if (currentPlatform().os === "macos") {
+            void invoke("dismiss_tray_popup").catch((error) => logger.error(`Failed to dismiss tray popup: ${String(error)}`));
+          } else {
+            void getCurrentWindow().hide();
+          }
         }
       }
     };

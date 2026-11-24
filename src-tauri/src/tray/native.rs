@@ -1,5 +1,7 @@
 #[cfg(target_os = "linux")]
 use super::platform::linux::attach_appindicator_popup_activation;
+#[cfg(target_os = "macos")]
+use super::popup::begin_popup_activation;
 use super::popup::suppress_reopen;
 use super::{
     actions::{open_kimai, refresh_popup, show_settings_window},
@@ -10,7 +12,9 @@ use super::{
 #[cfg(not(target_os = "linux"))]
 use super::{
     platform::{position_popup, tray_scale_factor},
-    popup::{is_detached, restore_and_focus_popup},
+    popup::{
+        hide_popup_window, is_detached, popup_is_visible, present_popup, restore_and_focus_popup,
+    },
 };
 use tauri::{
     image::Image,
@@ -72,37 +76,46 @@ pub(super) fn create_tauri_tray(app: &AppHandle) -> tauri::Result<()> {
             {
                 if let TrayIconEvent::Click {
                     button,
-                    button_state: MouseButtonState::Up,
+                    button_state,
                     rect,
                     ..
                 } = event
                 {
+                    // In a fullscreen Space the transient macOS menu bar can
+                    // stop tracking the status item before mouse-up arrives.
+                    #[cfg(target_os = "macos")]
+                    let trigger_state = MouseButtonState::Down;
+                    #[cfg(not(target_os = "macos"))]
+                    let trigger_state = MouseButtonState::Up;
+                    if button_state != trigger_state {
+                        return;
+                    }
                     let should_toggle = match button {
                         MouseButton::Left => left_click_opens_popup(),
                         MouseButton::Right => right_click_opens_popup(),
                         _ => false,
                     };
+                    #[cfg(target_os = "macos")]
+                    log::debug!("Tray mouse down: button={button:?}, opens_popup={should_toggle}");
                     if should_toggle {
                         let app = tray.app_handle();
                         if let Some(popup) = app.get_webview_window("tray-popup") {
-                            if popup.is_visible().unwrap_or(false) {
+                            if popup_is_visible(&popup.as_ref().window()) {
                                 if is_detached() {
                                     restore_and_focus_popup(&popup);
                                 } else {
-                                    let _ = popup.hide();
+                                    hide_popup_window(&popup.as_ref().window());
                                 }
                             } else {
                                 if suppress_reopen() {
                                     return;
                                 }
-                                if is_detached() {
-                                    let _ = popup.show();
-                                    restore_and_focus_popup(&popup);
-                                } else {
+                                #[cfg(target_os = "macos")]
+                                begin_popup_activation(app);
+                                if !is_detached() {
                                     let _ = position_popup(&popup, &rect, tray_scale_factor(tray));
-                                    let _ = popup.show();
-                                    restore_and_focus_popup(&popup);
                                 }
+                                present_popup(&popup);
                             }
                         }
                     }

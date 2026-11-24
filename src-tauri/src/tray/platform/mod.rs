@@ -4,6 +4,8 @@ mod backend_choice;
 pub(super) mod linux;
 #[cfg(target_os = "macos")]
 pub(super) mod macos;
+#[cfg(target_os = "macos")]
+pub(super) mod macos_panel;
 #[cfg(target_os = "windows")]
 mod windows;
 
